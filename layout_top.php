@@ -151,13 +151,53 @@
 								echo '<li>';
 							}
 						?>
-                        <!-- open <li> tag generated with php, see line 155-160 -->
-						
-                        <!-- open <li> tag generated with php, see line 155-160 -->
+						<!-- Insentif menu -->
+						<?php
+							if(isset($menuparent) && $menuparent == "insentif") {
+								echo '<li class="active">';
+							}
+							else {
+								echo '<li>';
+							}
+						?>
+							<a href="#"><i class="fa fa-money fa-fw"></i>&nbsp;Insentif<span class="fa arrow"></span></a>
+							<ul class="nav nav-second-level">
+								<?php
+									if($pagedesc == "Upload Insentif Kurir") {
+										echo '<li><a href="direktur/insentif_kurir_upload.php" class="active">Upload Insentif Kurir</a></li>';
+									}
+									else {
+										echo '<li><a href="direktur/insentif_kurir_upload.php">Upload Insentif Kurir</a></li>';
+									}
+									if($pagedesc == "Daftar Insentif Kurir") {
+										echo '<li><a href="direktur/insentif_kurir_list.php" class="active">Daftar Insentif Kurir</a></li>';
+									}
+									else {
+										echo '<li><a href="direktur/insentif_kurir_list.php">Daftar Insentif Kurir</a></li>';
+									}
+									if($pagedesc == "Upload Absensi Karyawan") {
+										echo '<li><a href="direktur/insentif_karyawan_upload.php" class="active">Upload Absensi Karyawan</a></li>';
+									}
+									else {
+										echo '<li><a href="direktur/insentif_karyawan_upload.php">Upload Absensi Karyawan</a></li>';
+									}
+									if($pagedesc == "Daftar Absensi Karyawan") {
+										echo '<li><a href="direktur/insentif_karyawan_list.php" class="active">Daftar Absensi Karyawan</a></li>';
+									}
+									else {
+										echo '<li><a href="direktur/insentif_karyawan_list.php">Daftar Absensi Karyawan</a></li>';
+									}
+								?>
+							</ul><!-- /.nav-second-level -->
+						</li>
+
+						<!-- open <li> tag generated with php, see line 155-160 -->
+
+						<!-- open <li> tag generated with php, see line 155-160 -->
 
 						 <!-- open <li> tag generated with php, see line 155-160 -->
-						
-							
+
+                            
 						<?php
 							if(isset($menuparent) && $menuparent == "laporan") {
 								echo '<li class="active">';
