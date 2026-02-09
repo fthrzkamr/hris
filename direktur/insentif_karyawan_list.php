@@ -18,7 +18,7 @@ $sql = "SELECT
             b.nama_bagian
         FROM absensi_karyawan ak
         LEFT JOIN employee e ON ak.npp = e.npp
-        LEFT JOIN bagian b ON e.nama_bagian = b.id
+        LEFT JOIN bagian b ON e.nama_bagian = b.id_bagian
         WHERE 1=1";
 
 if (!empty($filter_tanggal_dari)) {
@@ -129,6 +129,7 @@ $query = mysqli_query($conn, $sql);
                                             <th>Durasi Kerja</th>
                                             <th>Status</th>
                                             <th>Tgl Update</th>
+                                            <th>Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -182,6 +183,21 @@ $query = mysqli_query($conn, $sql);
                                                 </span>
                                             </td>
                                             <td><?php echo date('d/m/Y H:i', strtotime($row['updated_at'])); ?></td>
+                                            <td class="text-center">
+                                                <?php
+                                                // Show Edit button for entries that may need manual correction
+                                                $needs_edit = false;
+                                                if (empty($row['jam_pulang']) || $row['jam_pulang'] == '00:00:00' || $row['jam_pulang'] == '16:00:00' || $row['status_absensi'] == 'Pulang Awal') {
+                                                    $needs_edit = true;
+                                                }
+
+                                                if ($needs_edit) {
+                                                    echo '<a href="insentif_karyawan_update.php?id=' . $row['id'] . '" class="btn btn-xs btn-warning"><i class="fa fa-edit"></i> Edit</a>';
+                                                } else {
+                                                    echo '-';
+                                                }
+                                                ?>
+                                            </td>
                                         </tr>
                                         <?php } ?>
                                     </tbody>

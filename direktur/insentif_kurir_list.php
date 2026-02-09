@@ -16,7 +16,7 @@ $sql = "SELECT
             b.nama_bagian
         FROM insentif_kurir ik
         LEFT JOIN employee e ON ik.npp = e.npp
-        LEFT JOIN bagian b ON e.nama_bagian = b.id
+        LEFT JOIN bagian b ON e.nama_bagian = b.id_bagian
         WHERE 1=1";
 
 if (!empty($filter_periode)) {
@@ -105,6 +105,7 @@ $query = mysqli_query($conn, $sql);
                                             <th>Pencapaian (%)</th>
                                             <th>Status</th>
                                             <th>Tgl Update</th>
+                                            <th>Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -133,6 +134,9 @@ $query = mysqli_query($conn, $sql);
                                                 </span>
                                             </td>
                                             <td><?php echo date('d/m/Y H:i', strtotime($row['updated_at'])); ?></td>
+                                                <td class="text-center">
+                                                    <a href="insentif_kurir_update.php?id=<?php echo $row['id']; ?>" class="btn btn-xs btn-primary"><i class="fa fa-edit"></i> Edit</a>
+                                                </td>
                                         </tr>
                                         <?php } ?>
                                     </tbody>

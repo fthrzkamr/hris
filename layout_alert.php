@@ -87,3 +87,15 @@
 		echo '</div>';
 	}
 ?>
+<?php
+// Display session-based alerts from processors
+if(isset($_SESSION['alert_message']) && $_SESSION['alert_message'] != '') {
+    $alert_type = isset($_SESSION['alert_type']) ? $_SESSION['alert_type'] : 'info';
+    echo '<div class="alert alert-' . $alert_type . ' alert-dismissable">';
+    echo '<button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>';
+    echo $_SESSION['alert_message'];
+    echo '</div>';
+    unset($_SESSION['alert_message']);
+    unset($_SESSION['alert_type']);
+}
+?>

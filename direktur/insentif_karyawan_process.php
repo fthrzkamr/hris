@@ -1,13 +1,6 @@
 <?php
-session_start();
-include("sess_check.php");
-include("dist/config/koneksi.php");
-
-// Check if user is logged in
-if (!isset($_SESSION['admin'])) {
-    header("Location: login.php");
-    exit();
-}
+include("../sess_check.php");
+include("../dist/config/koneksi.php");
 
 // Check if file is uploaded
 if (!isset($_FILES['excel_file'])) {
@@ -27,6 +20,25 @@ $file = $_FILES['excel_file'];
 $file_name = $file['name'];
 $file_tmp = $file['tmp_name'];
 $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+
+// Check PHP upload errors
+if (isset($file['error']) && $file['error'] !== UPLOAD_ERR_OK) {
+    $_SESSION['alert_type'] = 'danger';
+    $_SESSION['alert_message'] = 'Upload gagal: Kesalahan pada proses upload file.';
+    $phpFileUploadErrors = array(
+        UPLOAD_ERR_INI_SIZE => 'File terlalu besar (UPLOAD_ERR_INI_SIZE).',
+        UPLOAD_ERR_FORM_SIZE => 'File terlalu besar (UPLOAD_ERR_FORM_SIZE).',
+        UPLOAD_ERR_PARTIAL => 'File hanya ter-upload sebagian (UPLOAD_ERR_PARTIAL).',
+        UPLOAD_ERR_NO_FILE => 'Tidak ada file yang dipilih (UPLOAD_ERR_NO_FILE).',
+        UPLOAD_ERR_NO_TMP_DIR => 'Folder sementara hilang (UPLOAD_ERR_NO_TMP_DIR).',
+        UPLOAD_ERR_CANT_WRITE => 'Gagal menulis ke disk (UPLOAD_ERR_CANT_WRITE).',
+        UPLOAD_ERR_EXTENSION => 'Upload dihentikan oleh ekstensi PHP (UPLOAD_ERR_EXTENSION).',
+    );
+    $code = $file['error'];
+    $_SESSION['alert_details'] = isset($phpFileUploadErrors[$code]) ? $phpFileUploadErrors[$code] : ('Unknown upload error: ' . $code);
+    header("Location: insentif_karyawan_upload.php");
+    exit();
+}
 
 // Validate file extension
 if (!in_array($file_ext, ['xls', 'xlsx'])) {
@@ -178,6 +190,8 @@ try {
 } catch (Exception $e) {
     $_SESSION['alert_type'] = "danger";
     $_SESSION['alert_message'] = "Error: " . $e->getMessage();
+    // store full exception trace for debugging in UI
+    $_SESSION['alert_details'] = $e->__toString();
 }
 
 header("Location: insentif_karyawan_list.php");
