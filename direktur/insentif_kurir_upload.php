@@ -10,9 +10,7 @@ include("layout_top.php");
                 <div class="col-lg-12">
                     <h1 class="page-header">Upload Excel Insentif Kurir</h1>
                 </div>
-                <!-- /.col-lg-12 -->
             </div>
-            <!-- /.row -->
 
             <?php include("layout_alert.php"); ?>
             
@@ -31,32 +29,40 @@ include("layout_top.php");
                                 </div>
                                 
                                 <div class="alert alert-info">
-                                    <strong>Format Excel:</strong><br>
+                                    <strong>Format Excel (struktur baru, sesuai gambar):</strong><br>
                                     <ul>
                                         <li>Kolom A: npp (NPP Karyawan)</li>
-                                        <li>Kolom B: periode (Format: YYYY-MM-DD, contoh: 2025-12-01)</li>
-                                        <li>Kolom C: total_titik (Total titik yang dicapai)</li>
-                                        <li>Kolom D: target_titik (Target titik yang harus dicapai)</li>
+                                        <li>Kolom B: tanggal_absen (Format: MM/DD/YYYY atau YYYY-MM-DD atau Excel date)</li>
+                                        <li>Kolom C: jam_absen (bisa berisi "jam_masuk jam_pulang" seperti "08:49 16:02" atau hanya jam masuk; bisa juga Excel time)</li>
+                                        <li>Kolom D: jenis_tugas (opsional)</li>
+                                        <li>Kolom E: total_aktual_titik (angka)</li>
+                                        <li>Kolom F: target_titik (angka)</li>
                                     </ul>
-                                    <strong>Contoh:</strong><br>
+                                    <strong>Contoh (baris):</strong><br>
                                     <table class="table table-bordered" style="background: white; margin-top: 10px;">
                                         <tr>
                                             <th>npp</th>
-                                            <th>periode</th>
-                                            <th>total_titik</th>
+                                            <th>tanggal_absen</th>
+                                            <th>jam_absen</th>
+                                            <th>jenis_tugas</th>
+                                            <th>total_aktual_titik</th>
                                             <th>target_titik</th>
                                         </tr>
                                         <tr>
-                                            <td>23005</td>
-                                            <td>2025-12-01</td>
-                                            <td>1500</td>
-                                            <td>1000</td>
+                                            <td>22910033</td>
+                                            <td>11/26/2025</td>
+                                            <td>08:49 16:02</td>
+                                            <td>Barang</td>
+                                            <td>180</td>
+                                            <td>150</td>
                                         </tr>
                                         <tr>
-                                            <td>23006</td>
-                                            <td>2025-12-01</td>
-                                            <td>800</td>
-                                            <td>1000</td>
+                                            <td>21000025</td>
+                                            <td>12/16/2025</td>
+                                            <td>08:33 00:00</td>
+                                            <td>Tukar Faktur</td>
+                                            <td>486</td>
+                                            <td>500</td>
                                         </tr>
                                     </table>
                                 </div>
@@ -74,5 +80,4 @@ include("layout_top.php");
             </div>
             
         </div>
-        <!-- /#page-wrapper -->
 <?php include("layout_bottom.php"); ?>

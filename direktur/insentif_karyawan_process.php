@@ -1,12 +1,12 @@
 <?php
-include("../sess_check.php");
+include("sess_check.php");
 include("../dist/config/koneksi.php");
 
 // Check if file is uploaded
 if (!isset($_FILES['excel_file'])) {
-    $_SESSION['alert_type'] = "danger";
-    $_SESSION['alert_message'] = "Tidak ada file yang diupload!";
-    header("Location: insentif_karyawan_upload.php");
+    $_SESSION['alert_type'] = 'danger';
+    $_SESSION['alert_message'] = 'Tidak ada file yang diupload!';
+    header('Location: insentif_karyawan_upload.php');
     exit();
 }
 
@@ -14,186 +14,268 @@ if (!isset($_FILES['excel_file'])) {
 require_once '../vendor/autoload.php';
 
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 $file = $_FILES['excel_file'];
-$file_name = $file['name'];
 $file_tmp = $file['tmp_name'];
-$file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+$ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
 
 // Check PHP upload errors
 if (isset($file['error']) && $file['error'] !== UPLOAD_ERR_OK) {
     $_SESSION['alert_type'] = 'danger';
     $_SESSION['alert_message'] = 'Upload gagal: Kesalahan pada proses upload file.';
-    $phpFileUploadErrors = array(
-        UPLOAD_ERR_INI_SIZE => 'File terlalu besar (UPLOAD_ERR_INI_SIZE).',
-        UPLOAD_ERR_FORM_SIZE => 'File terlalu besar (UPLOAD_ERR_FORM_SIZE).',
-        UPLOAD_ERR_PARTIAL => 'File hanya ter-upload sebagian (UPLOAD_ERR_PARTIAL).',
-        UPLOAD_ERR_NO_FILE => 'Tidak ada file yang dipilih (UPLOAD_ERR_NO_FILE).',
-        UPLOAD_ERR_NO_TMP_DIR => 'Folder sementara hilang (UPLOAD_ERR_NO_TMP_DIR).',
-        UPLOAD_ERR_CANT_WRITE => 'Gagal menulis ke disk (UPLOAD_ERR_CANT_WRITE).',
-        UPLOAD_ERR_EXTENSION => 'Upload dihentikan oleh ekstensi PHP (UPLOAD_ERR_EXTENSION).',
-    );
-    $code = $file['error'];
-    $_SESSION['alert_details'] = isset($phpFileUploadErrors[$code]) ? $phpFileUploadErrors[$code] : ('Unknown upload error: ' . $code);
-    header("Location: insentif_karyawan_upload.php");
+    header('Location: insentif_karyawan_upload.php');
     exit();
 }
 
-// Validate file extension
-if (!in_array($file_ext, ['xls', 'xlsx'])) {
-    $_SESSION['alert_type'] = "danger";
-    $_SESSION['alert_message'] = "Format file tidak valid! Gunakan file .xls atau .xlsx";
-    header("Location: insentif_karyawan_upload.php");
+if (!in_array($ext, ['xls','xlsx'])) {
+    $_SESSION['alert_type'] = 'danger';
+    $_SESSION['alert_message'] = 'Format file tidak valid. Gunakan .xls atau .xlsx';
+    header('Location: insentif_karyawan_upload.php');
     exit();
 }
+
+// Business constants
+$JAM_STANDAR_MASUK = '09:15:00';
+$JAM_STANDAR_KELUAR = '16:00:00';
+$DENDA_PER_MENIT = 1000;
+$UANG_MAKAN_FULL = 300000;
+$INSENTIF_FULL_MASUK = 100000;
+$RATE_TITIK_TAMBAHAN = 20000;
+$RATE_LEMBUR_OPERASIONAL = 30000;
+$RATE_LEMBUR_AMBIL_BARANG = 50000;
+$RATE_LEMBUR_LAINNYA = 30000;
 
 try {
-    // Load spreadsheet
     $spreadsheet = IOFactory::load($file_tmp);
-    $worksheet = $spreadsheet->getActiveSheet();
-    $highestRow = $worksheet->getHighestRow();
+    $sheet = $spreadsheet->getActiveSheet();
+    $highestRow = $sheet->getHighestRow();
+
+    $success = 0;
+    $errors = [];
     
-    $success_count = 0;
-    $error_count = 0;
-    $error_messages = [];
-    
-    // Start from row 2 (skip header)
-    for ($row = 2; $row <= $highestRow; $row++) {
-        $npp = trim($worksheet->getCell('A' . $row)->getValue());
-        $tanggal_raw = $worksheet->getCell('B' . $row)->getValue();
-        $jam_masuk_raw = $worksheet->getCell('C' . $row)->getValue();
-        $jam_pulang_raw = $worksheet->getCell('D' . $row)->getValue();
-        
-        // Skip empty rows
-        if (empty($npp)) {
+    // Monthly aggregator: key = "npp|YYYY-MM"
+    $monthly_data = [];
+
+    // Read daily data from Excel (rows 2+)
+    for ($r = 2; $r <= $highestRow; $r++) {
+        $npp = trim((string)$sheet->getCell('A'.$r)->getValue());
+        if ($npp === '') continue;
+
+        $tanggal_raw = $sheet->getCell('B'.$r)->getValue();
+        $jam_absen_raw = trim((string)$sheet->getCell('C'.$r)->getValue());
+        $jenis_tugas = trim((string)$sheet->getCell('D'.$r)->getValue());
+        $aktual_raw = $sheet->getCell('E'.$r)->getValue();
+        $target_raw = $sheet->getCell('F'.$r)->getValue();
+        $lembur_ops_raw = $sheet->getCell('G'.$r)->getValue();
+        $lembur_ab_raw = $sheet->getCell('H'.$r)->getValue();
+        $lembur_lain_raw = $sheet->getCell('I'.$r)->getValue();
+
+        // Parse tanggal
+        $tanggal = null;
+        if ($tanggal_raw === null || $tanggal_raw === '') {
+            $errors[] = "Baris $r: tanggal kosong";
             continue;
         }
-        
-        // Convert tanggal to date format
         if (is_numeric($tanggal_raw)) {
-            // Excel date format
-            $tanggal = Date::excelToDateTimeObject($tanggal_raw)->format('Y-m-d');
+            try {
+                $dt = ExcelDate::excelToDateTimeObject($tanggal_raw);
+                $tanggal = $dt->format('Y-m-d');
+            } catch (Exception $e) {
+                $ts = strtotime((string)$tanggal_raw);
+                if ($ts === false) {
+                    $errors[] = "Baris $r: format tanggal tidak dikenali";
+                    continue;
+                }
+                $tanggal = date('Y-m-d', $ts);
+            }
         } else {
-            // Text date format
-            $tanggal = date('Y-m-d', strtotime($tanggal_raw));
+            $ts = strtotime((string)$tanggal_raw);
+            if ($ts === false) {
+                $errors[] = "Baris $r: format tanggal tidak dikenali";
+                continue;
+            }
+            $tanggal = date('Y-m-d', $ts);
         }
-        
-        // Convert jam_masuk to time format
+
+        $periode = date('Y-m', strtotime($tanggal));
+
+        // Parse Jam_Absen: "08:21 16:27"
         $jam_masuk = null;
-        if (!empty($jam_masuk_raw)) {
-            if (is_numeric($jam_masuk_raw)) {
-                // Excel time format (decimal)
-                $jam_masuk = Date::excelToDateTimeObject($jam_masuk_raw)->format('H:i:s');
-            } else {
-                // Text time format
-                $jam_masuk = date('H:i:s', strtotime($jam_masuk_raw));
+        $jam_keluar = null;
+        if ($jam_absen_raw !== '') {
+            $parts = preg_split('/\s+/', $jam_absen_raw);
+            if (isset($parts[0]) && trim($parts[0]) !== '') {
+                $tsm = strtotime(trim($parts[0]));
+                if ($tsm !== false) $jam_masuk = date('H:i:s', $tsm);
+            }
+            if (isset($parts[1]) && trim($parts[1]) !== '') {
+                $tsk = strtotime(trim($parts[1]));
+                if ($tsk !== false) $jam_keluar = date('H:i:s', $tsk);
             }
         }
-        
-        // Convert jam_pulang to time format (can be null)
-        $jam_pulang = null;
-        if (!empty($jam_pulang_raw)) {
-            if (is_numeric($jam_pulang_raw)) {
-                // Excel time format (decimal)
-                $jam_pulang = Date::excelToDateTimeObject($jam_pulang_raw)->format('H:i:s');
-            } else {
-                // Text time format
-                $jam_pulang = date('H:i:s', strtotime($jam_pulang_raw));
+
+        $aktual = intval($aktual_raw);
+        $target = intval($target_raw);
+        $lembur_ops = intval($lembur_ops_raw);
+        $lembur_ab = intval($lembur_ab_raw);
+        $lembur_lain = intval($lembur_lain_raw);
+
+        // Validate employee
+        $key = $npp . '|' . $periode;
+        if (!isset($monthly_data[$key])) {
+            $chk = mysqli_prepare($conn, "SELECT npp FROM employee WHERE npp = ? LIMIT 1");
+            mysqli_stmt_bind_param($chk, 's', $npp);
+            mysqli_stmt_execute($chk);
+            mysqli_stmt_store_result($chk);
+            if (mysqli_stmt_num_rows($chk) == 0) {
+                $errors[] = "Baris $r: NPP $npp tidak ditemukan";
+                mysqli_stmt_close($chk);
+                continue;
             }
+            mysqli_stmt_close($chk);
+
+            $monthly_data[$key] = [
+                'npp' => $npp,
+                'periode' => $periode,
+                'total_titik' => 0,
+                'target_titik' => 0,
+                'total_denda' => 0,
+                'total_uang_makan' => 0,
+                'total_insentif_full' => 0,
+                'total_lembur_ops' => 0,
+                'total_lembur_ab' => 0,
+                'total_lembur_lain' => 0,
+                'dates' => []
+            ];
         }
-        
-        // Validate NPP exists in employee table
-        $check_npp = mysqli_query($conn, "SELECT npp FROM employee WHERE npp = '$npp'");
-        if (mysqli_num_rows($check_npp) == 0) {
-            $error_messages[] = "Baris $row: NPP $npp tidak ditemukan di database karyawan";
-            $error_count++;
+
+        if (in_array($tanggal, $monthly_data[$key]['dates'])) {
+            $errors[] = "Baris $r: NPP $npp tanggal $tanggal duplikat, dilewati";
             continue;
         }
-        
-        // Calculate durasi kerja (work duration)
-        $durasi_kerja = null;
-        if ($jam_masuk && $jam_pulang) {
-            $masuk_time = strtotime($jam_masuk);
-            $pulang_time = strtotime($jam_pulang);
-            $durasi_seconds = $pulang_time - $masuk_time;
+        $monthly_data[$key]['dates'][] = $tanggal;
+
+        // Accumulate titik
+        $monthly_data[$key]['total_titik'] += $aktual;
+        $monthly_data[$key]['target_titik'] += $target;
+
+        // Calculate daily values
+        $denda_harian = 0;
+        $uang_makan_harian = 0;
+        $insentif_full_harian = 0;
+
+        if ($jam_masuk !== null && $jam_keluar !== null) {
+            // Check Hadir_Full
+            $masuk_ts = strtotime($jam_masuk);
+            $keluar_ts = strtotime($jam_keluar);
+            $standar_masuk_ts = strtotime($JAM_STANDAR_MASUK);
+            $standar_keluar_ts = strtotime($JAM_STANDAR_KELUAR);
             
-            if ($durasi_seconds > 0) {
-                $hours = floor($durasi_seconds / 3600);
-                $minutes = floor(($durasi_seconds % 3600) / 60);
-                $durasi_kerja = sprintf("%02d:%02d:00", $hours, $minutes);
+            $hadir_full = ($masuk_ts <= $standar_masuk_ts && $keluar_ts >= $standar_keluar_ts);
+            
+            if ($hadir_full) {
+                $uang_makan_harian = $UANG_MAKAN_FULL;
+                $insentif_full_harian = $INSENTIF_FULL_MASUK;
+            }
+
+            // Calculate Telat
+            if ($masuk_ts > $standar_masuk_ts) {
+                $selisih_detik = $masuk_ts - $standar_masuk_ts;
+                $menit_telat = floor($selisih_detik / 60);
+                $denda_harian = $menit_telat * $DENDA_PER_MENIT;
             }
         }
+
+        $monthly_data[$key]['total_denda'] += $denda_harian;
+        $monthly_data[$key]['total_uang_makan'] += $uang_makan_harian;
+        $monthly_data[$key]['total_insentif_full'] += $insentif_full_harian;
+
+        // Accumulate lembur
+        $monthly_data[$key]['total_lembur_ops'] += ($lembur_ops * $RATE_LEMBUR_OPERASIONAL);
+        $monthly_data[$key]['total_lembur_ab'] += ($lembur_ab * $RATE_LEMBUR_AMBIL_BARANG);
+        $monthly_data[$key]['total_lembur_lain'] += ($lembur_lain * $RATE_LEMBUR_LAINNYA);
+    }
+
+    // Insert aggregated monthly records
+    $upsert_sql = "INSERT INTO transaksi_insentif_kurir 
+        (npp, periode, total_titik, target_titik, bonus_insentif, denda_telat, potongan_makan, uang_lembur, jumlah_dibayarkan, created_at, updated_at) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE 
+        total_titik=VALUES(total_titik), target_titik=VALUES(target_titik), bonus_insentif=VALUES(bonus_insentif),
+        denda_telat=VALUES(denda_telat), potongan_makan=VALUES(potongan_makan), uang_lembur=VALUES(uang_lembur),
+        jumlah_dibayarkan=VALUES(jumlah_dibayarkan), updated_at=NOW()";
+    $upsert_stmt = mysqli_prepare($conn, $upsert_sql);
+    if (!$upsert_stmt) throw new Exception('Prepare failed: ' . mysqli_error($conn));
+
+    foreach ($monthly_data as $key => $data) {
+        $npp = $data['npp'];
+        $periode = $data['periode'];
+        $total_titik = $data['total_titik'];
+        $target_titik = $data['target_titik'];
         
-        // Determine status absensi
-        $status_absensi = 'Hadir';
-        $jam_kerja_normal = '08:00:00';
-        $jam_pulang_normal = '17:00:00';
-        
-        if ($jam_masuk) {
-            if ($jam_masuk > $jam_kerja_normal) {
-                $status_absensi = 'Terlambat';
-            }
-            
-            if ($jam_pulang) {
-                if ($jam_pulang < $jam_pulang_normal) {
-                    $status_absensi = 'Pulang Awal';
-                }
-            }
-        } else {
-            $status_absensi = 'Tidak Hadir';
+        // Calculate Insentif Titik Tambahan (monthly)
+        $insentif_titik = 0;
+        if ($total_titik > $target_titik) {
+            $selisih = $total_titik - $target_titik;
+            $insentif_titik = $selisih * $RATE_TITIK_TAMBAHAN;
         }
+
+        // Total bonus = Uang Makan + Insentif Full + Insentif Titik
+        $bonus_insentif = $data['total_uang_makan'] + $data['total_insentif_full'] + $insentif_titik;
         
-        // Prepare SQL values
-        $jam_masuk_sql = $jam_masuk ? "'$jam_masuk'" : "NULL";
-        $jam_pulang_sql = $jam_pulang ? "'$jam_pulang'" : "NULL";
-        $durasi_kerja_sql = $durasi_kerja ? "'$durasi_kerja'" : "NULL";
+        // Total lembur
+        $uang_lembur = $data['total_lembur_ops'] + $data['total_lembur_ab'] + $data['total_lembur_lain'];
         
-        // Insert or update data
-        $sql = "INSERT INTO absensi_karyawan 
-                (npp, tanggal, jam_masuk, jam_pulang, durasi_kerja, status_absensi) 
-                VALUES 
-                ('$npp', '$tanggal', $jam_masuk_sql, $jam_pulang_sql, $durasi_kerja_sql, '$status_absensi')
-                ON DUPLICATE KEY UPDATE
-                jam_masuk = VALUES(jam_masuk),
-                jam_pulang = VALUES(jam_pulang),
-                durasi_kerja = VALUES(durasi_kerja),
-                status_absensi = VALUES(status_absensi),
-                updated_at = CURRENT_TIMESTAMP";
+        $denda_telat = $data['total_denda'];
+        $potongan_makan = 0; // not used in this business logic
         
-        if (mysqli_query($conn, $sql)) {
-            $success_count++;
+        // Total = (Uang_Makan + Insentif_Full + Insentif_Titik + Lembur) - Denda
+        $jumlah_dibayarkan = $bonus_insentif + $uang_lembur - $denda_telat;
+
+        if (!mysqli_stmt_bind_param(
+            $upsert_stmt,
+            'ssiiiiiii',
+            $npp,
+            $periode,
+            $total_titik,
+            $target_titik,
+            $bonus_insentif,
+            $denda_telat,
+            $potongan_makan,
+            $uang_lembur,
+            $jumlah_dibayarkan
+        )) {
+            $errors[] = "NPP $npp periode $periode: Bind error - " . mysqli_error($conn);
+            continue;
+        }
+
+        if (!mysqli_stmt_execute($upsert_stmt)) {
+            $errors[] = "NPP $npp periode $periode: DB error - " . mysqli_stmt_error($upsert_stmt);
         } else {
-            $error_messages[] = "Baris $row: " . mysqli_error($conn);
-            $error_count++;
+            $success++;
+            $hari_kerja = count($data['dates']);
+            $errors[] = "✓ NPP $npp periode $periode: {$hari_kerja} hari, Bonus=Rp".number_format($bonus_insentif).", Lembur=Rp".number_format($uang_lembur);
         }
     }
-    
-    // Set success message
-    if ($success_count > 0) {
-        $_SESSION['alert_type'] = "success";
-        $_SESSION['alert_message'] = "Berhasil memproses $success_count data absensi karyawan!";
-        
-        if ($error_count > 0) {
-            $_SESSION['alert_message'] .= " ($error_count data gagal)";
-        }
+
+    mysqli_stmt_close($upsert_stmt);
+
+    if ($success > 0) {
+        $_SESSION['alert_type'] = 'success';
+        $_SESSION['alert_message'] = "Berhasil memproses $success transaksi insentif karyawan!";
     } else {
-        $_SESSION['alert_type'] = "danger";
-        $_SESSION['alert_message'] = "Tidak ada data yang berhasil diproses!";
+        $_SESSION['alert_type'] = 'danger';
+        $_SESSION['alert_message'] = 'Tidak ada data yang berhasil diproses.';
     }
-    
-    // Add error details if any
-    if (!empty($error_messages)) {
-        $_SESSION['alert_details'] = implode("<br>", $error_messages);
-    }
-    
+    if (!empty($errors)) $_SESSION['alert_details'] = implode("<br>", $errors);
+
 } catch (Exception $e) {
-    $_SESSION['alert_type'] = "danger";
-    $_SESSION['alert_message'] = "Error: " . $e->getMessage();
-    // store full exception trace for debugging in UI
+    $_SESSION['alert_type'] = 'danger';
+    $_SESSION['alert_message'] = 'Error: ' . $e->getMessage();
     $_SESSION['alert_details'] = $e->__toString();
 }
 
-header("Location: insentif_karyawan_list.php");
+header('Location: insentif_karyawan_list.php');
 exit();
 ?>
