@@ -189,17 +189,7 @@ $tahun = date("Y");
                                 echo '<li><a href="insentif_kurir_list.php" class="active">Daftar Insentif Kurir</a></li>';
                             } else {
                                 echo '<li><a href="insentif_kurir_list.php">Daftar Insentif Kurir</a></li>';
-                            }
-                            if ($pagedesc == "Upload Absensi Karyawan") {
-                                echo '<li><a href="insentif_karyawan_upload.php" class="active">Upload Absensi Karyawan</a></li>';
-                            } else {
-                                echo '<li><a href="insentif_karyawan_upload.php">Upload Absensi Karyawan</a></li>';
-                            }
-                            if ($pagedesc == "Daftar Absensi Karyawan") {
-                                echo '<li><a href="insentif_karyawan_list.php" class="active">Daftar Absensi Karyawan</a></li>';
-                            } else {
-                                echo '<li><a href="insentif_karyawan_list.php">Daftar Absensi Karyawan</a></li>';
-                            }
+                            }   
                             ?>
                         </ul><!-- /.nav-second-level -->
                         </li>

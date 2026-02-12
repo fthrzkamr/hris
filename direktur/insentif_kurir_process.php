@@ -276,6 +276,7 @@ try {
                 'hari_hadir' => 0,
                 'hari_alpha' => 0,
                 'hari_cuti' => 0,
+                'hari_telat' => 0,
                 'total_lembur' => 0,
                 'total_denda' => 0,
                 'total_makan' => 0,
@@ -389,6 +390,9 @@ try {
         
         if ($is_hadir) {
             $monthly_data[$key]['hari_hadir']++;
+            if ($is_late) {
+                $monthly_data[$key]['hari_telat']++;
+            }
         } elseif ($is_cuti) {
             $monthly_data[$key]['hari_cuti']++;
         } else {
@@ -432,16 +436,24 @@ try {
             $bonus_titik = $titik_bonus * $rate_bonus; // Max 25 × 20,000 = 500,000/bulan
         }
         
-        // 2. Bonus Full Hadir: Jika tidak ada alpha sebulan (cuti boleh), dapat BONUS_FULL_HADIR
+        // 2. Bonus Full Hadir: Hanya jika tidak ada alpha *dan* tidak ada telat sebulan
         $bonus_full_hadir = 0;
         $hari_alpha = $data['hari_alpha'];
-        if ($hari_alpha == 0) {
+        $hari_telat = isset($data['hari_telat']) ? $data['hari_telat'] : 0;
+        if ($hari_alpha == 0 && $hari_telat == 0) {
             $bonus_full_hadir = intval($settings['BONUS_FULL_HADIR']); // 250,000
         }
         
         // Total bonus = bonus titik + bonus full hadir
         $bonus_insentif = $bonus_titik + $bonus_full_hadir;
-        
+
+        // Clamp monthly meal allowance to configured UANG_MAKAN_BULANAN
+        $uang_makan_bulanan = intval($settings['UANG_MAKAN_BULANAN']);
+        $original_total_makan = $total_makan;
+        if ($total_makan > $uang_makan_bulanan) {
+            $total_makan = $uang_makan_bulanan;
+        }
+
         // Calculate total payment
         $jumlah_dibayarkan = $total_makan + $bonus_insentif + $total_lembur - $total_denda;
         
@@ -477,7 +489,9 @@ try {
             if ($bonus_titik > 0) $bonus_info .= "Titik=" . number_format($bonus_titik);
             if ($bonus_full_hadir > 0) $bonus_info .= ($bonus_titik > 0 ? " + " : "") . "Full Hadir=" . number_format($bonus_full_hadir);
             if ($bonus_insentif == 0) $bonus_info .= "0";
-            $error_messages[] = "✓ NPP $npp periode $periode: {$hari_kerja} hari (Hadir={$data['hari_hadir']}, Alpha={$hari_alpha}, Cuti={$hari_cuti}), Total Titik={$total_titik}, Target={$target_titik}, {$bonus_info}, Total Bayar=".number_format($jumlah_dibayarkan);
+            $makan_info = number_format($original_total_makan);
+            if ($original_total_makan != $total_makan) $makan_info .= " -> " . number_format($total_makan);
+            $error_messages[] = "✓ NPP $npp periode $periode: {$hari_kerja} hari (Hadir={$data['hari_hadir']}, Telat={$data['hari_telat']}, Alpha={$hari_alpha}, Cuti={$hari_cuti}), Total Titik={$total_titik}, Target={$target_titik}, Makan={$makan_info}, {$bonus_info}, Total Bayar=".number_format($jumlah_dibayarkan);
         }
     }
 
