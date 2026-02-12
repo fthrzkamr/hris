@@ -10,23 +10,38 @@ include("layout_top.php");
 $filter_periode = isset($_GET['periode']) ? $_GET['periode'] : '';
 $filter_npp = isset($_GET['npp']) ? $_GET['npp'] : '';
 
+// Pagination settings
+$records_per_page = 10;
+$current_page = isset($_GET['page']) && is_numeric($_GET['page']) && $_GET['page'] > 0 ? intval($_GET['page']) : 1;
+$offset = ($current_page - 1) * $records_per_page;
+
 // Build query: select records from transaksi_insentif_kurir and join employee for metadata
-$sql = "SELECT t.*, e.nama_emp, b.nama_bagian, e.cabang
-        FROM transaksi_insentif_kurir t
+$sql_base = "FROM transaksi_insentif_kurir t
         LEFT JOIN employee e ON t.npp = e.npp
         LEFT JOIN bagian b ON e.nama_bagian = b.id_bagian
         WHERE 1=1";
 
 $filter_periode_escaped = mysqli_real_escape_string($conn, $filter_periode);
 if (!empty($filter_periode_escaped)) {
-    $sql .= " AND t.periode = '" . $filter_periode_escaped . "'";
+    $sql_base .= " AND t.periode = '" . $filter_periode_escaped . "'";
 }
 
 if (!empty($filter_npp)) {
-    $sql .= " AND t.npp LIKE '%" . mysqli_real_escape_string($conn, $filter_npp) . "%'";
+    $sql_base .= " AND t.npp LIKE '%" . mysqli_real_escape_string($conn, $filter_npp) . "%'";
 }
 
-$sql .= " ORDER BY t.periode DESC, t.npp ASC";
+// Count total records
+$count_sql = "SELECT COUNT(*) as total " . $sql_base;
+$count_result = mysqli_query($conn, $count_sql);
+$total_records = 0;
+if ($count_result) {
+    $count_row = mysqli_fetch_assoc($count_result);
+    $total_records = intval($count_row['total']);
+}
+$total_pages = ceil($total_records / $records_per_page);
+
+// Fetch paginated records
+$sql = "SELECT t.*, e.nama_emp, b.nama_bagian, e.cabang " . $sql_base . " ORDER BY t.periode DESC, t.npp ASC LIMIT $records_per_page OFFSET $offset";
 
 $query = mysqli_query($conn, $sql);
 ?>
@@ -92,6 +107,7 @@ $query = mysqli_query($conn, $sql);
                     <div class="panel panel-primary">
                         <div class="panel-heading">
                             <i class="fa fa-table"></i> Data Insentif Kurir
+                            <span class="pull-right">Halaman <?php echo $current_page; ?> dari <?php echo $total_pages; ?> | Total: <?php echo $total_records; ?> data</span>
                         </div>
                         <!-- /.panel-heading -->
                         <div class="panel-body">
@@ -106,7 +122,8 @@ $query = mysqli_query($conn, $sql);
                                             <th rowspan="2">Cabang</th>
                                             <th rowspan="2">Periode</th>
                                             <th colspan="4" class="text-center">Performa</th>
-                                            <th colspan="5" class="text-center">Pembayaran</th>
+                                            <th colspan="5" class="text-center">Komponen Pembayaran</th>
+                                            <th rowspan="2" class="bg-success">Total Dibayarkan</th>
                                             <th rowspan="2">Status</th>
                                             <th rowspan="2">Tgl Update</th>
                                             <th rowspan="2">Aksi</th>
@@ -122,12 +139,11 @@ $query = mysqli_query($conn, $sql);
                                             <th>Uang Lembur</th>
                                             <th>Denda Telat</th>
                                             <th title="Positif=Allowance (Hadir), Negatif=Penalty (Alpha)">Uang Makan</th>
-                                            <th>Total Dibayarkan</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <?php
-                                        $no = 1;
+                                        $no = $offset + 1;
                                         while ($row = mysqli_fetch_assoc($query)) {
                                             $no_titik = intval($row['total_titik']);
                                             $target_titik = intval($row['target_titik']);
@@ -154,7 +170,7 @@ $query = mysqli_query($conn, $sql);
                                             <td class="text-right"><?php echo number_format($row['bonus_insentif_full_masuk'] ?? 0); ?></td>
                                             <td class="text-right"><?php echo number_format($row['uang_lembur'] ?? 0); ?></td>
                                             <td class="text-right"><?php echo number_format($row['denda_telat'] ?? 0); ?></td>
-                                            <td class="text-right"><?php echo number_format($row['potongan_makan'] ?? 0); ?></td>
+                                            <td class="text-right"><?php echo number_format($row['uang_makan'] ?? 0); ?></td>
                                             <td class="text-right"><?php echo number_format($row['jumlah_dibayarkan'] ?? 0); ?></td>
                                             <td class="text-center"><span class="label label-<?php echo $status_class; ?>"><?php echo $status; ?></span></td>
                                             <td><?php echo date('d-m-Y H:i', strtotime($row['updated_at'])); ?></td>
@@ -167,6 +183,41 @@ $query = mysqli_query($conn, $sql);
                                 </table>
                             </div>
                             <!-- /.table-responsive -->
+                            
+                            <!-- Pagination controls -->
+                            <?php if ($total_pages > 1): ?>
+                            <div class="text-center">
+                                <ul class="pagination">
+                                    <?php if ($current_page > 1): ?>
+                                        <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => 1])); ?>">&laquo; First</a></li>
+                                        <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $current_page - 1])); ?>">&lsaquo; Prev</a></li>
+                                    <?php else: ?>
+                                        <li class="disabled"><span>&laquo; First</span></li>
+                                        <li class="disabled"><span>&lsaquo; Prev</span></li>
+                                    <?php endif; ?>
+                                    
+                                    <?php
+                                    // Show page numbers
+                                    $start_page = max(1, $current_page - 2);
+                                    $end_page = min($total_pages, $current_page + 2);
+                                    
+                                    for ($i = $start_page; $i <= $end_page; $i++):
+                                    ?>
+                                        <li class="<?php echo ($i == $current_page) ? 'active' : ''; ?>">
+                                            <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>"><?php echo $i; ?></a>
+                                        </li>
+                                    <?php endfor; ?>
+                                    
+                                    <?php if ($current_page < $total_pages): ?>
+                                        <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $current_page + 1])); ?>">Next &rsaquo;</a></li>
+                                        <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $total_pages])); ?>">Last &raquo;</a></li>
+                                    <?php else: ?>
+                                        <li class="disabled"><span>Next &rsaquo;</span></li>
+                                        <li class="disabled"><span>Last &raquo;</span></li>
+                                    <?php endif; ?>
+                                </ul>
+                            </div>
+                            <?php endif; ?>
                         </div>
                         <!-- /.panel-body -->
                     </div>

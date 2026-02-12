@@ -10,6 +10,11 @@ $filter_tanggal_awal = isset($_GET['tanggal_awal']) ? $_GET['tanggal_awal'] : ''
 $filter_tanggal_akhir = isset($_GET['tanggal_akhir']) ? $_GET['tanggal_akhir'] : '';
 $filter_npp = isset($_GET['npp']) ? $_GET['npp'] : '';
 
+// Pagination settings
+$records_per_page = 25;
+$current_page = isset($_GET['page']) && is_numeric($_GET['page']) && $_GET['page'] > 0 ? intval($_GET['page']) : 1;
+$offset = ($current_page - 1) * $records_per_page;
+
 // Load BONUS_FULL_HADIR from settings
 $bonus_full_hadir_setting = 250000; // default
 $rs_setting = mysqli_query($conn, "SELECT nominal_rp FROM pengaturan_insentif_kurir WHERE nama_variabel = 'BONUS_FULL_HADIR' LIMIT 1");
@@ -18,28 +23,41 @@ if ($rs_setting && $row_setting = mysqli_fetch_assoc($rs_setting)) {
 }
 
 // Build query: select records from absensi_kurir and join employee
-$sql = "SELECT a.*, e.nama_emp, b.nama_bagian, e.cabang
-        FROM absensi_kurir a
+$sql_base = "FROM absensi_kurir a
         LEFT JOIN employee e ON a.npp = e.npp
         LEFT JOIN bagian b ON e.nama_bagian = b.id_bagian
         WHERE 1=1";
 
 if (!empty($filter_tanggal_awal)) {
-    $sql .= " AND a.tanggal_absen >= '" . mysqli_real_escape_string($conn, $filter_tanggal_awal) . "'";
+    $sql_base .= " AND a.tanggal_absen >= '" . mysqli_real_escape_string($conn, $filter_tanggal_awal) . "'";
 }
 if (!empty($filter_tanggal_akhir)) {
-    $sql .= " AND a.tanggal_absen <= '" . mysqli_real_escape_string($conn, $filter_tanggal_akhir) . "'";
+    $sql_base .= " AND a.tanggal_absen <= '" . mysqli_real_escape_string($conn, $filter_tanggal_akhir) . "'";
 }
 if (!empty($filter_npp)) {
-    $sql .= " AND a.npp LIKE '%" . mysqli_real_escape_string($conn, $filter_npp) . "%'";
+    $sql_base .= " AND a.npp LIKE '%" . mysqli_real_escape_string($conn, $filter_npp) . "%'";
 }
 
-$sql .= " ORDER BY a.tanggal_absen DESC, a.npp ASC LIMIT 500";
+// Count total records
+$count_sql = "SELECT COUNT(*) as total " . $sql_base;
+$count_result = mysqli_query($conn, $count_sql);
+$total_records = 0;
+if ($count_result) {
+    $count_row = mysqli_fetch_assoc($count_result);
+    $total_records = intval($count_row['total']);
+}
+$total_pages = ceil($total_records / $records_per_page);
 
+// Query untuk menampilkan data per halaman (dengan pagination)
+$sql = "SELECT a.*, e.nama_emp, b.nama_bagian, e.cabang " . $sql_base . " ORDER BY a.tanggal_absen DESC, a.npp ASC LIMIT $records_per_page OFFSET $offset";
 $query = mysqli_query($conn, $sql);
 $total_rows = mysqli_num_rows($query);
 
-// Calculate summary statistics
+// Query untuk menghitung SEMUA data (tanpa pagination) - untuk summary statistics yang akurat
+$sql_all = "SELECT a.* " . $sql_base;
+$query_all = mysqli_query($conn, $sql_all);
+
+// Calculate summary statistics dari SEMUA data yang sesuai filter
 $total_hadir = 0;
 $total_alpha = 0;
 $total_cuti = 0;
@@ -49,9 +67,12 @@ $grand_total_lembur = 0;
 $grand_total_denda = 0;
 $grand_total_insentif = 0;
 $grand_total_bayar = 0;
+$grand_total_bonus_titik = 0;
+$grand_total_bonus_full_hadir = 0;
+$grand_total_menit = 0;
 
-mysqli_data_seek($query, 0); // Reset pointer
-while ($row = mysqli_fetch_assoc($query)) {
+$npp_periode_map = []; // Track NPP and periode for bonus query
+while ($row = mysqli_fetch_assoc($query_all)) {
     if ($row['is_hadir']) $total_hadir++;
     if (!$row['is_hadir'] && !$row['is_cuti']) $total_alpha++;
     if ($row['is_cuti']) $total_cuti++;
@@ -61,8 +82,35 @@ while ($row = mysqli_fetch_assoc($query)) {
     $grand_total_denda += floatval($row['denda_telat'] ?? 0);
     $grand_total_insentif += floatval($row['insentif_titik'] ?? 0);
     $grand_total_bayar += floatval($row['grand_total_harian'] ?? 0);
+    $grand_total_menit += intval($row['menit_terlambat'] ?? 0);
+    
+    // Track NPP and periode for bonus aggregation
+    $periode = date('Y-m', strtotime($row['tanggal_absen']));
+    $key = $row['npp'] . '|' . $periode;
+    $npp_periode_map[$key] = 1;
 }
-mysqli_data_seek($query, 0); // Reset pointer again for display
+
+// Query total bonus from transaksi_insentif_kurir for the filtered periods
+if (!empty($npp_periode_map)) {
+    $conditions = [];
+    foreach (array_keys($npp_periode_map) as $key) {
+        list($npp_val, $periode_val) = explode('|', $key);
+        $npp_esc = mysqli_real_escape_string($conn, $npp_val);
+        $periode_esc = mysqli_real_escape_string($conn, $periode_val);
+        $conditions[] = "(npp = '$npp_esc' AND periode = '$periode_esc')";
+    }
+    $bonus_sql = "SELECT SUM(bonus_insentif_titik) as total_bonus_titik, SUM(bonus_insentif_full_masuk) as total_bonus_full 
+                  FROM transaksi_insentif_kurir 
+                  WHERE " . implode(' OR ', $conditions);
+    $bonus_query = mysqli_query($conn, $bonus_sql);
+    if ($bonus_query && $bonus_row = mysqli_fetch_assoc($bonus_query)) {
+        $grand_total_bonus_titik = floatval($bonus_row['total_bonus_titik'] ?? 0);
+        $grand_total_bonus_full_hadir = floatval($bonus_row['total_bonus_full'] ?? 0);
+    }
+}
+
+// Reset pointer untuk query yang akan ditampilkan
+mysqli_data_seek($query, 0);
 ?>
         <div id="page-wrapper">
             <div class="row">
@@ -172,7 +220,8 @@ mysqli_data_seek($query, 0); // Reset pointer again for display
                     <!-- Data Table Panel -->
                     <div class="panel panel-primary">
                         <div class="panel-heading">
-                            <i class="fa fa-table"></i> Data Harian (Maksimal 500 baris) - Total: <?php echo $total_rows; ?> data
+                            <i class="fa fa-table"></i> Data Harian
+                            <span class="pull-right">Halaman <?php echo $current_page; ?> dari <?php echo $total_pages; ?> | Total: <?php echo $total_records; ?> data</span>
                         </div>
                         <div class="panel-body">
                             <div class="table-responsive">
@@ -215,7 +264,7 @@ mysqli_data_seek($query, 0); // Reset pointer again for display
                                     </thead>
                                     <tbody>
                                         <?php
-                                        $no = 1;
+                                        $no = $offset + 1;
                                         // Mapping hari ke bahasa Indonesia
                                         $hari_indo = array(
                                             'Sun' => 'Min', 'Mon' => 'Sen', 'Tue' => 'Sel', 
@@ -271,10 +320,8 @@ mysqli_data_seek($query, 0); // Reset pointer again for display
                                             <td class="text-right"><?php echo number_format($row['target_titik']); ?></td>
                                             
                                             <!-- Finansial -->
-                                            <td class="text-right"><?php echo number_format($row['insentif_titik'] ?? 0); ?></td>
-                                            <td class="text-right text-muted" title="Dihitung bulanan (Rp <?php echo number_format($bonus_full_hadir_setting); ?> jika 0 alpha)">
-                                                <?php echo $row['is_hadir'] ? number_format($bonus_full_hadir_setting) : '0'; ?>
-                                            </td>
+                                            <td class="text-center text-muted" title="Dihitung bulanan (lihat total)">-</td>
+                                            <td class="text-center text-muted" title="Dihitung bulanan (lihat total)">-</td>
                                             <td class="text-right <?php echo (($row['uang_makan'] ?? 0) < 0) ? 'text-danger' : ''; ?>">
                                                 <?php echo number_format($row['uang_makan'] ?? 0); ?>
                                             </td>
@@ -290,17 +337,52 @@ mysqli_data_seek($query, 0); // Reset pointer again for display
                                     <tfoot>
                                         <tr class="info">
                                             <th colspan="12" class="text-right"><strong>TOTAL KESELURUHAN:</strong></th>
-                                            <th class="text-right"><strong>Rp <?php echo number_format($grand_total_insentif); ?></strong></th>
-                                            <th class="text-right text-muted"><strong>-</strong></th>
+                                            <th class="text-right" title="Total bonus titik bulan ini"><strong>Rp <?php echo number_format($grand_total_bonus_titik); ?></strong></th>
+                                            <th class="text-right" title="Total bonus full hadir bulan ini"><strong>Rp <?php echo number_format($grand_total_bonus_full_hadir); ?></strong></th>
                                             <th class="text-right"><strong>Rp <?php echo number_format($grand_total_makan); ?></strong></th>
                                             <th class="text-right"><strong>Rp <?php echo number_format($grand_total_lembur); ?></strong></th>
                                             <th class="text-right text-danger"><strong>Rp <?php echo number_format($grand_total_denda); ?></strong></th>
-                                            <th></th>
+                                            <th class="text-center"><strong><?php echo number_format($grand_total_menit); ?> mnt</strong></th>
                                             <th class="text-right bg-warning"><strong>Rp <?php echo number_format($grand_total_bayar); ?></strong></th>
                                         </tr>
                                     </tfoot>
                                 </table>
                             </div>
+                            
+                            <!-- Pagination controls -->
+                            <?php if ($total_pages > 1): ?>
+                            <div class="text-center">
+                                <ul class="pagination">
+                                    <?php if ($current_page > 1): ?>
+                                        <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => 1])); ?>">&laquo; First</a></li>
+                                        <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $current_page - 1])); ?>">&lsaquo; Prev</a></li>
+                                    <?php else: ?>
+                                        <li class="disabled"><span>&laquo; First</span></li>
+                                        <li class="disabled"><span>&lsaquo; Prev</span></li>
+                                    <?php endif; ?>
+                                    
+                                    <?php
+                                    // Show page numbers
+                                    $start_page = max(1, $current_page - 2);
+                                    $end_page = min($total_pages, $current_page + 2);
+                                    
+                                    for ($i = $start_page; $i <= $end_page; $i++):
+                                    ?>
+                                        <li class="<?php echo ($i == $current_page) ? 'active' : ''; ?>">
+                                            <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>"><?php echo $i; ?></a>
+                                        </li>
+                                    <?php endfor; ?>
+                                    
+                                    <?php if ($current_page < $total_pages): ?>
+                                        <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $current_page + 1])); ?>">Next &rsaquo;</a></li>
+                                        <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $total_pages])); ?>">Last &raquo;</a></li>
+                                    <?php else: ?>
+                                        <li class="disabled"><span>Next &rsaquo;</span></li>
+                                        <li class="disabled"><span>Last &raquo;</span></li>
+                                    <?php endif; ?>
+                                </ul>
+                            </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
