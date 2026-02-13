@@ -269,7 +269,7 @@ mysqli_data_seek($query, 0);
                                     <th class="bg-success"
                                         title="Bonus Full Hadir (dihitung bulanan, 250rb jika 0 alpha)">Bonus Full Hadir
                                     </th>
-                                    <th class="bg-success" title="+ jika hadir, - jika alpha">Makan</th>
+                                    <th class="bg-success" title="Rp300rb - ketidakhadiran Rp15rb">Makan</th>
                                     <th class="bg-success">Lembur</th>
                                     <th class="bg-success" title="Potongan denda keterlambatan">Denda</th>
                                     <th class="bg-success" title="Menit Terlambat">Menit</th>
