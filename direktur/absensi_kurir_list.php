@@ -237,7 +237,7 @@ mysqli_data_seek($query, 0);
                                             <th colspan="3" class="text-center bg-warning">Status</th>
                                             <th colspan="2" class="text-center bg-primary">Pencapaian</th>
                                             <th colspan="6" class="text-center bg-success">Komponen Finansial (Rp)</th>
-                                            <th rowspan="2" class="bg-danger">Total Harian</th>
+                                            <!-- <th rowspan="2" class="bg-danger">Total Harian</th> -->
                                         </tr>
                                         <tr>
                                             <!-- Jam Kerja -->
@@ -330,7 +330,7 @@ mysqli_data_seek($query, 0);
                                             <td class="text-center"><?php echo $row['menit_terlambat'] ?? 0; ?></td>
                                             
                                             <!-- Total -->
-                                            <td class="text-right"><strong><?php echo number_format($row['grand_total_harian'] ?? 0); ?></strong></td>
+                                            <!-- <td class="text-right"><strong><?php echo number_format($row['grand_total_harian'] ?? 0); ?></strong></td> -->
                                         </tr>
                                         <?php } ?>
                                     </tbody>
@@ -343,7 +343,7 @@ mysqli_data_seek($query, 0);
                                             <th class="text-right"><strong>Rp <?php echo number_format($grand_total_lembur); ?></strong></th>
                                             <th class="text-right text-danger"><strong>Rp <?php echo number_format($grand_total_denda); ?></strong></th>
                                             <th class="text-center"><strong><?php echo number_format($grand_total_menit); ?> mnt</strong></th>
-                                            <th class="text-right bg-warning"><strong>Rp <?php echo number_format($grand_total_bayar); ?></strong></th>
+                                            <!-- <th class="text-right bg-warning"><strong>Rp <?php echo number_format($grand_total_bayar); ?></strong></th> -->
                                         </tr>
                                     </tfoot>
                                 </table>
