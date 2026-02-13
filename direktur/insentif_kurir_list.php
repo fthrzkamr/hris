@@ -11,7 +11,7 @@ $filter_periode = isset($_GET['periode']) ? $_GET['periode'] : '';
 $filter_npp = isset($_GET['npp']) ? $_GET['npp'] : '';
 
 // Pagination settings
-$records_per_page = 10;
+$records_per_page = 50; // Increased for better DataTables performance
 $current_page = isset($_GET['page']) && is_numeric($_GET['page']) && $_GET['page'] > 0 ? intval($_GET['page']) : 1;
 $offset = ($current_page - 1) * $records_per_page;
 
@@ -40,192 +40,400 @@ if ($count_result) {
 }
 $total_pages = ceil($total_records / $records_per_page);
 
-// Fetch paginated records
-$sql = "SELECT t.*, e.nama_emp, b.nama_bagian, e.cabang " . $sql_base . " ORDER BY t.periode DESC, t.npp ASC LIMIT $records_per_page OFFSET $offset";
+// Fetch all records for DataTables client-side processing
+$sql = "SELECT t.*, e.nama_emp, b.nama_bagian, e.cabang " . $sql_base . " ORDER BY t.periode DESC, t.npp ASC";
 
 $query = mysqli_query($conn, $sql);
 ?>
-        <div id="page-wrapper">
-            <div class="row">
-                <div class="col-lg-12">
-                    <h1 class="page-header">
-                        <i class="fa fa-calculator"></i> Rekapitulasi Bulanan Insentif Kurir
-                        <small>(Monthly Payslip - Aggregated)</small>
-                    </h1>
-                </div>
-                <!-- /.col-lg-12 -->
-            </div>
+<style>
+    /* Styling untuk meningkatkan readability */
+    #dataTables tbody tr:hover {
+        background-color: #f5f5f5 !important;
+    }
 
-            <?php 
-            include("layout_alert.php"); 
-            
-            // Display error/details if any
-            if (isset($_SESSION['alert_details'])) {
-                echo '<div class="alert alert-warning alert-dismissible">';
-                echo '<button type="button" class="close" data-dismiss="alert">&times;</button>';
-                echo '<strong>Detail:</strong><br>';
-                echo $_SESSION['alert_details'];
-                echo '</div>';
-                unset($_SESSION['alert_details']);
-            }
-            ?>
-            
-            <div class="row">
-                <div class="col-lg-12">
-                    <!-- Filter Panel -->
-                    <div class="panel panel-default">
-                        <div class="panel-heading">
-                            <i class="fa fa-filter"></i> Filter Data
-                        </div>
-                        <div class="panel-body">
-                            <form method="GET" action="" class="form-inline">
-                                <div class="form-group">
-                                    <label>Periode:</label>
-                                    <input type="month" name="periode" class="form-control" value="<?php echo htmlspecialchars($filter_periode); ?>">
-                                </div>
-                                <div class="form-group">
-                                    <label>NPP:</label>
-                                    <input type="text" name="npp" class="form-control" placeholder="Cari NPP..." value="<?php echo htmlspecialchars($filter_npp); ?>">
-                                </div>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fa fa-search"></i> Filter
-                                </button>
-                                <a href="insentif_kurir_list.php" class="btn btn-default">
-                                    <i class="fa fa-refresh"></i> Reset
-                                </a>
-                                <a href="insentif_kurir_upload.php" class="btn btn-success">
-                                    <i class="fa fa-upload"></i> Upload Excel
-                                </a>
-                                <a href="absensi_kurir_list.php" class="btn btn-warning">
-                                    <i class="fa fa-book"></i> Lihat Buku Harian
-                                </a>
-                            </form>
-                        </div>
-                    </div>
-                    
-                    <!-- Data Table Panel -->
-                    <div class="panel panel-primary">
-                        <div class="panel-heading">
-                            <i class="fa fa-table"></i> Data Insentif Kurir
-                            <span class="pull-right">Halaman <?php echo $current_page; ?> dari <?php echo $total_pages; ?> | Total: <?php echo $total_records; ?> data</span>
-                        </div>
-                        <!-- /.panel-heading -->
-                        <div class="panel-body">
-                            <div class="table-responsive">
-                                <table class="table table-striped table-bordered table-hover" id="dataTables">
-                                    <thead>
-                                        <tr>
-                                            <th rowspan="2">No</th>
-                                            <th rowspan="2">NPP</th>
-                                            <th rowspan="2">Nama Karyawan</th>
-                                            <th rowspan="2">Bagian</th>
-                                            <th rowspan="2">Cabang</th>
-                                            <th rowspan="2">Periode</th>
-                                            <th colspan="4" class="text-center">Performa</th>
-                                            <th colspan="5" class="text-center">Komponen Pembayaran</th>
-                                            <th rowspan="2" class="bg-success">Total Dibayarkan</th>
-                                            <th rowspan="2">Status</th>
-                                            <th rowspan="2">Tgl Update</th>
-                                            <th rowspan="2">Aksi</th>
-                                        </tr>
-                                        <tr>
-                                            <th>Total Titik</th>
-                                            <th>Target Titik</th>
-                                            <th>Pencapaian (%)</th>
-                                            <th>Kelebihan</th>
+    #dataTables thead tr th {
+        background-color: #337ab7;
+        color: white;
+        font-weight: bold;
+        vertical-align: middle;
+        font-size: 11px;
+        padding: 8px 4px;
+    }
 
-                                            <th title="Bonus dari kelebihan titik (max 500rb/bulan)">Bonus Titik</th>
-                                            <th title="Bonus full kehadiran (250rb jika 0 alpha)">Bonus Full Hadir</th>
-                                            <th>Uang Lembur</th>
-                                            <th>Denda Telat</th>
-                                            <th title="Positif=Allowance (Hadir), Negatif=Penalty (Alpha)">Uang Makan</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php
-                                        $no = $offset + 1;
-                                        while ($row = mysqli_fetch_assoc($query)) {
-                                            $no_titik = intval($row['total_titik']);
-                                            $target_titik = intval($row['target_titik']);
-                                            $kelebihan_titik = max(0, $no_titik - $target_titik);
-                                            $persentase = ($target_titik > 0) ? (($no_titik / $target_titik) * 100) : 0;
-                                            $status = ($no_titik >= $target_titik) ? 'Tercapai' : 'Tidak Tercapai';
-                                            $status_class = ($status == 'Tercapai') ? 'success' : 'danger';
-                                            // Format periode as "Bulan Tahun" (e.g., "Nov 2025")
-                                            $periode_obj = DateTime::createFromFormat('Y-m', $row['periode']);
-                                            $periode_formatted = $periode_obj ? $periode_obj->format('M Y') : $row['periode'];
-                                        ?>
-                                        <tr>
-                                            <td><?php echo $no++; ?></td>
-                                            <td><?php echo htmlspecialchars($row['npp']); ?></td>
-                                            <td><?php echo htmlspecialchars($row['nama_emp'] ?? '-'); ?></td>
-                                            <td><?php echo htmlspecialchars($row['nama_bagian'] ?? '-'); ?></td>
-                                            <td><?php echo htmlspecialchars($row['cabang'] ?? '-'); ?></td>
-                                            <td><?php echo $periode_formatted; ?></td>
-                                            <td class="text-right"><?php echo number_format($no_titik); ?></td>
-                                            <td class="text-right"><?php echo number_format($target_titik); ?></td>
-                                            <td class="text-right"><?php echo number_format($persentase,2); ?>%</td>
-                                            <td class="text-right"><?php echo number_format($kelebihan_titik); ?></td>
-                                            <td class="text-right"><?php echo number_format($row['bonus_insentif_titik'] ?? 0); ?></td>
-                                            <td class="text-right"><?php echo number_format($row['bonus_insentif_full_masuk'] ?? 0); ?></td>
-                                            <td class="text-right"><?php echo number_format($row['uang_lembur'] ?? 0); ?></td>
-                                            <td class="text-right"><?php echo number_format($row['denda_telat'] ?? 0); ?></td>
-                                            <td class="text-right"><?php echo number_format($row['uang_makan'] ?? 0); ?></td>
-                                            <td class="text-right"><?php echo number_format($row['jumlah_dibayarkan'] ?? 0); ?></td>
-                                            <td class="text-center"><span class="label label-<?php echo $status_class; ?>"><?php echo $status; ?></span></td>
-                                            <td><?php echo date('d-m-Y H:i', strtotime($row['updated_at'])); ?></td>
-                                            <td>
-                                                <a href="insentif_kurir_update.php?id=<?php echo intval($row['id']); ?>" class="btn btn-xs btn-warning">Edit</a>
-                                            </td>
-                                        </tr>
-                                        <?php } ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                            <!-- /.table-responsive -->
-                            
-                            <!-- Pagination controls -->
-                            <?php if ($total_pages > 1): ?>
-                            <div class="text-center">
-                                <ul class="pagination">
-                                    <?php if ($current_page > 1): ?>
-                                        <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => 1])); ?>">&laquo; First</a></li>
-                                        <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $current_page - 1])); ?>">&lsaquo; Prev</a></li>
-                                    <?php else: ?>
-                                        <li class="disabled"><span>&laquo; First</span></li>
-                                        <li class="disabled"><span>&lsaquo; Prev</span></li>
-                                    <?php endif; ?>
-                                    
-                                    <?php
-                                    // Show page numbers
-                                    $start_page = max(1, $current_page - 2);
-                                    $end_page = min($total_pages, $current_page + 2);
-                                    
-                                    for ($i = $start_page; $i <= $end_page; $i++):
-                                    ?>
-                                        <li class="<?php echo ($i == $current_page) ? 'active' : ''; ?>">
-                                            <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>"><?php echo $i; ?></a>
-                                        </li>
-                                    <?php endfor; ?>
-                                    
-                                    <?php if ($current_page < $total_pages): ?>
-                                        <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $current_page + 1])); ?>">Next &rsaquo;</a></li>
-                                        <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $total_pages])); ?>">Last &raquo;</a></li>
-                                    <?php else: ?>
-                                        <li class="disabled"><span>Next &rsaquo;</span></li>
-                                        <li class="disabled"><span>Last &raquo;</span></li>
-                                    <?php endif; ?>
-                                </ul>
-                            </div>
-                            <?php endif; ?>
-                        </div>
-                        <!-- /.panel-body -->
-                    </div>
-                    <!-- /.panel -->
-                </div>
-                <!-- /.col-lg-12 -->
-            </div>
-            <!-- /.row -->
+    .table-bordered>thead>tr>th {
+        border-bottom-width: 2px;
+    }
+
+    /* Highlight untuk total dibayarkan */
+    .bg-success {
+        background-color: #5cb85c !important;
+        color: white !important;
+    }
+
+    /* Responsive table adjustments */
+    #dataTables {
+        font-size: 12px;
+    }
+
+    #dataTables td {
+        padding: 6px 4px;
+        white-space: nowrap;
+    }
+
+    /* DataTables custom styling */
+    .dataTables_wrapper .dataTables_length select {
+        padding: 4px;
+        margin: 0 5px;
+    }
+
+    .dataTables_wrapper .dataTables_filter input {
+        margin-left: 5px;
+        padding: 4px;
+    }
+
+    .dataTables_wrapper .dataTables_info {
+        padding-top: 8px;
+        font-size: 12px;
+    }
+
+    .dataTables_wrapper .dataTables_paginate {
+        padding-top: 8px;
+    }
+
+    /* Mobile responsiveness */
+    @media screen and (max-width: 767px) {
+        #dataTables {
+            font-size: 10px;
+        }
+
+        #dataTables thead tr th {
+            font-size: 9px;
+            padding: 6px 2px;
+        }
+
+        #dataTables td {
+            padding: 4px 2px;
+        }
+
+        .panel-heading {
+            font-size: 13px;
+        }
+
+        .form-inline .form-group {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .form-inline .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .form-inline .form-control {
+            width: 100%;
+        }
+
+        .table-responsive {
+            border: 0;
+            margin-bottom: 15px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+    }
+
+    @media screen and (max-width: 480px) {
+        h1.page-header {
+            font-size: 20px;
+        }
+
+        h1.page-header small {
+            display: block;
+            margin-top: 5px;
+        }
+    }
+</style>
+<div id="page-wrapper">
+    <div class="row">
+        <div class="col-lg-12">
+            <h1 class="page-header">
+                <i class="fa fa-calculator"></i> Rekapitulasi Bulanan Insentif Kurir
+                <small>(Monthly Payslip - Aggregated)</small>
+            </h1>
         </div>
-        <!-- /#page-wrapper -->
+        <!-- /.col-lg-12 -->
+    </div>
+
+    <?php
+    include("layout_alert.php");
+
+    // Display error/details if any
+    if (isset($_SESSION['alert_details'])) {
+        echo '<div class="alert alert-warning alert-dismissible">';
+        echo '<button type="button" class="close" data-dismiss="alert">&times;</button>';
+        echo '<strong>Detail:</strong><br>';
+        echo $_SESSION['alert_details'];
+        echo '</div>';
+        unset($_SESSION['alert_details']);
+    }
+    ?>
+
+    <div class="row">
+        <div class="col-lg-12">
+            <!-- Filter Panel -->
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <i class="fa fa-filter"></i> Filter Data
+                </div>
+                <div class="panel-body">
+                    <form method="GET" action="" class="form-inline">
+                        <div class="form-group" style="margin-bottom: 10px;">
+                            <label>Periode:</label>
+                            <input type="month" name="periode" class="form-control"
+                                value="<?php echo htmlspecialchars($filter_periode); ?>">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 10px;">
+                            <label>NPP:</label>
+                            <input type="text" name="npp" class="form-control" placeholder="Cari NPP..."
+                                value="<?php echo htmlspecialchars($filter_npp); ?>">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 10px;">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa fa-search"></i> Filter
+                            </button>
+                            <a href="insentif_kurir_list.php" class="btn btn-default">
+                                <i class="fa fa-refresh"></i> Reset
+                            </a>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 10px;">
+                            <a href="insentif_kurir_upload.php" class="btn btn-success">
+                                <i class="fa fa-upload"></i> Upload Excel
+                            </a>
+                            <a href="absensi_kurir_list.php" class="btn btn-warning">
+                                <i class="fa fa-book"></i> Lihat Buku Harian
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Legend Panel -->
+            <div class="panel panel-info">
+                <div class="panel-heading">
+                    <i class="fa fa-info-circle"></i> Keterangan Warna
+                </div>
+                <div class="panel-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <span
+                                style="display: inline-block; padding: 5px 10px; background-color: #dff0d8; border-radius: 3px; margin-right: 5px;">
+                                <strong>Hijau</strong>
+                            </span> = Bonus / Kelebihan Titik
+                        </div>
+                        <div class="col-md-3">
+                            <span
+                                style="display: inline-block; padding: 5px 10px; background-color: #d9edf7; border-radius: 3px; margin-right: 5px;">
+                                <strong>Biru</strong>
+                            </span> = Bonus Full Hadir
+                        </div>
+                        <div class="col-md-3">
+                            <span
+                                style="display: inline-block; padding: 5px 10px; background-color: #fcf8e3; border-radius: 3px; margin-right: 5px;">
+                                <strong>Kuning</strong>
+                            </span> = Telat 1-60 menit
+                        </div>
+                        <div class="col-md-3">
+                            <span
+                                style="display: inline-block; padding: 5px 10px; background-color: #f2dede; border-radius: 3px; margin-right: 5px; color: #a94442;">
+                                <strong>Merah</strong>
+                            </span> = Denda / Potongan / Telat >60 mnt
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Table Panel -->
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    <i class="fa fa-table"></i> Data Insentif Kurir
+                    <span class="pull-right">Total: <?php echo $total_records; ?> data</span>
+                </div>
+                <!-- /.panel-heading -->
+                <div class="panel-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-bordered table-hover" id="dataTables">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">No</th>
+                                    <th rowspan="2">NPP</th>
+                                    <th rowspan="2">Nama Karyawan</th>
+                                    <th rowspan="2">Bagian</th>
+                                    <th rowspan="2">Cabang</th>
+                                    <th rowspan="2">Periode</th>
+                                    <th colspan="4" class="text-center">Performa</th>
+                                    <th colspan="6" class="text-center">Komponen Pembayaran</th>
+                                    <th rowspan="2" class="bg-success">Total Dibayarkan</th>
+                                    <th rowspan="2">Status</th>
+                                    <!-- <th rowspan="2">Tgl Update</th>
+                                    <th rowspan="2">Aksi</th> -->
+                                </tr>
+                                <tr>
+                                    <th>Total Titik</th>
+                                    <th>Target Titik</th>
+                                    <th>Kelebihan</th>
+                                    <th title="Total menit keterlambatan dalam periode">Akumulasi Telat (menit)</th>
+                                    <th title="Bonus dari kelebihan titik (max 500rb/bulan)">Bonus Titik</th>
+                                    <th title="Bonus full kehadiran (250rb jika 0 alpha)">Bonus Full Hadir</th>
+                                    <th>Uang Lembur</th>
+                                    <th>Denda Telat</th>
+                                    <th title="Potongan absolut dari ketidakhadiran">Potongan Makan</th>
+                                    <th title="Uang makan final bulanan setelah potongan">Uang Makan</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                $no = $offset + 1;
+                                while ($row = mysqli_fetch_assoc($query)) {
+                                    $no_titik = intval($row['total_titik']);
+                                    $target_titik = intval($row['target_titik']);
+                                    $kelebihan_titik = max(0, $no_titik - $target_titik);
+                                    $persentase = ($target_titik > 0) ? (($no_titik / $target_titik) * 100) : 0;
+                                    $status = ($no_titik >= $target_titik) ? 'Tercapai' : 'Tidak Tercapai';
+                                    $status_class = ($status == 'Tercapai') ? 'success' : 'danger';
+
+                                    // Color coding untuk HRD
+                                    $akumulasi_telat = intval($row['akumulasi_telat'] ?? 0);
+                                    $telat_style = $akumulasi_telat > 60 ? 'background-color: #f2dede; font-weight: bold;' : ($akumulasi_telat > 0 ? 'background-color: #fcf8e3;' : '');
+
+                                    $bonus_titik = intval($row['bonus_insentif_titik'] ?? 0);
+                                    $bonus_titik_style = $bonus_titik > 0 ? 'background-color: #dff0d8; font-weight: bold;' : '';
+
+                                    $bonus_full = intval($row['bonus_insentif_full_masuk'] ?? 0);
+                                    $bonus_full_style = $bonus_full > 0 ? 'background-color: #d9edf7; font-weight: bold;' : '';
+
+                                    $denda = intval($row['denda_telat'] ?? 0);
+                                    $denda_style = $denda > 0 ? 'background-color: #f2dede; color: #a94442;' : '';
+
+                                    $potongan = intval($row['potongan_makan'] ?? 0);
+                                    $potongan_style = $potongan > 0 ? 'background-color: #f2dede; color: #a94442;' : '';
+
+                                    $kelebihan_style = $kelebihan_titik > 0 ? 'background-color: #dff0d8; font-weight: bold;' : '';
+
+                                    // Format periode as "Bulan Tahun" (e.g., "Nov 2025")
+                                    $periode_obj = DateTime::createFromFormat('Y-m', $row['periode']);
+                                    $periode_formatted = $periode_obj ? $periode_obj->format('M Y') : $row['periode'];
+                                    ?>
+                                    <tr>
+                                        <td><?php echo $no++; ?></td>
+                                        <td><?php echo htmlspecialchars($row['npp']); ?></td>
+                                        <td><?php echo htmlspecialchars($row['nama_emp'] ?? '-'); ?></td>
+                                        <td><?php echo htmlspecialchars($row['nama_bagian'] ?? '-'); ?></td>
+                                        <td><?php echo htmlspecialchars($row['cabang'] ?? '-'); ?></td>
+                                        <td><?php echo $periode_formatted; ?></td>
+                                        <td class="text-right"><?php echo number_format($no_titik); ?></td>
+                                        <td class="text-right"><?php echo number_format($target_titik); ?></td>
+                                        <!-- <td class="text-right"><?php echo number_format($persentase, 2); ?>%</td> -->
+                                        <td class="text-right" style="<?php echo $kelebihan_style; ?>">
+                                            <?php echo number_format($kelebihan_titik); ?>
+                                        </td>
+                                        <td class="text-right" style="<?php echo $telat_style; ?>">
+                                            <?php echo number_format($row['akumulasi_telat'] ?? 0); ?> menit
+                                        </td>
+                                        <td class="text-right" style="<?php echo $bonus_titik_style; ?>">
+                                            <?php echo number_format($row['bonus_insentif_titik'] ?? 0); ?>
+                                        </td>
+                                        <td class="text-right" style="<?php echo $bonus_full_style; ?>">
+                                            <?php echo number_format($row['bonus_insentif_full_masuk'] ?? 0); ?>
+                                        </td>
+                                        <td class="text-right"><?php echo number_format($row['uang_lembur'] ?? 0); ?></td>
+                                        <td class="text-right" style="<?php echo $denda_style; ?>">
+                                            <?php echo number_format($row['denda_telat'] ?? 0); ?>
+                                        </td>
+                                        <td class="text-right" style="<?php echo $potongan_style; ?>">
+                                            <?php echo number_format($row['potongan_makan'] ?? 0); ?>
+                                        </td>
+                                        <td class="text-right"><?php echo number_format($row['uang_makan'] ?? 0); ?></td>
+                                        <td class="text-right bg-success" style="font-weight: bold; font-size: 14px;">
+                                            <?php echo number_format($row['jumlah_dibayarkan'] ?? 0); ?>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="label label-<?php echo $status_class; ?>"
+                                                style="font-size: 11px; padding: 5px 10px;">
+                                                <?php if ($status == 'Tercapai'): ?>
+                                                    <i class="fa fa-check-circle"></i> <?php echo $status; ?>
+                                                <?php else: ?>
+                                                    <i class="fa fa-times-circle"></i> <?php echo $status; ?>
+                                                <?php endif; ?>
+                                            </span>
+                                        </td>
+                                        <!-- <td><?php echo date('d-m-Y H:i', strtotime($row['updated_at'])); ?></td>
+                                        <td>
+                                            <a href="insentif_kurir_update.php?id=<?php echo intval($row['id']); ?>"
+                                                class="btn btn-xs btn-warning">Edit</a>
+                                        </td> -->
+                                    </tr>
+                                <?php } ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- /.table-responsive -->
+                </div>
+                <!-- /.panel-body -->
+            </div>
+            <!-- /.panel -->
+        </div>
+        <!-- /.col-lg-12 -->
+    </div>
+    <!-- /.row -->
+</div>
+<!-- /#page-wrapper -->
+
+<script>
+    $(document).ready(function () {
+        $('#dataTables').DataTable({
+            responsive: true,
+            pageLength: 25,
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Semua"]],
+            language: {
+                lengthMenu: "Tampilkan _MENU_ data per halaman",
+                zeroRecords: "Data tidak ditemukan",
+                info: "Menampilkan halaman _PAGE_ dari _PAGES_",
+                infoEmpty: "Tidak ada data yang tersedia",
+                infoFiltered: "(difilter dari _MAX_ total data)",
+                search: "Cari:",
+                paginate: {
+                    first: "Pertama",
+                    last: "Terakhir",
+                    next: "Selanjutnya",
+                    previous: "Sebelumnya"
+                }
+            },
+            order: [[5, 'desc']], // Sort by periode column (descending)
+            columnDefs: [
+                { orderable: false, targets: [0] }, // Disable sorting on "No"
+                { className: "text-center", targets: [0, 4, 17] }, // center: No, Cabang, Status
+                { className: "text-right", targets: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] } // numeric columns
+            ],
+            drawCallback: function () {
+                // Re-apply Bootstrap tooltip after redraw
+                $('[data-toggle="tooltip"]').tooltip();
+            },
+            dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>' +
+                '<"row"<"col-sm-12"tr>>' +
+                '<"row"<"col-sm-5"i><"col-sm-7"p>>'
+        });
+
+        // Enable tooltips
+        $('[title]').tooltip();
+    });
+</script>
+</div>
+<!-- /.panel-body -->
+</div>
+<!-- /.panel -->
+</div>
+<!-- /.col-lg-12 -->
+</div>
+<!-- /.row -->
+</div>
+<!-- /#page-wrapper -->
 <?php include("layout_bottom.php"); ?>

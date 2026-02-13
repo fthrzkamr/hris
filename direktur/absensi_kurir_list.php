@@ -73,17 +73,21 @@ $grand_total_menit = 0;
 
 $npp_periode_map = []; // Track NPP and periode for bonus query
 while ($row = mysqli_fetch_assoc($query_all)) {
-    if ($row['is_hadir']) $total_hadir++;
-    if (!$row['is_hadir'] && !$row['is_cuti']) $total_alpha++;
-    if ($row['is_cuti']) $total_cuti++;
-    if ($row['is_late']) $total_telat++;
+    if ($row['is_hadir'])
+        $total_hadir++;
+    if (!$row['is_hadir'] && !$row['is_cuti'])
+        $total_alpha++;
+    if ($row['is_cuti'])
+        $total_cuti++;
+    if ($row['is_late'])
+        $total_telat++;
     $grand_total_makan += floatval($row['uang_makan'] ?? 0);
     $grand_total_lembur += floatval($row['uang_lembur'] ?? 0);
     $grand_total_denda += floatval($row['denda_telat'] ?? 0);
     $grand_total_insentif += floatval($row['insentif_titik'] ?? 0);
     $grand_total_bayar += floatval($row['grand_total_harian'] ?? 0);
     $grand_total_menit += intval($row['menit_terlambat'] ?? 0);
-    
+
     // Track NPP and periode for bonus aggregation
     $periode = date('Y-m', strtotime($row['tanggal_absen']));
     $key = $row['npp'] . '|' . $periode;
@@ -112,280 +116,319 @@ if (!empty($npp_periode_map)) {
 // Reset pointer untuk query yang akan ditampilkan
 mysqli_data_seek($query, 0);
 ?>
-        <div id="page-wrapper">
-            <div class="row">
-                <div class="col-lg-12">
-                    <h1 class="page-header">
-                        <i class="fa fa-calendar-check-o"></i> Buku Harian Absensi Kurir
-                        <small>(Catatan Harian - Jejak Audit)</small>
-                    </h1>
-                </div>
-            </div>
+<div id="page-wrapper">
+    <div class="row">
+        <div class="col-lg-12">
+            <h1 class="page-header">
+                <i class="fa fa-calendar-check-o"></i> Buku Harian Absensi Kurir
+                <small>(Catatan Harian - Jejak Audit)</small>
+            </h1>
+        </div>
+    </div>
 
-            <?php include("layout_alert.php"); ?>
-            
-            <!-- Summary Statistics Panel -->
-            <div class="row">
-                <div class="col-lg-3 col-md-6">
-                    <div class="panel panel-success">
-                        <div class="panel-heading">
-                            <div class="row">
-                                <div class="col-xs-3"><i class="fa fa-check-circle fa-3x"></i></div>
-                                <div class="col-xs-9 text-right">
-                                    <div class="huge"><?php echo $total_hadir; ?></div>
-                                    <div>Hari Hadir</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6">
-                    <div class="panel panel-danger">
-                        <div class="panel-heading">
-                            <div class="row">
-                                <div class="col-xs-3"><i class="fa fa-times-circle fa-3x"></i></div>
-                                <div class="col-xs-9 text-right">
-                                    <div class="huge"><?php echo $total_alpha; ?></div>
-                                    <div>Hari Alpha</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6">
-                    <div class="panel panel-warning">
-                        <div class="panel-heading">
-                            <div class="row">
-                                <div class="col-xs-3"><i class="fa fa-clock-o fa-3x"></i></div>
-                                <div class="col-xs-9 text-right">
-                                    <div class="huge"><?php echo $total_telat; ?></div>
-                                    <div>Terlambat</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6">
-                    <div class="panel panel-info">
-                        <div class="panel-heading">
-                            <div class="row">
-                                <div class="col-xs-3"><i class="fa fa-calendar-times-o fa-3x"></i></div>
-                                <div class="col-xs-9 text-right">
-                                    <div class="huge"><?php echo $total_cuti; ?></div>
-                                    <div>Hari Cuti</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="row">
-                <div class="col-lg-12">
-                    <!-- Filter Panel -->
-                    <div class="panel panel-default">
-                        <div class="panel-heading">
-                            <i class="fa fa-filter"></i> Filter Data
-                        </div>
-                        <div class="panel-body">
-                            <form method="GET" action="" class="form-inline">
-                                <div class="form-group">
-                                    <label>Tanggal Awal:</label>
-                                    <input type="date" name="tanggal_awal" class="form-control" value="<?php echo htmlspecialchars($filter_tanggal_awal); ?>">
-                                </div>
-                                <div class="form-group">
-                                    <label>Tanggal Akhir:</label>
-                                    <input type="date" name="tanggal_akhir" class="form-control" value="<?php echo htmlspecialchars($filter_tanggal_akhir); ?>">
-                                </div>
-                                <div class="form-group">
-                                    <label>NPP:</label>
-                                    <input type="text" name="npp" class="form-control" placeholder="Cari NPP..." value="<?php echo htmlspecialchars($filter_npp); ?>">
-                                </div>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fa fa-search"></i> Filter
-                                </button>
-                                <a href="absensi_kurir_list.php" class="btn btn-default">
-                                    <i class="fa fa-refresh"></i> Reset
-                                </a>
-                                <a href="insentif_kurir_upload.php" class="btn btn-success">
-                                    <i class="fa fa-upload"></i> Upload Excel
-                                </a>
-                                <a href="insentif_kurir_list.php" class="btn btn-info">
-                                    <i class="fa fa-bar-chart"></i> Lihat Rekap Bulanan
-                                </a>
-                            </form>
-                        </div>
-                    </div>
-                    
-                    <!-- Data Table Panel -->
-                    <div class="panel panel-primary">
-                        <div class="panel-heading">
-                            <i class="fa fa-table"></i> Data Harian
-                            <span class="pull-right">Halaman <?php echo $current_page; ?> dari <?php echo $total_pages; ?> | Total: <?php echo $total_records; ?> data</span>
-                        </div>
-                        <div class="panel-body">
-                            <div class="table-responsive">
-                                <table class="table table-striped table-bordered table-hover table-condensed" id="dataTables" style="font-size: 11px;">
-                                    <thead>
-                                        <tr>
-                                            <th rowspan="2">No</th>
-                                            <th rowspan="2">Tanggal</th>
-                                            <th rowspan="2">NPP</th>
-                                            <th rowspan="2">Nama</th>
-                                            <th rowspan="2">Tugas</th>
-                                            <th colspan="2" class="text-center bg-info">Jam Kerja</th>
-                                            <th colspan="3" class="text-center bg-warning">Status</th>
-                                            <th colspan="2" class="text-center bg-primary">Pencapaian</th>
-                                            <th colspan="6" class="text-center bg-success">Komponen Finansial (Rp)</th>
-                                            <!-- <th rowspan="2" class="bg-danger">Total Harian</th> -->
-                                        </tr>
-                                        <tr>
-                                            <!-- Jam Kerja -->
-                                            <th class="bg-info">Masuk</th>
-                                            <th class="bg-info">Pulang</th>
-                                            
-                                            <!-- Status -->
-                                            <th class="bg-warning">Hadir</th>
-                                            <th class="bg-warning" title="Terlambat (menit)">Telat</th>
-                                            <th class="bg-warning">Cuti</th>
-                                            
-                                            <!-- Titik -->
-                                            <th class="bg-primary">Aktual</th>
-                                            <th class="bg-primary">Target</th>
-                                            
-                                            <!-- Finansial -->
-                                            <th class="bg-success" title="Insentif Penambahan Titik (dihitung bulanan, max 500rb/bulan)">Bonus Titik</th>
-                                            <th class="bg-success" title="Bonus Full Hadir (dihitung bulanan, 250rb jika 0 alpha)">Bonus Full Hadir</th>
-                                            <th class="bg-success" title="+ jika hadir, - jika alpha">Makan</th>
-                                            <th class="bg-success">Lembur</th>
-                                            <th class="bg-success" title="Potongan denda keterlambatan">Denda</th>
-                                            <th class="bg-success" title="Menit Terlambat">Menit</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php
-                                        $no = $offset + 1;
-                                        // Mapping hari ke bahasa Indonesia
-                                        $hari_indo = array(
-                                            'Sun' => 'Min', 'Mon' => 'Sen', 'Tue' => 'Sel', 
-                                            'Wed' => 'Rab', 'Thu' => 'Kam', 'Fri' => 'Jum', 'Sat' => 'Sab'
-                                        );
-                                        
-                                        while ($row = mysqli_fetch_assoc($query)) {
-                                            // Status badges
-                                            $status_cuti = $row['is_cuti'] ? '<span class="label label-info">Cuti</span>' : '-';
+    <?php include("layout_alert.php"); ?>
 
-                                            if ($row['is_cuti']) {
-                                                // For cuti rows, show '-' for hadir and telat to avoid confusion
-                                                $status_hadir = '-';
-                                                $telat_badge = '-';
-                                            } else {
-                                                $status_hadir = $row['is_hadir'] ? '<span class="label label-success">✓ Hadir</span>' : '<span class="label label-danger">✗ Tidak</span>';
-                                                if ($row['is_late']) {
-                                                    $telat_badge = '<span class="label label-warning">' . $row['menit_terlambat'] . ' menit</span>';
-                                                } else {
-                                                    $telat_badge = '<span class="label label-default">Tepat Waktu</span>';
-                                                }
-                                            }
-                                            
-                                            // Highlight rows
-                                            $row_class = '';
-                                            if ($row['is_cuti']) $row_class = 'info';
-                                            elseif (!$row['is_hadir']) $row_class = 'danger';
-                                            elseif ($row['is_late']) $row_class = 'warning';
-                                            
-                                            // Format tanggal dengan hari dalam bahasa Indonesia
-                                            $hari_en = date('D', strtotime($row['tanggal_absen']));
-                                            $hari_id = $hari_indo[$hari_en];
-                                            $tanggal_formatted = date('d/m/Y', strtotime($row['tanggal_absen'])) . ' (' . $hari_id . ')';
-                                        ?>
-                                        <tr class="<?php echo $row_class; ?>">
-                                            <td><?php echo $no++; ?></td>
-                                            <td><?php echo $tanggal_formatted; ?></td>
-                                            <td><?php echo htmlspecialchars($row['npp']); ?></td>
-                                            <td><?php echo htmlspecialchars($row['nama_emp'] ?? '-'); ?></td>
-                                            <td><?php echo htmlspecialchars($row['jenis_tugas'] ?? '-'); ?></td>
-                                            
-                                            <!-- Jam Kerja -->
-                                            <td><?php echo $row['jam_masuk'] ? date('H:i', strtotime($row['jam_masuk'])) : '-'; ?></td>
-                                            <td><?php echo $row['jam_pulang'] ? date('H:i', strtotime($row['jam_pulang'])) : '-'; ?></td>
-                                            
-                                            <!-- Status -->
-                                            <td class="text-center"><?php echo $status_hadir; ?></td>
-                                            <td class="text-center"><?php echo $telat_badge; ?></td>
-                                            <td class="text-center"><?php echo $status_cuti; ?></td>
-                                            
-                                            <!-- Titik -->
-                                            <td class="text-right"><?php echo number_format($row['total_aktual_titik']); ?></td>
-                                            <td class="text-right"><?php echo number_format($row['target_titik']); ?></td>
-                                            
-                                            <!-- Finansial -->
-                                            <td class="text-center text-muted" title="Dihitung bulanan (lihat total)">-</td>
-                                            <td class="text-center text-muted" title="Dihitung bulanan (lihat total)">-</td>
-                                            <td class="text-right <?php echo (($row['uang_makan'] ?? 0) < 0) ? 'text-danger' : ''; ?>">
-                                                <?php echo number_format($row['uang_makan'] ?? 0); ?>
-                                            </td>
-                                            <td class="text-right"><?php echo number_format($row['uang_lembur'] ?? 0); ?></td>
-                                            <td class="text-right text-danger"><?php echo number_format($row['denda_telat'] ?? 0); ?></td>
-                                            <td class="text-center"><?php echo $row['menit_terlambat'] ?? 0; ?></td>
-                                            
-                                            <!-- Total -->
-                                            <!-- <td class="text-right"><strong><?php echo number_format($row['grand_total_harian'] ?? 0); ?></strong></td> -->
-                                        </tr>
-                                        <?php } ?>
-                                    </tbody>
-                                    <tfoot>
-                                        <tr class="info">
-                                            <th colspan="12" class="text-right"><strong>TOTAL KESELURUHAN:</strong></th>
-                                            <th class="text-right" title="Total bonus titik bulan ini"><strong>Rp <?php echo number_format($grand_total_bonus_titik); ?></strong></th>
-                                            <th class="text-right" title="Total bonus full hadir bulan ini"><strong>Rp <?php echo number_format($grand_total_bonus_full_hadir); ?></strong></th>
-                                            <th class="text-right"><strong>Rp <?php echo number_format($grand_total_makan); ?></strong></th>
-                                            <th class="text-right"><strong>Rp <?php echo number_format($grand_total_lembur); ?></strong></th>
-                                            <th class="text-right text-danger"><strong>Rp <?php echo number_format($grand_total_denda); ?></strong></th>
-                                            <th class="text-center"><strong><?php echo number_format($grand_total_menit); ?> mnt</strong></th>
-                                            <!-- <th class="text-right bg-warning"><strong>Rp <?php echo number_format($grand_total_bayar); ?></strong></th> -->
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                            
-                            <!-- Pagination controls -->
-                            <?php if ($total_pages > 1): ?>
-                            <div class="text-center">
-                                <ul class="pagination">
-                                    <?php if ($current_page > 1): ?>
-                                        <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => 1])); ?>">&laquo; First</a></li>
-                                        <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $current_page - 1])); ?>">&lsaquo; Prev</a></li>
-                                    <?php else: ?>
-                                        <li class="disabled"><span>&laquo; First</span></li>
-                                        <li class="disabled"><span>&lsaquo; Prev</span></li>
-                                    <?php endif; ?>
-                                    
-                                    <?php
-                                    // Show page numbers
-                                    $start_page = max(1, $current_page - 2);
-                                    $end_page = min($total_pages, $current_page + 2);
-                                    
-                                    for ($i = $start_page; $i <= $end_page; $i++):
-                                    ?>
-                                        <li class="<?php echo ($i == $current_page) ? 'active' : ''; ?>">
-                                            <a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>"><?php echo $i; ?></a>
-                                        </li>
-                                    <?php endfor; ?>
-                                    
-                                    <?php if ($current_page < $total_pages): ?>
-                                        <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $current_page + 1])); ?>">Next &rsaquo;</a></li>
-                                        <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => $total_pages])); ?>">Last &raquo;</a></li>
-                                    <?php else: ?>
-                                        <li class="disabled"><span>Next &rsaquo;</span></li>
-                                        <li class="disabled"><span>Last &raquo;</span></li>
-                                    <?php endif; ?>
-                                </ul>
-                            </div>
-                            <?php endif; ?>
+    <!-- Summary Statistics Panel -->
+    <div class="row">
+        <div class="col-lg-3 col-md-6">
+            <div class="panel panel-success">
+                <div class="panel-heading">
+                    <div class="row">
+                        <div class="col-xs-3"><i class="fa fa-check-circle fa-3x"></i></div>
+                        <div class="col-xs-9 text-right">
+                            <div class="huge"><?php echo $total_hadir; ?></div>
+                            <div>Hari Hadir</div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="panel panel-danger">
+                <div class="panel-heading">
+                    <div class="row">
+                        <div class="col-xs-3"><i class="fa fa-times-circle fa-3x"></i></div>
+                        <div class="col-xs-9 text-right">
+                            <div class="huge"><?php echo $total_alpha; ?></div>
+                            <div>Hari Alpha</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="panel panel-warning">
+                <div class="panel-heading">
+                    <div class="row">
+                        <div class="col-xs-3"><i class="fa fa-clock-o fa-3x"></i></div>
+                        <div class="col-xs-9 text-right">
+                            <div class="huge"><?php echo $total_telat; ?></div>
+                            <div>Terlambat</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="panel panel-info">
+                <div class="panel-heading">
+                    <div class="row">
+                        <div class="col-xs-3"><i class="fa fa-calendar-times-o fa-3x"></i></div>
+                        <div class="col-xs-9 text-right">
+                            <div class="huge"><?php echo $total_cuti; ?></div>
+                            <div>Hari Cuti</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12">
+            <!-- Filter Panel -->
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <i class="fa fa-filter"></i> Filter Data
+                </div>
+                <div class="panel-body">
+                    <form method="GET" action="" class="form-inline">
+                        <div class="form-group">
+                            <label>Tanggal Awal:</label>
+                            <input type="date" name="tanggal_awal" class="form-control"
+                                value="<?php echo htmlspecialchars($filter_tanggal_awal); ?>">
+                        </div>
+                        <div class="form-group">
+                            <label>Tanggal Akhir:</label>
+                            <input type="date" name="tanggal_akhir" class="form-control"
+                                value="<?php echo htmlspecialchars($filter_tanggal_akhir); ?>">
+                        </div>
+                        <div class="form-group">
+                            <label>NPP:</label>
+                            <input type="text" name="npp" class="form-control" placeholder="Cari NPP..."
+                                value="<?php echo htmlspecialchars($filter_npp); ?>">
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa fa-search"></i> Filter
+                        </button>
+                        <a href="absensi_kurir_list.php" class="btn btn-default">
+                            <i class="fa fa-refresh"></i> Reset
+                        </a>
+                        <a href="insentif_kurir_upload.php" class="btn btn-success">
+                            <i class="fa fa-upload"></i> Upload Excel
+                        </a>
+                        <a href="insentif_kurir_list.php" class="btn btn-info">
+                            <i class="fa fa-bar-chart"></i> Lihat Rekap Bulanan
+                        </a>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Data Table Panel -->
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    <i class="fa fa-table"></i> Data Harian
+                    <span class="pull-right">Halaman <?php echo $current_page; ?> dari <?php echo $total_pages; ?> |
+                        Total: <?php echo $total_records; ?> data</span>
+                </div>
+                <div class="panel-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-bordered table-hover table-condensed" id="dataTables"
+                            style="font-size: 11px;">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">No</th>
+                                    <th rowspan="2">Tanggal</th>
+                                    <th rowspan="2">NPP</th>
+                                    <th rowspan="2">Nama</th>
+                                    <th rowspan="2">Tugas</th>
+                                    <th colspan="2" class="text-center bg-info">Jam Kerja</th>
+                                    <th colspan="3" class="text-center bg-warning">Status</th>
+                                    <th colspan="2" class="text-center bg-primary">Pencapaian</th>
+                                    <th colspan="6" class="text-center bg-success">Komponen Finansial (Rp)</th>
+                                    <!-- <th rowspan="2" class="bg-danger">Total Harian</th> -->
+                                </tr>
+                                <tr>
+                                    <!-- Jam Kerja -->
+                                    <th class="bg-info">Masuk</th>
+                                    <th class="bg-info">Pulang</th>
+
+                                    <!-- Status -->
+                                    <th class="bg-warning">Hadir</th>
+                                    <th class="bg-warning" title="Terlambat (menit)">Telat</th>
+                                    <th class="bg-warning">Cuti</th>
+
+                                    <!-- Titik -->
+                                    <th class="bg-primary">Aktual</th>
+                                    <th class="bg-primary">Target</th>
+
+                                    <!-- Finansial -->
+                                    <th class="bg-success"
+                                        title="Insentif Penambahan Titik (dihitung bulanan, max 500rb/bulan)">Bonus
+                                        Titik</th>
+                                    <th class="bg-success"
+                                        title="Bonus Full Hadir (dihitung bulanan, 250rb jika 0 alpha)">Bonus Full Hadir
+                                    </th>
+                                    <th class="bg-success" title="+ jika hadir, - jika alpha">Makan</th>
+                                    <th class="bg-success">Lembur</th>
+                                    <th class="bg-success" title="Potongan denda keterlambatan">Denda</th>
+                                    <th class="bg-success" title="Menit Terlambat">Menit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                $no = $offset + 1;
+                                // Mapping hari ke bahasa Indonesia
+                                $hari_indo = array(
+                                    'Sun' => 'Min',
+                                    'Mon' => 'Sen',
+                                    'Tue' => 'Sel',
+                                    'Wed' => 'Rab',
+                                    'Thu' => 'Kam',
+                                    'Fri' => 'Jum',
+                                    'Sat' => 'Sab'
+                                );
+
+                                while ($row = mysqli_fetch_assoc($query)) {
+                                    // Status badges
+                                    $status_cuti = $row['is_cuti'] ? '<span class="label label-info">Cuti</span>' : '-';
+
+                                    if ($row['is_cuti']) {
+                                        // For cuti rows, show '-' for hadir and telat to avoid confusion
+                                        $status_hadir = '-';
+                                        $telat_badge = '-';
+                                    } else {
+                                        $status_hadir = $row['is_hadir'] ? '<span class="label label-success">✓ Hadir</span>' : '<span class="label label-danger">✗ Tidak</span>';
+                                        if ($row['is_late']) {
+                                            $telat_badge = '<span class="label label-warning">' . $row['menit_terlambat'] . ' menit</span>';
+                                        } else {
+                                            $telat_badge = '<span class="label label-default">Tepat Waktu</span>';
+                                        }
+                                    }
+
+                                    // Highlight rows
+                                    $row_class = '';
+                                    if ($row['is_cuti'])
+                                        $row_class = 'info';
+                                    elseif (!$row['is_hadir'])
+                                        $row_class = 'danger';
+                                    elseif ($row['is_late'])
+                                        $row_class = 'warning';
+
+                                    // Format tanggal dengan hari dalam bahasa Indonesia
+                                    $hari_en = date('D', strtotime($row['tanggal_absen']));
+                                    $hari_id = $hari_indo[$hari_en];
+                                    $tanggal_formatted = date('d/m/Y', strtotime($row['tanggal_absen'])) . ' (' . $hari_id . ')';
+                                    ?>
+                                    <tr class="<?php echo $row_class; ?>">
+                                        <td><?php echo $no++; ?></td>
+                                        <td><?php echo $tanggal_formatted; ?></td>
+                                        <td><?php echo htmlspecialchars($row['npp']); ?></td>
+                                        <td><?php echo htmlspecialchars($row['nama_emp'] ?? '-'); ?></td>
+                                        <td><?php echo htmlspecialchars($row['jenis_tugas'] ?? '-'); ?></td>
+
+                                        <!-- Jam Kerja -->
+                                        <td><?php echo $row['jam_masuk'] ? date('H:i', strtotime($row['jam_masuk'])) : '-'; ?>
+                                        </td>
+                                        <td><?php echo $row['jam_pulang'] ? date('H:i', strtotime($row['jam_pulang'])) : '-'; ?>
+                                        </td>
+
+                                        <!-- Status -->
+                                        <td class="text-center"><?php echo $status_hadir; ?></td>
+                                        <td class="text-center"><?php echo $telat_badge; ?></td>
+                                        <td class="text-center"><?php echo $status_cuti; ?></td>
+
+                                        <!-- Titik -->
+                                        <td class="text-right"><?php echo number_format($row['total_aktual_titik']); ?></td>
+                                        <td class="text-right"><?php echo number_format($row['target_titik']); ?></td>
+
+                                        <!-- Finansial -->
+                                        <td class="text-center text-muted" title="Dihitung bulanan (lihat total)">-</td>
+                                        <td class="text-center text-muted" title="Dihitung bulanan (lihat total)">-</td>
+                                        <?php $uang_makan_harian = floatval($row['uang_makan'] ?? 0); ?>
+                                        <td class="text-right <?php echo ($uang_makan_harian < 0) ? 'text-danger' : ''; ?>">
+                                            <?php if ($uang_makan_harian < 0): ?>
+                                                <?php echo number_format($uang_makan_harian); ?>
+                                            <?php else: ?>
+                                                <span class="text-muted">-</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="text-right"><?php echo number_format($row['uang_lembur'] ?? 0); ?></td>
+                                        <td class="text-right text-danger">
+                                            <?php echo number_format($row['denda_telat'] ?? 0); ?></td>
+                                        <td class="text-center"><?php echo $row['menit_terlambat'] ?? 0; ?></td>
+
+                                        <!-- Total -->
+                                        <!-- <td class="text-right"><strong><?php echo number_format($row['grand_total_harian'] ?? 0); ?></strong></td> -->
+                                    </tr>
+                                <?php } ?>
+                            </tbody>
+                            <tfoot>
+                                <tr class="info">
+                                    <th colspan="12" class="text-right"><strong>TOTAL KESELURUHAN:</strong></th>
+                                    <th class="text-right" title="Total bonus titik bulan ini"><strong>Rp
+                                            <?php echo number_format($grand_total_bonus_titik); ?></strong></th>
+                                    <th class="text-right" title="Total bonus full hadir bulan ini"><strong>Rp
+                                            <?php echo number_format($grand_total_bonus_full_hadir); ?></strong></th>
+                                    <th class="text-right"><strong>Rp
+                                            <?php echo number_format($grand_total_makan); ?></strong></th>
+                                    <th class="text-right"><strong>Rp
+                                            <?php echo number_format($grand_total_lembur); ?></strong></th>
+                                    <th class="text-right text-danger"><strong>Rp
+                                            <?php echo number_format($grand_total_denda); ?></strong></th>
+                                    <th class="text-center"><strong><?php echo number_format($grand_total_menit); ?>
+                                            mnt</strong></th>
+                                    <!-- <th class="text-right bg-warning"><strong>Rp <?php echo number_format($grand_total_bayar); ?></strong></th> -->
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- Pagination controls -->
+                    <?php if ($total_pages > 1): ?>
+                        <div class="text-center">
+                            <ul class="pagination">
+                                <?php if ($current_page > 1): ?>
+                                    <li><a href="?<?php echo http_build_query(array_merge($_GET, ['page' => 1])); ?>">&laquo;
+                                            First</a></li>
+                                    <li><a
+                                            href="?<?php echo http_build_query(array_merge($_GET, ['page' => $current_page - 1])); ?>">&lsaquo;
+                                            Prev</a></li>
+                                <?php else: ?>
+                                    <li class="disabled"><span>&laquo; First</span></li>
+                                    <li class="disabled"><span>&lsaquo; Prev</span></li>
+                                <?php endif; ?>
+
+                                <?php
+                                // Show page numbers
+                                $start_page = max(1, $current_page - 2);
+                                $end_page = min($total_pages, $current_page + 2);
+
+                                for ($i = $start_page; $i <= $end_page; $i++):
+                                    ?>
+                                    <li class="<?php echo ($i == $current_page) ? 'active' : ''; ?>">
+                                        <a
+                                            href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>"><?php echo $i; ?></a>
+                                    </li>
+                                <?php endfor; ?>
+
+                                <?php if ($current_page < $total_pages): ?>
+                                    <li><a
+                                            href="?<?php echo http_build_query(array_merge($_GET, ['page' => $current_page + 1])); ?>">Next
+                                            &rsaquo;</a></li>
+                                    <li><a
+                                            href="?<?php echo http_build_query(array_merge($_GET, ['page' => $total_pages])); ?>">Last
+                                            &raquo;</a></li>
+                                <?php else: ?>
+                                    <li class="disabled"><span>Next &rsaquo;</span></li>
+                                    <li class="disabled"><span>Last &raquo;</span></li>
+                                <?php endif; ?>
+                            </ul>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 <?php include("layout_bottom.php"); ?>

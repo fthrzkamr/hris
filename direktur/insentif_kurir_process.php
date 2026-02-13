@@ -277,6 +277,7 @@ try {
                 'hari_alpha' => 0,
                 'hari_cuti' => 0,
                 'hari_telat' => 0,
+                'total_menit_telat' => 0,
                 'total_lembur' => 0,
                 'total_denda' => 0,
                 'total_makan' => 0,
@@ -397,6 +398,7 @@ try {
             $monthly_data[$key]['hari_hadir']++;
             if ($is_late) {
                 $monthly_data[$key]['hari_telat']++;
+                $monthly_data[$key]['total_menit_telat'] += $menit_terlambat; // Akumulasi menit keterlambatan
             }
         } elseif ($is_cuti) {
             $monthly_data[$key]['hari_cuti']++;
@@ -410,12 +412,12 @@ try {
 
     // STEP 3b: Calculate monthly bonus and insert aggregated records
     $upsert_sql = "INSERT INTO transaksi_insentif_kurir 
-        (npp, periode, total_titik, target_titik, bonus_insentif_titik, bonus_insentif_full_masuk, denda_telat, uang_makan, uang_lembur, jumlah_dibayarkan, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        (npp, periode, total_titik, target_titik, bonus_insentif_titik, bonus_insentif_full_masuk, denda_telat, akumulasi_telat, potongan_makan, uang_makan, uang_lembur, jumlah_dibayarkan, created_at, updated_at) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         ON DUPLICATE KEY UPDATE 
         total_titik=VALUES(total_titik), target_titik=VALUES(target_titik), bonus_insentif_titik=VALUES(bonus_insentif_titik),
-        bonus_insentif_full_masuk=VALUES(bonus_insentif_full_masuk), denda_telat=VALUES(denda_telat), 
-        uang_makan=VALUES(uang_makan), uang_lembur=VALUES(uang_lembur),
+        bonus_insentif_full_masuk=VALUES(bonus_insentif_full_masuk), denda_telat=VALUES(denda_telat), akumulasi_telat=VALUES(akumulasi_telat),
+        potongan_makan=VALUES(potongan_makan), uang_makan=VALUES(uang_makan), uang_lembur=VALUES(uang_lembur),
         jumlah_dibayarkan=VALUES(jumlah_dibayarkan), updated_at=NOW()";
     $upsert_stmt = mysqli_prepare($conn, $upsert_sql);
     if (!$upsert_stmt) throw new Exception('Prepare insert failed: ' . mysqli_error($conn));
@@ -476,10 +478,13 @@ try {
         // Calculate total payment
         $jumlah_dibayarkan = $total_makan + $bonus_insentif + $total_lembur - $total_denda;
         
+        // Get total menit keterlambatan from monthly data
+        $akumulasi_menit_telat = isset($data['total_menit_telat']) ? $data['total_menit_telat'] : 0;
+        
         // Bind and execute
         if (!mysqli_stmt_bind_param(
             $upsert_stmt,
-            'ssiiiiiiii',
+            'ssiiiiiiiiii',
             $npp,
             $periode,
             $total_titik,
@@ -487,6 +492,8 @@ try {
             $bonus_titik,
             $bonus_full_hadir,
             $total_denda,
+            $akumulasi_menit_telat,
+            $potongan_makan,
             $total_makan,
             $total_lembur,
             $jumlah_dibayarkan
