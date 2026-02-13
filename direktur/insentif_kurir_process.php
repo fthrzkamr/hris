@@ -386,7 +386,12 @@ try {
         $monthly_data[$key]['target_titik'] += $target;
         $monthly_data[$key]['total_lembur'] += $uang_lembur_harian;
         $monthly_data[$key]['total_denda'] += $denda_telat_harian;
-        $monthly_data[$key]['total_makan'] += $uang_makan_harian;
+        
+        // Akumulasi uang makan: HANYA potongan (negatif), TIDAK akumulasi allowance harian
+        // Karena allowance bulanan adalah fix 300rb, hanya potongan alpha yang dikurangi
+        if ($uang_makan_harian < 0) {
+            $monthly_data[$key]['total_makan'] += $uang_makan_harian; // Akumulasi potongan (negatif)
+        }
         
         if ($is_hadir) {
             $monthly_data[$key]['hari_hadir']++;
@@ -424,8 +429,14 @@ try {
         $total_denda = $data['total_denda'];
         $total_makan = $data['total_makan'];
         
-        // CALCULATE MONTHLY BONUS based on total achievement
-        // 1. Bonus Titik: BATAS_ATAS_BONUS_TITIK (25) adalah batas TOTAL BULAN, bukan per hari!
+        // ============================================================
+        // CALCULATE MONTHLY BONUS (INDEPENDENT CALCULATIONS)
+        // ============================================================
+        
+        // 1. BONUS TITIK (INDEPENDENT - tidak tergantung kehadiran!)
+        //    Ketika total_titik melebihi target_titik, langsung dapat bonus
+        //    Rate: 20,000 per titik, maksimal 25 titik (500,000)
+        //    Contoh: jika selisih = 85 titik, bonus = min(85, 25) × 20,000 = 500,000
         $bonus_titik = 0;
         $selisih = $total_titik - $target_titik;
         
@@ -436,7 +447,9 @@ try {
             $bonus_titik = $titik_bonus * $rate_bonus; // Max 25 × 20,000 = 500,000/bulan
         }
         
-        // 2. Bonus Full Hadir: Hanya jika tidak ada alpha *dan* tidak ada telat sebulan
+        // 2. BONUS FULL HADIR (INDEPENDENT - hanya untuk kehadiran sempurna!)
+        //    Hanya diberikan jika TIDAK ADA alpha DAN TIDAK ADA keterlambatan sebulan
+        //    Ini TERPISAH dari bonus titik di atas
         $bonus_full_hadir = 0;
         $hari_alpha = $data['hari_alpha'];
         $hari_telat = isset($data['hari_telat']) ? $data['hari_telat'] : 0;
@@ -444,15 +457,21 @@ try {
             $bonus_full_hadir = intval($settings['BONUS_FULL_HADIR']); // 250,000
         }
         
-        // Total bonus = bonus titik + bonus full hadir
+        // Total bonus gabungan (untuk perhitungan jumlah_dibayarkan saja)
         $bonus_insentif = $bonus_titik + $bonus_full_hadir;
 
-        // Clamp monthly meal allowance to configured UANG_MAKAN_BULANAN
-        $uang_makan_bulanan = intval($settings['UANG_MAKAN_BULANAN']);
-        $original_total_makan = $total_makan;
-        if ($total_makan > $uang_makan_bulanan) {
-            $total_makan = $uang_makan_bulanan;
-        }
+        // ============================================================
+        // UANG MAKAN BULANAN: Base 300rb - Potongan Alpha
+        // ============================================================
+        // Uang makan base per bulan = 300,000 (setting)
+        // Total_makan dari akumulasi hanya berisi POTONGAN (negatif) untuk hari alpha
+        // Jadi: final_makan = 300,000 + total_makan (karena total_makan negatif)
+        $uang_makan_base = intval($settings['UANG_MAKAN_BULANAN']); // 300,000
+        $potongan_makan = abs($total_makan); // Potongan absolut (positif untuk display)
+        $uang_makan_final = $uang_makan_base + $total_makan; // Base - Potongan
+        
+        // Untuk disimpan di DB, kita simpan nilai final yang sudah dipotong
+        $total_makan = $uang_makan_final;
 
         // Calculate total payment
         $jumlah_dibayarkan = $total_makan + $bonus_insentif + $total_lembur - $total_denda;
@@ -485,13 +504,28 @@ try {
             $hari_kerja = count($data['dates']);
             $hari_alpha = $data['hari_alpha'];
             $hari_cuti = $data['hari_cuti'];
-            $bonus_info = "Bonus: ";
-            if ($bonus_titik > 0) $bonus_info .= "Titik=" . number_format($bonus_titik);
-            if ($bonus_full_hadir > 0) $bonus_info .= ($bonus_titik > 0 ? " + " : "") . "Full Hadir=" . number_format($bonus_full_hadir);
-            if ($bonus_insentif == 0) $bonus_info .= "0";
-            $makan_info = number_format($original_total_makan);
-            if ($original_total_makan != $total_makan) $makan_info .= " -> " . number_format($total_makan);
-            $error_messages[] = "✓ NPP $npp periode $periode: {$hari_kerja} hari (Hadir={$data['hari_hadir']}, Telat={$data['hari_telat']}, Alpha={$hari_alpha}, Cuti={$hari_cuti}), Total Titik={$total_titik}, Target={$target_titik}, Makan={$makan_info}, {$bonus_info}, Total Bayar=".number_format($jumlah_dibayarkan);
+            
+            // Format bonus info to clearly show independent calculations
+            $bonus_parts = [];
+            if ($bonus_titik > 0) {
+                $selisih_display = $total_titik - $target_titik;
+                $titik_paid = min($selisih_display, intval($settings['BATAS_ATAS_BONUS_TITIK']));
+                $bonus_parts[] = "Bonus Titik (+{$selisih_display} titik, dibayar {$titik_paid} titik) = " . number_format($bonus_titik);
+            }
+            if ($bonus_full_hadir > 0) {
+                $bonus_parts[] = "Bonus Full Hadir = " . number_format($bonus_full_hadir);
+            }
+            if (empty($bonus_parts)) {
+                $bonus_parts[] = "Tidak ada bonus";
+            }
+            $bonus_info = implode(" | ", $bonus_parts);
+            
+            // Format uang makan: Base - Potongan = Final
+            $makan_info = number_format($uang_makan_base);
+            if ($potongan_makan > 0) {
+                $makan_info .= " - " . number_format($potongan_makan) . " ({$hari_alpha} alpha) = " . number_format($total_makan);
+            }
+            $error_messages[] = "✓ NPP $npp periode $periode: {$hari_kerja} hari | Hadir={$data['hari_hadir']} Telat={$data['hari_telat']} Alpha={$hari_alpha} Cuti={$hari_cuti} | Titik Aktual={$total_titik} Target={$target_titik} | Makan={$makan_info} | {$bonus_info} | TOTAL BAYAR=" . number_format($jumlah_dibayarkan);
         }
     }
 
