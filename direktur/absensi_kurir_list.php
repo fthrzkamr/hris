@@ -94,7 +94,7 @@ while ($row = mysqli_fetch_assoc($query_all)) {
     $npp_periode_map[$key] = 1;
 }
 
-// Query total bonus from transaksi_insentif_kurir for the filtered periods
+// Query total bonus and uang_makan from transaksi_insentif_kurir for the filtered periods
 if (!empty($npp_periode_map)) {
     $conditions = [];
     foreach (array_keys($npp_periode_map) as $key) {
@@ -103,13 +103,22 @@ if (!empty($npp_periode_map)) {
         $periode_esc = mysqli_real_escape_string($conn, $periode_val);
         $conditions[] = "(npp = '$npp_esc' AND periode = '$periode_esc')";
     }
-    $bonus_sql = "SELECT SUM(bonus_insentif_titik) as total_bonus_titik, SUM(bonus_insentif_full_masuk) as total_bonus_full 
-                  FROM transaksi_insentif_kurir 
+    // Include SUM(potongan_makan) so the page-level total only counts deductions (-15k per alpha)
+    $bonus_sql = "SELECT SUM(bonus_insentif_titik) as total_bonus_titik, SUM(bonus_insentif_full_masuk) as total_bonus_full, SUM(uang_makan) as total_uang_makan, SUM(potongan_makan) as total_potongan_makan
+                  FROM transaksi_insentif_kurir
                   WHERE " . implode(' OR ', $conditions);
     $bonus_query = mysqli_query($conn, $bonus_sql);
     if ($bonus_query && $bonus_row = mysqli_fetch_assoc($bonus_query)) {
         $grand_total_bonus_titik = floatval($bonus_row['total_bonus_titik'] ?? 0);
         $grand_total_bonus_full_hadir = floatval($bonus_row['total_bonus_full'] ?? 0);
+        // Show only total potongan (sum of -15k entries). Display as negative value to indicate deduction.
+        $total_potongan = floatval($bonus_row['total_potongan_makan'] ?? 0);
+        if ($total_potongan > 0) {
+            $grand_total_makan = -1 * $total_potongan; // display negative total deduction
+        } else {
+            // fallback to monthly-aggregate final uang_makan if no potongan recorded
+            $grand_total_makan = floatval($bonus_row['total_uang_makan'] ?? 0);
+        }
     }
 }
 
