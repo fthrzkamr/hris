@@ -296,9 +296,25 @@ $query = mysqli_query($conn, $sql);
                                     $no_titik = intval($row['total_titik']);
                                     $target_titik = intval($row['target_titik']);
                                     $kelebihan_titik = max(0, $no_titik - $target_titik);
-                                    $persentase = ($target_titik > 0) ? (($no_titik / $target_titik) * 100) : 0;
-                                    $status = ($no_titik >= $target_titik) ? 'Tercapai' : 'Tidak Tercapai';
-                                    $status_class = ($status == 'Tercapai') ? 'success' : 'danger';
+                                
+                                    // Simplified status logic: two states only
+                                    // - target <= 0 => 'Belum Tercapai'
+                                    // - actual >= target OR actual >= 75% of target => 'Tercapai'
+                                    // - else => 'Belum Tercapai'
+                                    if ($target_titik <= 0) {
+                                        $status = 'Belum Tercapai';
+                                        $status_class = 'danger';
+                                        $persentase = 0;
+                                    } else {
+                                        $persentase = ($target_titik > 0) ? (($no_titik / $target_titik) * 100) : 0;
+                                        if ($no_titik >= $target_titik || $persentase >= 75) {
+                                            $status = 'Tercapai';
+                                            $status_class = 'success';
+                                        } else {
+                                            $status = 'Belum Tercapai';
+                                            $status_class = 'danger';
+                                        }
+                                    }
 
                                     // Color coding untuk HRD
                                     $akumulasi_telat = intval($row['akumulasi_telat'] ?? 0);
@@ -329,11 +345,21 @@ $query = mysqli_query($conn, $sql);
                                         <td><?php echo htmlspecialchars($row['nama_bagian'] ?? '-'); ?></td>
                                         <td><?php echo htmlspecialchars($row['cabang'] ?? '-'); ?></td>
                                         <td><?php echo $periode_formatted; ?></td>
-                                        <td class="text-right editable-titik" data-npp="<?php echo htmlspecialchars($row['npp']); ?>" data-periode="<?php echo $row['periode']; ?>" data-total="<?php echo $no_titik; ?>" data-target="<?php echo $target_titik; ?>" style="cursor:pointer;">
-                                            <?php echo number_format($no_titik); ?> <i class="fa fa-pencil" style="font-size:10px;color:#666;margin-left:6px;"></i>
+                                        <td class="text-right editable-titik"
+                                            data-npp="<?php echo htmlspecialchars($row['npp']); ?>"
+                                            data-periode="<?php echo $row['periode']; ?>"
+                                            data-total="<?php echo $no_titik; ?>" data-target="<?php echo $target_titik; ?>"
+                                            style="cursor:pointer;">
+                                            <?php echo number_format($no_titik); ?> <i class="fa fa-pencil"
+                                                style="font-size:10px;color:#666;margin-left:6px;"></i>
                                         </td>
-                                        <td class="text-right editable-titik" data-npp="<?php echo htmlspecialchars($row['npp']); ?>" data-periode="<?php echo $row['periode']; ?>" data-total="<?php echo $no_titik; ?>" data-target="<?php echo $target_titik; ?>" style="cursor:pointer;">
-                                            <?php echo number_format($target_titik); ?> <i class="fa fa-pencil" style="font-size:10px;color:#666;margin-left:6px;"></i>
+                                        <td class="text-right editable-titik"
+                                            data-npp="<?php echo htmlspecialchars($row['npp']); ?>"
+                                            data-periode="<?php echo $row['periode']; ?>"
+                                            data-total="<?php echo $no_titik; ?>" data-target="<?php echo $target_titik; ?>"
+                                            style="cursor:pointer;">
+                                            <?php echo number_format($target_titik); ?> <i class="fa fa-pencil"
+                                                style="font-size:10px;color:#666;margin-left:6px;"></i>
                                         </td>
                                         <!-- <td class="text-right"><?php echo number_format($persentase, 2); ?>%</td> -->
                                         <td class="text-right" style="<?php echo $kelebihan_style; ?>">
@@ -390,18 +416,21 @@ $query = mysqli_query($conn, $sql);
                         <form id="formEditTitik">
                             <div class="modal-header">
                                 <button type="button" class="close" data-dismiss="modal">&times;</button>
-                                <h4 class="modal-title">Edit Titik - <span id="modalNpp"></span> <small id="modalPeriode"></small></h4>
+                                <h4 class="modal-title">Edit Titik - <span id="modalNpp"></span> <small
+                                        id="modalPeriode"></small></h4>
                             </div>
                             <div class="modal-body">
                                 <input type="hidden" id="modalNppInput" name="npp">
                                 <input type="hidden" id="modalPeriodeInput" name="periode">
                                 <div class="form-group">
                                     <label>Aktual Titik</label>
-                                    <input type="number" class="form-control" id="modalAktual" name="aktual" min="0" required>
+                                    <input type="number" class="form-control" id="modalAktual" name="aktual" min="0"
+                                        required>
                                 </div>
                                 <div class="form-group">
                                     <label>Target Titik</label>
-                                    <input type="number" class="form-control" id="modalTarget" name="target" min="0" required>
+                                    <input type="number" class="form-control" id="modalTarget" name="target" min="0"
+                                        required>
                                 </div>
                             </div>
                             <div class="modal-footer">

@@ -296,9 +296,29 @@ $query = mysqli_query($conn, $sql);
                                     $no_titik = intval($row['total_titik']);
                                     $target_titik = intval($row['target_titik']);
                                     $kelebihan_titik = max(0, $no_titik - $target_titik);
-                                    $persentase = ($target_titik > 0) ? (($no_titik / $target_titik) * 100) : 0;
-                                    $status = ($no_titik >= $target_titik) ? 'Tercapai' : 'Tidak Tercapai';
-                                    $status_class = ($status == 'Tercapai') ? 'success' : 'danger';
+                                    // Determine status more logically:
+                                    // - If no valid target -> N/A
+                                    // - If actual >= target -> Tercapai (success)
+                                    // - If actual < target but >= 75% of target -> Hampir (warning)
+                                    // - Else -> Tidak Tercapai (danger)
+                                    // New simplified status logic:
+                                    // - If target <= 0 => treated as 'Belum Tercapai'
+                                    // - If actual >= target OR actual >= 75% of target => 'Tercapai'
+                                    // - Else => 'Belum Tercapai'
+                                    if ($target_titik <= 0) {
+                                        $status = 'Belum Tercapai';
+                                        $status_class = 'danger';
+                                        $persentase = 0;
+                                    } else {
+                                        $persentase = ($target_titik > 0) ? (($no_titik / $target_titik) * 100) : 0;
+                                        if ($no_titik >= $target_titik || $persentase >= 75) {
+                                            $status = 'Tercapai';
+                                            $status_class = 'success';
+                                        } else {
+                                            $status = 'Belum Tercapai';
+                                            $status_class = 'danger';
+                                        }
+                                    }
 
                                     // Color coding untuk HRD
                                     $akumulasi_telat = intval($row['akumulasi_telat'] ?? 0);
