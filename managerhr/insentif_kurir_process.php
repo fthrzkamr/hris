@@ -345,9 +345,10 @@ try {
             }
 
             if ($is_cuti_excel) {
-                // On CUTI: no allowance, no penalties
+                // On CUTI: treat like alpha for makan potongan (preserve is_cuti flag)
                 $is_cuti = 1;
-                $uang_makan_harian = 0;
+                $is_hadir = 0;
+                $uang_makan_harian = -intval($settings['POTONGAN_MAKAN_PER_HARI']); // Penalty (negative) for cuti
             } else {
                 // ALPHA (absent without leave): apply penalty
                 $is_hadir = 0;
@@ -530,7 +531,7 @@ try {
             // Format uang makan: Base - Potongan = Final
             $makan_info = number_format($uang_makan_base);
             if ($potongan_makan > 0) {
-                $makan_info .= " - " . number_format($potongan_makan) . " ({$hari_alpha} alpha) = " . number_format($total_makan);
+                $makan_info .= " - " . number_format($potongan_makan) . " ({$hari_alpha} alpha" . ($hari_cuti > 0 ? " + {$hari_cuti} cuti" : "") . ") = " . number_format($total_makan);
             }
             $error_messages[] = "✓ NPP $npp periode $periode: {$hari_kerja} hari | Hadir={$data['hari_hadir']} Telat={$data['hari_telat']} Alpha={$hari_alpha} Cuti={$hari_cuti} | Titik Aktual={$total_titik} Target={$target_titik} | Makan={$makan_info} | {$bonus_info} | TOTAL BAYAR=" . number_format($jumlah_dibayarkan);
         }
