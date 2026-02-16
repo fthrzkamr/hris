@@ -329,8 +329,12 @@ $query = mysqli_query($conn, $sql);
                                         <td><?php echo htmlspecialchars($row['nama_bagian'] ?? '-'); ?></td>
                                         <td><?php echo htmlspecialchars($row['cabang'] ?? '-'); ?></td>
                                         <td><?php echo $periode_formatted; ?></td>
-                                        <td class="text-right"><?php echo number_format($no_titik); ?></td>
-                                        <td class="text-right"><?php echo number_format($target_titik); ?></td>
+                                        <td class="text-right editable-titik" data-npp="<?php echo htmlspecialchars($row['npp']); ?>" data-periode="<?php echo $row['periode']; ?>" data-total="<?php echo $no_titik; ?>" data-target="<?php echo $target_titik; ?>" style="cursor:pointer;">
+                                            <?php echo number_format($no_titik); ?> <i class="fa fa-pencil" style="font-size:10px;color:#666;margin-left:6px;"></i>
+                                        </td>
+                                        <td class="text-right editable-titik" data-npp="<?php echo htmlspecialchars($row['npp']); ?>" data-periode="<?php echo $row['periode']; ?>" data-total="<?php echo $no_titik; ?>" data-target="<?php echo $target_titik; ?>" style="cursor:pointer;">
+                                            <?php echo number_format($target_titik); ?> <i class="fa fa-pencil" style="font-size:10px;color:#666;margin-left:6px;"></i>
+                                        </td>
                                         <!-- <td class="text-right"><?php echo number_format($persentase, 2); ?>%</td> -->
                                         <td class="text-right" style="<?php echo $kelebihan_style; ?>">
                                             <?php echo number_format($kelebihan_titik); ?>
@@ -379,6 +383,35 @@ $query = mysqli_query($conn, $sql);
                 </div>
                 <!-- /.panel-body -->
             </div>
+            <!-- Edit Modal -->
+            <div id="modalEditTitik" class="modal fade" tabindex="-1" role="dialog">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <form id="formEditTitik">
+                            <div class="modal-header">
+                                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                                <h4 class="modal-title">Edit Titik - <span id="modalNpp"></span> <small id="modalPeriode"></small></h4>
+                            </div>
+                            <div class="modal-body">
+                                <input type="hidden" id="modalNppInput" name="npp">
+                                <input type="hidden" id="modalPeriodeInput" name="periode">
+                                <div class="form-group">
+                                    <label>Aktual Titik</label>
+                                    <input type="number" class="form-control" id="modalAktual" name="aktual" min="0" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Target Titik</label>
+                                    <input type="number" class="form-control" id="modalTarget" name="target" min="0" required>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-default" data-dismiss="modal">Batal</button>
+                                <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
             <!-- /.panel -->
         </div>
         <!-- /.col-lg-12 -->
@@ -424,6 +457,64 @@ $query = mysqli_query($conn, $sql);
 
         // Enable tooltips
         $('[title]').tooltip();
+
+        // Open modal when clicking on editable titik cells
+        $(document).on('click', '.editable-titik', function () {
+            var npp = $(this).data('npp');
+            var periode = $(this).data('periode');
+            var total = $(this).data('total');
+            var target = $(this).data('target');
+            $('#modalNpp').text(npp);
+            $('#modalPeriode').text(periode);
+            $('#modalNppInput').val(npp);
+            $('#modalPeriodeInput').val(periode);
+            $('#modalAktual').val(total);
+            $('#modalTarget').val(target);
+            $('#modalEditTitik').modal('show');
+        });
+
+        // Submit edit form via AJAX
+        $('#formEditTitik').on('submit', function (e) {
+            e.preventDefault();
+            var form = $(this);
+            var data = form.serialize();
+            $.post('insentif_kurir_update_ajax.php', data, function (res) {
+                if (res && res.success) {
+                    // Update row cells: find matching row by npp+periode
+                    var selector = '.editable-titik[data-npp="' + res.npp + '"][data-periode="' + res.periode + '"]';
+                    $(selector).each(function () {
+                        // first editable cell is total, second is target; update data attributes and text
+                        var isTotalCell = $(this).data('total') == $(this).text().replace(/[^0-9]/g, '');
+                        // update numeric display
+                        if ($(this).index() == 6) { // column 6 = total titik
+                            $(this).data('total', res.total_titik);
+                            $(this).html(numberWithCommas(res.total_titik) + ' <i class="fa fa-pencil" style="font-size:10px;color:#666;margin-left:6px;"></i>');
+                        }
+                        if ($(this).index() == 7) { // column 7 = target titik
+                            $(this).data('target', res.target_titik);
+                            $(this).html(numberWithCommas(res.target_titik) + ' <i class="fa fa-pencil" style="font-size:10px;color:#666;margin-left:6px;"></i>');
+                        }
+                    });
+                    // Update Kelebihan (col 8), Bonus Titik (col 10) and Total Dibayarkan (col 16)
+                    var row = $('td.editable-titik[data-npp="' + res.npp + '"][data-periode="' + res.periode + '"]').first().closest('tr');
+                    if (row.length) {
+                        row.find('td').eq(8).text(numberWithCommas(res.kelebihan));
+                        row.find('td').eq(10).text(numberWithCommas(res.bonus_insentif_titik));
+                        row.find('td').eq(16).text(numberWithCommas(res.jumlah_dibayarkan));
+                    }
+                    $('#modalEditTitik').modal('hide');
+                } else {
+                    alert((res && res.message) ? res.message : 'Gagal menyimpan perubahan.');
+                }
+            }, 'json').fail(function () {
+                alert('Terjadi kesalahan koneksi.');
+            });
+        });
+
+        function numberWithCommas(x) {
+            if (x === null || x === undefined) return '0';
+            return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
     });
 </script>
 </div>
