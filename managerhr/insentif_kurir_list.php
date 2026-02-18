@@ -2,7 +2,7 @@
 
 // session check
 include("sess_check.php");
-$pagedesc = "Rekapitulasi Bulanan Insentif Kurir";
+$pagedesc = "Daftar Insentif Kurir";
 $menuparent = "insentif";
 include("layout_top.php");
 
@@ -156,8 +156,7 @@ $query = mysqli_query($conn, $sql);
     <div class="row">
         <div class="col-lg-12">
             <h1 class="page-header">
-                <i class="fa fa-calculator"></i> Rekapitulasi Bulanan Insentif Kurir
-                <small>(Monthly Payslip - Aggregated)</small>
+                <?php echo $pagedesc; ?>
             </h1>
         </div>
         <!-- /.col-lg-12 -->
@@ -210,6 +209,15 @@ $query = mysqli_query($conn, $sql);
                             </a>
                             <a href="absensi_kurir_list.php" class="btn btn-warning">
                                 <i class="fa fa-book"></i> Lihat Buku Harian
+                            </a>
+                            <?php
+                            $export_q = http_build_query(array(
+                                'periode' => $filter_periode,
+                                'npp' => $filter_npp
+                            ));
+                            ?>
+                            <a href="insentif_kurir_export_xls.php?<?php echo $export_q; ?>" class="btn btn-default">
+                                <i class="fa fa-file-excel-o"></i> Export Excel
                             </a>
                         </div>
                     </form>
@@ -349,11 +357,21 @@ $query = mysqli_query($conn, $sql);
                                         <td><?php echo htmlspecialchars($row['nama_bagian'] ?? '-'); ?></td>
                                         <td><?php echo htmlspecialchars($row['cabang'] ?? '-'); ?></td>
                                         <td><?php echo $periode_formatted; ?></td>
-                                        <td class="text-right editable-titik" data-npp="<?php echo htmlspecialchars($row['npp']); ?>" data-periode="<?php echo $row['periode']; ?>" data-total="<?php echo $no_titik; ?>" data-target="<?php echo $target_titik; ?>" style="cursor:pointer;">
-                                            <?php echo number_format($no_titik); ?> <i class="fa fa-pencil" style="font-size:10px;color:#666;margin-left:6px;"></i>
+                                        <td class="text-right editable-titik"
+                                            data-npp="<?php echo htmlspecialchars($row['npp']); ?>"
+                                            data-periode="<?php echo $row['periode']; ?>"
+                                            data-total="<?php echo $no_titik; ?>" data-target="<?php echo $target_titik; ?>"
+                                            style="cursor:pointer;">
+                                            <?php echo number_format($no_titik); ?> <i class="fa fa-pencil"
+                                                style="font-size:10px;color:#666;margin-left:6px;"></i>
                                         </td>
-                                        <td class="text-right editable-titik" data-npp="<?php echo htmlspecialchars($row['npp']); ?>" data-periode="<?php echo $row['periode']; ?>" data-total="<?php echo $no_titik; ?>" data-target="<?php echo $target_titik; ?>" style="cursor:pointer;">
-                                            <?php echo number_format($target_titik); ?> <i class="fa fa-pencil" style="font-size:10px;color:#666;margin-left:6px;"></i>
+                                        <td class="text-right editable-titik"
+                                            data-npp="<?php echo htmlspecialchars($row['npp']); ?>"
+                                            data-periode="<?php echo $row['periode']; ?>"
+                                            data-total="<?php echo $no_titik; ?>" data-target="<?php echo $target_titik; ?>"
+                                            style="cursor:pointer;">
+                                            <?php echo number_format($target_titik); ?> <i class="fa fa-pencil"
+                                                style="font-size:10px;color:#666;margin-left:6px;"></i>
                                         </td>
                                         <!-- <td class="text-right"><?php echo number_format($persentase, 2); ?>%</td> -->
                                         <td class="text-right" style="<?php echo $kelebihan_style; ?>">
@@ -410,18 +428,21 @@ $query = mysqli_query($conn, $sql);
                         <form id="formEditTitik">
                             <div class="modal-header">
                                 <button type="button" class="close" data-dismiss="modal">&times;</button>
-                                <h4 class="modal-title">Edit Titik - <span id="modalNpp"></span> <small id="modalPeriode"></small></h4>
+                                <h4 class="modal-title">Edit Titik - <span id="modalNpp"></span> <small
+                                        id="modalPeriode"></small></h4>
                             </div>
                             <div class="modal-body">
                                 <input type="hidden" id="modalNppInput" name="npp">
                                 <input type="hidden" id="modalPeriodeInput" name="periode">
                                 <div class="form-group">
                                     <label>Aktual Titik</label>
-                                    <input type="number" class="form-control" id="modalAktual" name="aktual" min="0" required>
+                                    <input type="number" class="form-control" id="modalAktual" name="aktual" min="0"
+                                        required>
                                 </div>
                                 <div class="form-group">
                                     <label>Target Titik</label>
-                                    <input type="number" class="form-control" id="modalTarget" name="target" min="0" required>
+                                    <input type="number" class="form-control" id="modalTarget" name="target" min="0"
+                                        required>
                                 </div>
                             </div>
                             <div class="modal-footer">

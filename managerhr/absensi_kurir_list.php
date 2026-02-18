@@ -1,7 +1,7 @@
 <?php
 // session check
 include("sess_check.php");
-$pagedesc = "Buku Harian Absensi Kurir";
+$pagedesc = "Absensi Kurir";
 $menuparent = "insentif";
 include("layout_top.php");
 
@@ -130,8 +130,7 @@ mysqli_data_seek($query, 0);
     <div class="row">
         <div class="col-lg-12">
             <h1 class="page-header">
-                <i class="fa fa-calendar-check-o"></i> Buku Harian Absensi Kurir
-                <small>(Catatan Harian - Jejak Audit)</small>
+                <?php echo $pagedesc; ?>
             </h1>
         </div>
     </div>
@@ -226,6 +225,17 @@ mysqli_data_seek($query, 0);
                         </a>
                         <a href="insentif_kurir_upload.php" class="btn btn-success">
                             <i class="fa fa-upload"></i> Upload Excel
+                        </a>
+                        <?php
+                        // Build export query preserving current filters
+                        $export_query = http_build_query(array(
+                            'tanggal_awal' => $filter_tanggal_awal,
+                            'tanggal_akhir' => $filter_tanggal_akhir,
+                            'npp' => $filter_npp
+                        ));
+                        ?>
+                        <a href="absensi_kurir_export_xls.php?<?php echo $export_query; ?>" class="btn btn-default">
+                            <i class="fa fa-file-excel-o"></i> Export Excel
                         </a>
                         <a href="insentif_kurir_list.php" class="btn btn-info">
                             <i class="fa fa-bar-chart"></i> Lihat Rekap Bulanan
@@ -361,7 +371,8 @@ mysqli_data_seek($query, 0);
                                         </td>
                                         <td class="text-right"><?php echo number_format($row['uang_lembur'] ?? 0); ?></td>
                                         <td class="text-right text-danger">
-                                            <?php echo number_format($row['denda_telat'] ?? 0); ?></td>
+                                            <?php echo number_format($row['denda_telat'] ?? 0); ?>
+                                        </td>
                                         <td class="text-center"><?php echo $row['menit_terlambat'] ?? 0; ?></td>
 
                                         <!-- Total -->

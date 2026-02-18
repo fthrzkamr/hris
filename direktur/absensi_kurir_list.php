@@ -227,6 +227,17 @@ mysqli_data_seek($query, 0);
                         <a href="insentif_kurir_upload.php" class="btn btn-success">
                             <i class="fa fa-upload"></i> Upload Excel
                         </a>
+                        <?php
+                        // Build export query preserving current filters
+                        $export_query = http_build_query(array(
+                            'tanggal_awal' => $filter_tanggal_awal,
+                            'tanggal_akhir' => $filter_tanggal_akhir,
+                            'npp' => $filter_npp
+                        ));
+                        ?>
+                        <a href="absensi_kurir_export_xls.php?<?php echo $export_query; ?>" class="btn btn-default">
+                            <i class="fa fa-file-excel-o"></i> Export Excel
+                        </a>
                         <a href="insentif_kurir_list.php" class="btn btn-info">
                             <i class="fa fa-bar-chart"></i> Lihat Rekap Bulanan
                         </a>
