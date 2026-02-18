@@ -285,7 +285,7 @@ $query = mysqli_query($conn, $sql);
                                     <th rowspan="2">Aksi</th> -->
                                 </tr>
                                 <tr>
-                                    <th>Total Titik</th>
+                                    <th>Aktual Titik</th>
                                     <th>Target Titik</th>
                                     <th>Kelebihan</th>
                                     <th title="Total menit keterlambatan dalam periode">Akumulasi Telat (menit)</th>

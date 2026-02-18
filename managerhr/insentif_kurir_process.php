@@ -334,6 +334,15 @@ try {
                 $menit_terlambat = floor($selisih_detik / 60);
                 $rate_denda = intval($settings['DENDA_TELAT_PER_MENIT']);
                 $denda_telat_harian = ($menit_terlambat * $rate_denda);
+
+                // Exempt specific NPPs from late penalty (business rule)
+                // Add other NPPs to this array to exempt them as needed
+                $exempt_npp = array('22910033');
+                if (in_array($npp, $exempt_npp, true)) {
+                    $denda_telat_harian = 0;
+                    $is_late = 0;
+                    $menit_terlambat = 0;
+                }
             }
         } else {
             // ABSENT: determine cuti from Excel column (if provided)
