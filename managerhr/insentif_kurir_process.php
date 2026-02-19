@@ -50,38 +50,22 @@ if (!in_array($file_ext, ['xls', 'xlsx'])) {
 
 // Helper to extract setting value
 function _setting_value($row) {
-    // Prefer monetary value if present (nominal_rp), otherwise numeric value, then time value.
+    // Prefer time values when present (nilai_waktu), otherwise monetary (nominal_rp) if non-zero,
+    // then numeric value (nilai_angka). This matches the schema where time settings store
+    // the jam masuk/pulang in `nilai_waktu` while nominal_rp/nilai_angka may be zero.
+    if (isset($row['nilai_waktu']) && $row['nilai_waktu'] !== null && $row['nilai_waktu'] !== '') {
+        return $row['nilai_waktu'];
+    }
     if (isset($row['nominal_rp']) && $row['nominal_rp'] !== null && $row['nominal_rp'] !== '' && floatval($row['nominal_rp']) != 0.0) {
         return (int)$row['nominal_rp'];
     }
     if (isset($row['nilai_angka']) && $row['nilai_angka'] !== null && $row['nilai_angka'] !== '') {
         return (int)$row['nilai_angka'];
     }
-    if (isset($row['nilai_waktu']) && $row['nilai_waktu'] !== null && $row['nilai_waktu'] !== '') {
-        return $row['nilai_waktu'];
-    }
     return null;
 }
 
 try {
-    // ========================================
-    // 1. Load settings with GUARANTEED defaults (SAFETY)
-    // ========================================
-    $settings = [
-        'RATE_LEMBUR_OPERASIONAL' => 30000,
-        'RATE_LEMBUR_AMBIL_BARANG' => 50000,
-        'RATE_LEMBUR_LAINNYA' => 30000,
-        'JAM_MASUK_STANDAR' => '09:15:00',
-        'DENDA_TELAT_PER_MENIT' => 1000,
-        'POTONGAN_MAKAN_PER_HARI' => 15000,
-        'UANG_MAKAN_BULANAN' => 300000,
-        'BATAS_ATAS_BONUS_TITIK' => 25,
-        'RATE_PER_TITIK_LEBIH' => 20000,
-        'BONUS_FULL_HADIR' => 250000,
-        // Default for kurir motor (if per-NPP mapping not provided, use this for motor-type)
-        'BONUS_FULL_HADIR_MOTOR' => 100000,
-    ];
-
     // Override with database values if available
     $rs = mysqli_query($conn, "SELECT nama_variabel, nilai_angka, nominal_rp, nilai_waktu FROM pengaturan_insentif_kurir");
     if ($rs) {
@@ -95,7 +79,8 @@ try {
     }
     // Map alternate/legacy variable names to canonical keys used in code
     // DB might store JAM_MASUK_KURIR but code expects JAM_MASUK_STANDAR
-    if (isset($settings['JAM_MASUK_KURIR']) && !empty($settings['JAM_MASUK_KURIR'])) {
+    // If a specific JAM_MASUK_KURIR exists in DB (time), copy it to the canonical key.
+    if (isset($settings['JAM_MASUK_KURIR']) && $settings['JAM_MASUK_KURIR'] !== null && $settings['JAM_MASUK_KURIR'] !== '') {
         $settings['JAM_MASUK_STANDAR'] = $settings['JAM_MASUK_KURIR'];
     }
     // Ensure monthly base makan exists (display only) — default provided above
