@@ -78,6 +78,8 @@ try {
         'BATAS_ATAS_BONUS_TITIK' => 25,
         'RATE_PER_TITIK_LEBIH' => 20000,
         'BONUS_FULL_HADIR' => 250000,
+        // Default for kurir motor (if per-NPP mapping not provided, use this for motor-type)
+        'BONUS_FULL_HADIR_MOTOR' => 100000,
     ];
 
     // Override with database values if available
@@ -102,7 +104,7 @@ try {
     }
     
     // DEBUGGING: Ensure all settings are present
-    $required_settings = ['JAM_MASUK_STANDAR', 'DENDA_TELAT_PER_MENIT', 'POTONGAN_MAKAN_PER_HARI', 'BATAS_ATAS_BONUS_TITIK', 'RATE_PER_TITIK_LEBIH', 'UANG_MAKAN_BULANAN', 'RATE_LEMBUR_OPERASIONAL', 'RATE_LEMBUR_AMBIL_BARANG', 'RATE_LEMBUR_LAINNYA', 'BONUS_FULL_HADIR'];
+    $required_settings = ['JAM_MASUK_STANDAR', 'DENDA_TELAT_PER_MENIT', 'POTONGAN_MAKAN_PER_HARI', 'BATAS_ATAS_BONUS_TITIK', 'RATE_PER_TITIK_LEBIH', 'UANG_MAKAN_BULANAN', 'RATE_LEMBUR_OPERASIONAL', 'RATE_LEMBUR_AMBIL_BARANG', 'RATE_LEMBUR_LAINNYA', 'BONUS_FULL_HADIR', 'BONUS_FULL_HADIR_MOTOR'];
     foreach ($required_settings as $key) {
         if (!isset($settings[$key]) || $settings[$key] === null) {
             throw new Exception("Setting '$key' tidak ditemukan atau bernilai NULL!");
@@ -420,81 +422,90 @@ try {
     // lembur_stmt removed (we used detailed lembur query)
     mysqli_stmt_close($insert_absensi_stmt);
 
-    // STEP 3b: Calculate monthly bonus and insert aggregated records
+    // STEP 3b: Calculate monthly bonus and insert aggregated records (single upsert)
     $upsert_sql = "INSERT INTO transaksi_insentif_kurir 
-        (npp, periode, total_titik, target_titik, bonus_insentif_titik, bonus_insentif_full_masuk, denda_telat, akumulasi_telat, potongan_makan, uang_makan, uang_lembur, jumlah_dibayarkan, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        (npp, periode, total_titik, target_titik, bonus_insentif_titik, bonus_insentif_full_masuk, denda_telat, akumulasi_telat, potongan_makan, uang_makan, uang_lembur, jumlah_dibayarkan, hari_hadir, hari_telat, hari_cuti, hari_alpha, created_at, updated_at) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         ON DUPLICATE KEY UPDATE 
         total_titik=VALUES(total_titik), target_titik=VALUES(target_titik), bonus_insentif_titik=VALUES(bonus_insentif_titik),
         bonus_insentif_full_masuk=VALUES(bonus_insentif_full_masuk), denda_telat=VALUES(denda_telat), akumulasi_telat=VALUES(akumulasi_telat),
         potongan_makan=VALUES(potongan_makan), uang_makan=VALUES(uang_makan), uang_lembur=VALUES(uang_lembur),
-        jumlah_dibayarkan=VALUES(jumlah_dibayarkan), updated_at=NOW()";
+        jumlah_dibayarkan=VALUES(jumlah_dibayarkan), hari_hadir=VALUES(hari_hadir), hari_telat=VALUES(hari_telat), hari_cuti=VALUES(hari_cuti), hari_alpha=VALUES(hari_alpha), updated_at=NOW()";
     $upsert_stmt = mysqli_prepare($conn, $upsert_sql);
     if (!$upsert_stmt) throw new Exception('Prepare insert failed: ' . mysqli_error($conn));
 
     foreach ($monthly_data as $key => $data) {
         $npp = $data['npp'];
         $periode = $data['periode'];
-        $total_titik = $data['total_titik'];
-        $target_titik = $data['target_titik'];
-        $total_lembur = $data['total_lembur'];
-        $total_denda = $data['total_denda'];
-        $total_makan = $data['total_makan'];
-        
-        // ============================================================
-        // CALCULATE MONTHLY BONUS (INDEPENDENT CALCULATIONS)
-        // ============================================================
-        
-        // 1. BONUS TITIK (INDEPENDENT - tidak tergantung kehadiran!)
-        //    Ketika total_titik melebihi target_titik, langsung dapat bonus
-        //    Rate: 20,000 per titik, maksimal 25 titik (500,000)
-        //    Contoh: jika selisih = 85 titik, bonus = min(85, 25) × 20,000 = 500,000
+        $total_titik = intval($data['total_titik']);
+        $target_titik = intval($data['target_titik']);
+        $total_lembur = intval($data['total_lembur']);
+        $total_denda = intval($data['total_denda']);
+        $total_makan = intval($data['total_makan']);
+
+        $hari_hadir = intval($data['hari_hadir']);
+        $hari_telat = intval($data['hari_telat']);
+        $hari_cuti = intval($data['hari_cuti']);
+        $hari_alpha = intval($data['hari_alpha']);
+        $akumulasi_menit_telat = isset($data['total_menit_telat']) ? intval($data['total_menit_telat']) : 0;
+
+        // 1. BONUS TITIK
         $bonus_titik = 0;
         $selisih = $total_titik - $target_titik;
-        
         if ($selisih > 0) {
-            $batas_bonus_bulanan = intval($settings['BATAS_ATAS_BONUS_TITIK']); // Max 25 titik per bulan
-            $rate_bonus = intval($settings['RATE_PER_TITIK_LEBIH']); // 20000 per titik
-            $titik_bonus = min($selisih, $batas_bonus_bulanan); // Cap di 25
-            $bonus_titik = $titik_bonus * $rate_bonus; // Max 25 × 20,000 = 500,000/bulan
+            $batas_bonus_bulanan = intval($settings['BATAS_ATAS_BONUS_TITIK']);
+            $rate_bonus = intval($settings['RATE_PER_TITIK_LEBIH']);
+            $titik_bonus = min($selisih, $batas_bonus_bulanan);
+            $bonus_titik = $titik_bonus * $rate_bonus;
         }
-        
-        // 2. BONUS FULL HADIR (INDEPENDENT - hanya untuk kehadiran sempurna!)
-        //    Hanya diberikan jika TIDAK ADA alpha DAN TIDAK ADA keterlambatan sebulan
-        //    Ini TERPISAH dari bonus titik di atas
-        $bonus_full_hadir = 0;
-        $hari_alpha = $data['hari_alpha'];
-        $hari_telat = isset($data['hari_telat']) ? $data['hari_telat'] : 0;
-        if ($hari_alpha == 0 && $hari_telat == 0) {
-            $bonus_full_hadir = intval($settings['BONUS_FULL_HADIR']); // 250,000
-        }
-        
-        // Total bonus gabungan (untuk perhitungan jumlah_dibayarkan saja)
-        $bonus_insentif = $bonus_titik + $bonus_full_hadir;
 
-        // ============================================================
-        // UANG MAKAN BULANAN: Base 300rb - Potongan Alpha
-        // ============================================================
-        // Uang makan base per bulan = 300,000 (setting)
-        // Total_makan dari akumulasi hanya berisi POTONGAN (negatif) untuk hari alpha
-        // Jadi: final_makan = 300,000 + total_makan (karena total_makan negatif)
-        $uang_makan_base = intval($settings['UANG_MAKAN_BULANAN']); // 300,000
-        $potongan_makan = abs($total_makan); // Potongan absolut (positif untuk display)
-        $uang_makan_final = $uang_makan_base + $total_makan; // Base - Potongan
-        
-        // Untuk disimpan di DB, kita simpan nilai final yang sudah dipotong
+        // Resolve tipe per NPP (kategori_npp preferred, fallback employee)
+        $tipe = null;
+        $q = mysqli_query($conn, "SELECT tipe FROM kategori_npp WHERE npp='" . mysqli_real_escape_string($conn, $npp) . "' LIMIT 1");
+        if ($q && mysqli_num_rows($q) > 0) {
+            $qr = mysqli_fetch_assoc($q);
+            $tipe = $qr['tipe'];
+        }
+        if (empty($tipe)) {
+            $qe = mysqli_query($conn, "SELECT jabatan, nama_bagian FROM employee WHERE npp='" . mysqli_real_escape_string($conn, $npp) . "' LIMIT 1");
+            if ($qe && mysqli_num_rows($qe) > 0) {
+                $er = mysqli_fetch_assoc($qe);
+                $jab = strtolower($er['jabatan'] ?? '');
+                $nb = strtolower($er['nama_bagian'] ?? '');
+                if (strpos($jab, 'driver') !== false || strpos($jab, 'sopir') !== false || strpos($nb, 'mobil') !== false || strpos($jab, 'mobil') !== false) {
+                    $tipe = 'mobil';
+                } else {
+                    $tipe = 'motor';
+                }
+            } else {
+                $tipe = 'motor';
+            }
+        }
+
+        // 2. BONUS FULL HADIR (per tipe)
+        $bonus_full_hadir = 0;
+        if ($hari_alpha === 0 && $hari_telat === 0) {
+            if ($tipe === 'motor') {
+                $bonus_full_hadir = intval($settings['BONUS_FULL_HADIR_MOTOR']);
+            } else {
+                $bonus_full_hadir = intval($settings['BONUS_FULL_HADIR']);
+            }
+        }
+
+        // UANG MAKAN BULANAN
+        $uang_makan_base = intval($settings['UANG_MAKAN_BULANAN']);
+        $potongan_makan = abs($total_makan);
+        $uang_makan_final = $uang_makan_base + $total_makan;
         $total_makan = $uang_makan_final;
 
         // Calculate total payment
+        $bonus_insentif = $bonus_titik + $bonus_full_hadir;
         $jumlah_dibayarkan = $total_makan + $bonus_insentif + $total_lembur - $total_denda;
-        
-        // Get total menit keterlambatan from monthly data
-        $akumulasi_menit_telat = isset($data['total_menit_telat']) ? $data['total_menit_telat'] : 0;
-        
+
         // Bind and execute
         if (!mysqli_stmt_bind_param(
             $upsert_stmt,
-            'ssiiiiiiiiii',
+            'ssiiiiiiiiiiiiii',
             $npp,
             $periode,
             $total_titik,
@@ -506,7 +517,11 @@ try {
             $potongan_makan,
             $total_makan,
             $total_lembur,
-            $jumlah_dibayarkan
+            $jumlah_dibayarkan,
+            $hari_hadir,
+            $hari_telat,
+            $hari_cuti,
+            $hari_alpha
         )) {
             $error_messages[] = "NPP $npp periode $periode: Gagal bind: " . mysqli_error($conn);
             $error_count++;
@@ -516,34 +531,29 @@ try {
         if (!mysqli_stmt_execute($upsert_stmt)) {
             $error_messages[] = "NPP $npp periode $periode: Gagal menyimpan: " . mysqli_stmt_error($upsert_stmt);
             $error_count++;
-        } else {
-            $success_count++;
-            $hari_kerja = count($data['dates']);
-            $hari_alpha = $data['hari_alpha'];
-            $hari_cuti = $data['hari_cuti'];
-            
-            // Format bonus info to clearly show independent calculations
-            $bonus_parts = [];
-            if ($bonus_titik > 0) {
-                $selisih_display = $total_titik - $target_titik;
-                $titik_paid = min($selisih_display, intval($settings['BATAS_ATAS_BONUS_TITIK']));
-                $bonus_parts[] = "Bonus Titik (+{$selisih_display} titik, dibayar {$titik_paid} titik) = " . number_format($bonus_titik);
-            }
-            if ($bonus_full_hadir > 0) {
-                $bonus_parts[] = "Bonus Full Hadir = " . number_format($bonus_full_hadir);
-            }
-            if (empty($bonus_parts)) {
-                $bonus_parts[] = "Tidak ada bonus";
-            }
-            $bonus_info = implode(" | ", $bonus_parts);
-            
-            // Format uang makan: Base - Potongan = Final
-            $makan_info = number_format($uang_makan_base);
-            if ($potongan_makan > 0) {
-                $makan_info .= " - " . number_format($potongan_makan) . " ({$hari_alpha} alpha" . ($hari_cuti > 0 ? " + {$hari_cuti} cuti" : "") . ") = " . number_format($total_makan);
-            }
-            $error_messages[] = "✓ NPP $npp periode $periode: {$hari_kerja} hari | Hadir={$data['hari_hadir']} Telat={$data['hari_telat']} Alpha={$hari_alpha} Cuti={$hari_cuti} | Titik Aktual={$total_titik} Target={$target_titik} | Makan={$makan_info} | {$bonus_info} | TOTAL BAYAR=" . number_format($jumlah_dibayarkan);
+            continue;
         }
+
+        $success_count++;
+        $hari_kerja = count($data['dates']);
+
+        // Format messages
+        $bonus_parts = [];
+        if ($bonus_titik > 0) {
+            $selisih_display = $total_titik - $target_titik;
+            $titik_paid = min($selisih_display, intval($settings['BATAS_ATAS_BONUS_TITIK']));
+            $bonus_parts[] = "Bonus Titik (+{$selisih_display} titik, dibayar {$titik_paid} titik) = " . number_format($bonus_titik);
+        }
+        if ($bonus_full_hadir > 0) $bonus_parts[] = "Bonus Full Hadir = " . number_format($bonus_full_hadir);
+        if (empty($bonus_parts)) $bonus_parts[] = "Tidak ada bonus";
+        $bonus_info = implode(" | ", $bonus_parts);
+
+        $makan_info = number_format($uang_makan_base);
+        if ($potongan_makan > 0) {
+            $makan_info .= " - " . number_format($potongan_makan) . " ({$hari_alpha} alpha" . ($hari_cuti > 0 ? " + {$hari_cuti} cuti" : "") . ") = " . number_format($total_makan);
+        }
+
+        $error_messages[] = "✓ NPP $npp periode $periode: {$hari_kerja} hari | Hadir={$hari_hadir} Telat={$hari_telat} Alpha={$hari_alpha} Cuti={$hari_cuti} | Titik Aktual={$total_titik} Target={$target_titik} | Makan={$makan_info} | {$bonus_info} | TOTAL BAYAR=" . number_format($jumlah_dibayarkan);
     }
 
     mysqli_stmt_close($upsert_stmt);

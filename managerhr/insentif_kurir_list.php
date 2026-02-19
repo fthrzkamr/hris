@@ -41,7 +41,7 @@ if ($count_result) {
 $total_pages = ceil($total_records / $records_per_page);
 
 // Fetch all records for DataTables client-side processing
-$sql = "SELECT t.*, e.nama_emp, b.nama_bagian, e.cabang " . $sql_base . " ORDER BY t.periode DESC, t.npp ASC";
+$sql = "SELECT t.*, t.hari_hadir, t.hari_telat, t.hari_cuti, t.hari_alpha, e.nama_emp, b.nama_bagian, e.cabang " . $sql_base . " ORDER BY t.periode DESC, t.npp ASC";
 
 $query = mysqli_query($conn, $sql);
 ?>
@@ -277,7 +277,7 @@ $query = mysqli_query($conn, $sql);
                                     <th rowspan="2">Bagian</th>
                                     <th rowspan="2">Cabang</th>
                                     <th rowspan="2">Periode</th>
-                                    <th colspan="4" class="text-center">Performa</th>
+                                    <th colspan="8" class="text-center">Performa</th>
                                     <th colspan="6" class="text-center">Komponen Pembayaran</th>
                                     <th rowspan="2" class="bg-success">Total Dibayarkan</th>
                                     <th rowspan="2">Status</th>
@@ -289,6 +289,10 @@ $query = mysqli_query($conn, $sql);
                                     <th>Target Titik</th>
                                     <th>Kelebihan</th>
                                     <th title="Total menit keterlambatan dalam periode">Akumulasi Telat (menit)</th>
+                                    <th title="Jumlah hari hadir dalam periode">Hadir</th>
+                                    <th title="Jumlah hari telat dalam periode">Telat</th>
+                                    <th title="Jumlah hari cuti dalam periode">Cuti</th>
+                                    <th title="Jumlah hari alpha dalam periode">Alpha</th>
                                     <th title="Bonus dari kelebihan titik (max 500rb/bulan)">Bonus Titik</th>
                                     <th title="Bonus full kehadiran (250rb jika 0 alpha)">Bonus Full Hadir</th>
                                     <th>Uang Lembur</th>
@@ -380,6 +384,10 @@ $query = mysqli_query($conn, $sql);
                                         <td class="text-right" style="<?php echo $telat_style; ?>">
                                             <?php echo number_format($row['akumulasi_telat'] ?? 0); ?> menit
                                         </td>
+                                        <td class="text-center"><?php echo intval($row['hari_hadir'] ?? 0); ?></td>
+                                        <td class="text-center"><?php echo intval($row['hari_telat'] ?? 0); ?></td>
+                                        <td class="text-center"><?php echo intval($row['hari_cuti'] ?? 0); ?></td>
+                                        <td class="text-center"><?php echo intval($row['hari_alpha'] ?? 0); ?></td>
                                         <td class="text-right" style="<?php echo $bonus_titik_style; ?>">
                                             <?php echo number_format($row['bonus_insentif_titik'] ?? 0); ?>
                                         </td>
@@ -484,8 +492,8 @@ $query = mysqli_query($conn, $sql);
             order: [[5, 'desc']], // Sort by periode column (descending)
             columnDefs: [
                 { orderable: false, targets: [0] }, // Disable sorting on "No"
-                { className: "text-center", targets: [0, 4, 17] }, // center: No, Cabang, Status
-                { className: "text-right", targets: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] } // numeric columns
+                { className: "text-center", targets: [0, 4, 21] }, // center: No, Cabang, Status (updated index)
+                { className: "text-right", targets: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20] } // numeric columns (updated range)
             ],
             drawCallback: function () {
                 // Re-apply Bootstrap tooltip after redraw
@@ -569,3 +577,4 @@ $query = mysqli_query($conn, $sql);
 </div>
 <!-- /#page-wrapper -->
 <?php include("layout_bottom.php"); ?>
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat\Wizard\DateTime;
