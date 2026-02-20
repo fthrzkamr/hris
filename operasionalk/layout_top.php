@@ -71,6 +71,17 @@ $id = $sess_mngid;
                         <li>
                             <a href="gaji.php"><i class="fa fa-download fa-fw"></i> Informasi Gaji</a>
                         </li>
+
+                        <!-- Insentif menu -->
+                        <?php
+                        if (isset($menuparent) && $menuparent == "insentif") {
+                            echo '<li class="active">';
+                        } else {
+                            echo '<li>';
+                        }
+                        ?>
+                        <a href="insentif_kurir_list.php"><i class="fa fa-money fa-fw"></i>&nbsp;Insentif Kurir</a>
+                        </li>
                     </ul>
                 </div>
             </div>
