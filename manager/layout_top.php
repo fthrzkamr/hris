@@ -73,6 +73,17 @@ $tahun = date("Y");
                         <li><a href="index.php" class="<?php echo ($pagedesc == 'Beranda') ? 'active' : ''; ?>">
                             <i class="fa fa-home fa-fw"></i> Beranda</a>
                         </li>
+
+                        <!-- Insentif menu -->
+                        <?php
+                        if (isset($menuparent) && $menuparent == "insentif") {
+                            echo '<li class="active">';
+                        } else {
+                            echo '<li>';
+                        }
+                        ?>
+                        <a href="insentif_kurir_list.php"><i class="fa fa-money fa-fw"></i>&nbsp;Insentif Kurir</a>
+                        </li>
                     </ul>
                 </div>
             </div>

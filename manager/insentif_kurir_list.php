@@ -8,7 +8,6 @@ include("layout_top.php");
 
 // Get filter parameters
 $filter_periode = isset($_GET['periode']) ? $_GET['periode'] : '';
-$filter_npp = isset($_GET['npp']) ? $_GET['npp'] : '';
 
 // Pagination settings
 $records_per_page = 50; // Increased for better DataTables performance
@@ -16,18 +15,15 @@ $current_page = isset($_GET['page']) && is_numeric($_GET['page']) && $_GET['page
 $offset = ($current_page - 1) * $records_per_page;
 
 // Build query: select records from transaksi_insentif_kurir and join employee for metadata
+// Filter by logged-in manager's NPP only
 $sql_base = "FROM transaksi_insentif_kurir t
         LEFT JOIN employee e ON t.npp = e.npp
         LEFT JOIN bagian b ON e.nama_bagian = b.id_bagian
-        WHERE 1=1";
+        WHERE t.npp = '" . mysqli_real_escape_string($conn, $sess_mngid) . "'";
 
 $filter_periode_escaped = mysqli_real_escape_string($conn, $filter_periode);
 if (!empty($filter_periode_escaped)) {
     $sql_base .= " AND t.periode = '" . $filter_periode_escaped . "'";
-}
-
-if (!empty($filter_npp)) {
-    $sql_base .= " AND t.npp LIKE '%" . mysqli_real_escape_string($conn, $filter_npp) . "%'";
 }
 
 // Count total records
@@ -44,6 +40,16 @@ $total_pages = ceil($total_records / $records_per_page);
 $sql = "SELECT t.*, t.hari_hadir, t.hari_telat, t.hari_cuti, t.hari_alpha, e.nama_emp, b.nama_bagian, e.cabang " . $sql_base . " ORDER BY t.periode DESC, t.npp ASC";
 
 $query = mysqli_query($conn, $sql);
+// Load titik cap from settings (fallback to 25)
+$cap_titik = 25;
+$rs_cap = mysqli_query($conn, "SELECT nilai_angka, nominal_rp FROM pengaturan_insentif_kurir WHERE nama_variabel='BATAS_ATAS_BONUS_TITIK' LIMIT 1");
+if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
+    $rc = mysqli_fetch_assoc($rs_cap);
+    if (!empty($rc['nilai_angka']))
+        $cap_titik = intval($rc['nilai_angka']);
+    elseif (!empty($rc['nominal_rp']))
+        $cap_titik = intval($rc['nominal_rp']);
+}
 ?>
 <style>
     /* Styling untuk meningkatkan readability */
@@ -191,11 +197,6 @@ $query = mysqli_query($conn, $sql);
                                 value="<?php echo htmlspecialchars($filter_periode); ?>">
                         </div>
                         <div class="form-group" style="margin-bottom: 10px;">
-                            <label>NPP:</label>
-                            <input type="text" name="npp" class="form-control" placeholder="Cari NPP..."
-                                value="<?php echo htmlspecialchars($filter_npp); ?>">
-                        </div>
-                        <div class="form-group" style="margin-bottom: 10px;">
                             <button type="submit" class="btn btn-primary">
                                 <i class="fa fa-search"></i> Filter
                             </button>
@@ -203,23 +204,7 @@ $query = mysqli_query($conn, $sql);
                                 <i class="fa fa-refresh"></i> Reset
                             </a>
                         </div>
-                        <div class="form-group" style="margin-bottom: 10px;">
-                            <a href="insentif_kurir_upload.php" class="btn btn-success">
-                                <i class="fa fa-upload"></i> Upload Excel
-                            </a>
-                            <a href="absensi_kurir_list.php" class="btn btn-warning">
-                                <i class="fa fa-book"></i> Lihat Buku Harian
-                            </a>
-                            <?php
-                            $export_q = http_build_query(array(
-                                'periode' => $filter_periode,
-                                'npp' => $filter_npp
-                            ));
-                            ?>
-                            <a href="insentif_kurir_export_xls.php?<?php echo $export_q; ?>" class="btn btn-default">
-                                <i class="fa fa-file-excel-o"></i> Export Excel
-                            </a>
-                        </div>
+
                     </form>
                 </div>
             </div>
@@ -277,7 +262,7 @@ $query = mysqli_query($conn, $sql);
                                     <th rowspan="2">Bagian</th>
                                     <th rowspan="2">Cabang</th>
                                     <th rowspan="2">Periode</th>
-                                    <th colspan="8" class="text-center">Performa</th>
+                                    <th colspan="9" class="text-center">Performa</th>
                                     <th colspan="6" class="text-center">Komponen Pembayaran</th>
                                     <th rowspan="2" class="bg-success">Total Dibayarkan</th>
                                     <th rowspan="2">Status</th>
@@ -288,6 +273,7 @@ $query = mysqli_query($conn, $sql);
                                     <th>Aktual Titik</th>
                                     <th>Target Titik</th>
                                     <th>Kelebihan</th>
+                                    <th title="Titik maksimal yang dibayarkan">Titik Max</th>
                                     <th title="Total menit keterlambatan dalam periode">Akumulasi Telat (menit)</th>
                                     <th title="Jumlah hari hadir dalam periode">Hadir</th>
                                     <th title="Jumlah hari telat dalam periode">Telat</th>
@@ -361,26 +347,17 @@ $query = mysqli_query($conn, $sql);
                                         <td><?php echo htmlspecialchars($row['nama_bagian'] ?? '-'); ?></td>
                                         <td><?php echo htmlspecialchars($row['cabang'] ?? '-'); ?></td>
                                         <td><?php echo $periode_formatted; ?></td>
-                                        <td class="text-right editable-titik"
-                                            data-npp="<?php echo htmlspecialchars($row['npp']); ?>"
-                                            data-periode="<?php echo $row['periode']; ?>"
-                                            data-total="<?php echo $no_titik; ?>" data-target="<?php echo $target_titik; ?>"
-                                            style="cursor:pointer;">
-                                            <?php echo number_format($no_titik); ?> <i class="fa fa-pencil"
-                                                style="font-size:10px;color:#666;margin-left:6px;"></i>
+                                        <td class="text-right">
+                                            <?php echo number_format($no_titik); ?>
                                         </td>
-                                        <td class="text-right editable-titik"
-                                            data-npp="<?php echo htmlspecialchars($row['npp']); ?>"
-                                            data-periode="<?php echo $row['periode']; ?>"
-                                            data-total="<?php echo $no_titik; ?>" data-target="<?php echo $target_titik; ?>"
-                                            style="cursor:pointer;">
-                                            <?php echo number_format($target_titik); ?> <i class="fa fa-pencil"
-                                                style="font-size:10px;color:#666;margin-left:6px;"></i>
+                                        <td class="text-right">
+                                            <?php echo number_format($target_titik); ?>
                                         </td>
                                         <!-- <td class="text-right"><?php echo number_format($persentase, 2); ?>%</td> -->
                                         <td class="text-right" style="<?php echo $kelebihan_style; ?>">
                                             <?php echo number_format($kelebihan_titik); ?>
                                         </td>
+                                        <td class="text-right"><?php echo number_format($cap_titik); ?></td>
                                         <td class="text-right" style="<?php echo $telat_style; ?>">
                                             <?php echo number_format($row['akumulasi_telat'] ?? 0); ?> menit
                                         </td>
@@ -415,6 +392,7 @@ $query = mysqli_query($conn, $sql);
                                                 <?php endif; ?>
                                             </span>
                                         </td>
+
                                         <!-- <td><?php echo date('d-m-Y H:i', strtotime($row['updated_at'])); ?></td>
                                         <td>
                                             <a href="insentif_kurir_update.php?id=<?php echo intval($row['id']); ?>"
@@ -428,38 +406,6 @@ $query = mysqli_query($conn, $sql);
                     <!-- /.table-responsive -->
                 </div>
                 <!-- /.panel-body -->
-            </div>
-            <!-- Edit Modal -->
-            <div id="modalEditTitik" class="modal fade" tabindex="-1" role="dialog">
-                <div class="modal-dialog" role="document">
-                    <div class="modal-content">
-                        <form id="formEditTitik">
-                            <div class="modal-header">
-                                <button type="button" class="close" data-dismiss="modal">&times;</button>
-                                <h4 class="modal-title">Edit Titik - <span id="modalNpp"></span> <small
-                                        id="modalPeriode"></small></h4>
-                            </div>
-                            <div class="modal-body">
-                                <input type="hidden" id="modalNppInput" name="npp">
-                                <input type="hidden" id="modalPeriodeInput" name="periode">
-                                <div class="form-group">
-                                    <label>Aktual Titik</label>
-                                    <input type="number" class="form-control" id="modalAktual" name="aktual" min="0"
-                                        required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Target Titik</label>
-                                    <input type="number" class="form-control" id="modalTarget" name="target" min="0"
-                                        required>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-default" data-dismiss="modal">Batal</button>
-                                <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
             </div>
             <!-- /.panel -->
         </div>
@@ -492,7 +438,7 @@ $query = mysqli_query($conn, $sql);
             order: [[5, 'desc']], // Sort by periode column (descending)
             columnDefs: [
                 { orderable: false, targets: [0] }, // Disable sorting on "No"
-                { className: "text-center", targets: [0, 4, 21] }, // center: No, Cabang, Status (updated index)
+                { className: "text-center", targets: [0, 4, 22] }, // center: No, Cabang, Status (updated index)
                 { className: "text-right", targets: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20] } // numeric columns (updated range)
             ],
             drawCallback: function () {
@@ -506,59 +452,6 @@ $query = mysqli_query($conn, $sql);
 
         // Enable tooltips
         $('[title]').tooltip();
-
-        // Open modal when clicking on editable titik cells
-        $(document).on('click', '.editable-titik', function () {
-            var npp = $(this).data('npp');
-            var periode = $(this).data('periode');
-            var total = $(this).data('total');
-            var target = $(this).data('target');
-            $('#modalNpp').text(npp);
-            $('#modalPeriode').text(periode);
-            $('#modalNppInput').val(npp);
-            $('#modalPeriodeInput').val(periode);
-            $('#modalAktual').val(total);
-            $('#modalTarget').val(target);
-            $('#modalEditTitik').modal('show');
-        });
-
-        // Submit edit form via AJAX
-        $('#formEditTitik').on('submit', function (e) {
-            e.preventDefault();
-            var form = $(this);
-            var data = form.serialize();
-            $.post('insentif_kurir_update_ajax.php', data, function (res) {
-                if (res && res.success) {
-                    // Update row cells: find matching row by npp+periode
-                    var selector = '.editable-titik[data-npp="' + res.npp + '"][data-periode="' + res.periode + '"]';
-                    $(selector).each(function () {
-                        // first editable cell is total, second is target; update data attributes and text
-                        var isTotalCell = $(this).data('total') == $(this).text().replace(/[^0-9]/g, '');
-                        // update numeric display
-                        if ($(this).index() == 6) { // column 6 = total titik
-                            $(this).data('total', res.total_titik);
-                            $(this).html(numberWithCommas(res.total_titik) + ' <i class="fa fa-pencil" style="font-size:10px;color:#666;margin-left:6px;"></i>');
-                        }
-                        if ($(this).index() == 7) { // column 7 = target titik
-                            $(this).data('target', res.target_titik);
-                            $(this).html(numberWithCommas(res.target_titik) + ' <i class="fa fa-pencil" style="font-size:10px;color:#666;margin-left:6px;"></i>');
-                        }
-                    });
-                    // Update Kelebihan (col 8), Bonus Titik (col 10) and Total Dibayarkan (col 16)
-                    var row = $('td.editable-titik[data-npp="' + res.npp + '"][data-periode="' + res.periode + '"]').first().closest('tr');
-                    if (row.length) {
-                        row.find('td').eq(8).text(numberWithCommas(res.kelebihan));
-                        row.find('td').eq(10).text(numberWithCommas(res.bonus_insentif_titik));
-                        row.find('td').eq(16).text(numberWithCommas(res.jumlah_dibayarkan));
-                    }
-                    $('#modalEditTitik').modal('hide');
-                } else {
-                    alert((res && res.message) ? res.message : 'Gagal menyimpan perubahan.');
-                }
-            }, 'json').fail(function () {
-                alert('Terjadi kesalahan koneksi.');
-            });
-        });
 
         function numberWithCommas(x) {
             if (x === null || x === undefined) return '0';
