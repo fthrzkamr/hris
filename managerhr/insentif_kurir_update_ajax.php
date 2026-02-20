@@ -32,7 +32,7 @@ $amount_cap = 0;
 if (isset($settings['MAX_BONUS_INSENTIF']) && intval($settings['MAX_BONUS_INSENTIF'])>0) $amount_cap = intval($settings['MAX_BONUS_INSENTIF']);
 
 // Fetch existing row
-$stmt = mysqli_prepare($conn, "SELECT id, bonus_insentif_full_masuk, uang_lembur, denda_telat, uang_makan, potongan_makan FROM transaksi_insentif_kurir WHERE npp = ? AND periode = ? LIMIT 1");
+$stmt = mysqli_prepare($conn, "SELECT id, bonus_insentif_full_masuk, uang_lembur, denda_telat, uang_makan, potongan_makan, hari_hadir FROM transaksi_insentif_kurir WHERE npp = ? AND periode = ? LIMIT 1");
 if (!$stmt) {
     echo json_encode(['success' => false, 'message' => 'Prepare gagal: '.mysqli_error($conn)]);
     exit();
@@ -58,7 +58,15 @@ $raw_bonus = $eligible_count * $rate;
 $bonus_titik = ($amount_cap > 0) ? min($raw_bonus, $amount_cap) : $raw_bonus;
 
 // Recalculate jumlah_dibayarkan: sum components (simplified)
-$jumlah = $bonus_titik + $bonus_full + $uang_lembur + $uang_makan - $denda_telat;
+$jumlah = 0;
+// If employee had hari_hadir, ensure uang_makan is guaranteed and denda only reduces bonus/lembur
+$hari_hadir_row = intval($row['hari_hadir'] ?? 0);
+$other_net = $bonus_titik + $bonus_full + $uang_lembur - $denda_telat;
+if ($hari_hadir_row > 0) {
+    $jumlah = $uang_makan + max(0, $other_net);
+} else {
+    $jumlah = $uang_makan + $other_net;
+}
 
 // Update DB
 $upd = mysqli_prepare($conn, "UPDATE transaksi_insentif_kurir SET total_titik = ?, target_titik = ?, bonus_insentif_titik = ?, jumlah_dibayarkan = ?, updated_at = NOW() WHERE npp = ? AND periode = ?");

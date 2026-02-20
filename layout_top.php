@@ -187,6 +187,11 @@
 									else {
 										echo '<li><a href="direktur/insentif_karyawan_list.php">Daftar Absensi Karyawan</a></li>';
 									}
+									if($pagedesc == "Pengaturan Insentif Kurir") {
+										echo '<li><a href="managerhr/pengaturan_insentif_kurir.php" class="active">Pengaturan Insentif Kurir</a></li>';
+									} else {
+										echo '<li><a href="managerhr/pengaturan_insentif_kurir.php">Pengaturan Insentif Kurir</a></li>';
+									}
 								?>
 							</ul><!-- /.nav-second-level -->
 						</li>

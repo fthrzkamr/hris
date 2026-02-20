@@ -169,18 +169,21 @@ try {
 
         if ($npp === '') continue;
 
-        // Parse tanggal (Excel date or text like MM/DD/YYYY or YYYY-MM-DD)
+        // Parse tanggal (Excel date numbers or various text formats like "1 December 2025", "2025-12-01", "12/01/2025", etc.)
         $tanggal = null;
         if ($tanggal_raw === null || $tanggal_raw === '') {
             $error_messages[] = "Baris $r: Tanggal kosong";
             $error_count++;
             continue;
         }
+
+        // If Excel serial/date number, convert via PhpSpreadsheet
         if (is_numeric($tanggal_raw)) {
             try {
                 $dt = ExcelDate::excelToDateTimeObject($tanggal_raw);
                 $tanggal = $dt->format('Y-m-d');
             } catch (Exception $e) {
+                // fallback to strtotime on string representation
                 $ts = strtotime((string)$tanggal_raw);
                 if ($ts === false) {
                     $error_messages[] = "Baris $r: Format tanggal tidak dikenali ($tanggal_raw)";
@@ -190,15 +193,38 @@ try {
                 $tanggal = date('Y-m-d', $ts);
             }
         } else {
-            $ts = strtotime((string)$tanggal_raw);
-            if ($ts === false) {
-                $error_messages[] = "Baris $r: Format tanggal tidak dikenali ($tanggal_raw)";
-                $error_count++;
-                continue;
+            $txt = trim((string)$tanggal_raw);
+
+            // Normalize common Indonesian month names to English to support '1 December 2025' and '1 Desember 2025'
+            $month_map = [
+                'Januari' => 'January', 'Februari' => 'February', 'Maret' => 'March', 'April' => 'April',
+                'Mei' => 'May', 'Juni' => 'June', 'Juli' => 'July', 'Agustus' => 'August',
+                'September' => 'September', 'Oktober' => 'October', 'November' => 'November', 'Desember' => 'December'
+            ];
+            $txt_norm = str_ireplace(array_keys($month_map), array_values($month_map), $txt);
+
+            // Try several explicit formats first (day month year variations)
+            $formats = ['j F Y', 'd F Y', 'j M Y', 'd M Y', 'Y-m-d', 'd-m-Y', 'm/d/Y', 'd/m/Y'];
+            foreach ($formats as $fmt) {
+                $dt = DateTime::createFromFormat($fmt, $txt_norm);
+                if ($dt !== false) {
+                    $tanggal = $dt->format('Y-m-d');
+                    break;
+                }
             }
-            $tanggal = date('Y-m-d', $ts);
+
+            // Last resort: strtotime on normalized string
+            if ($tanggal === null) {
+                $ts = strtotime($txt_norm);
+                if ($ts === false) {
+                    $error_messages[] = "Baris $r: Format tanggal tidak dikenali ($tanggal_raw)";
+                    $error_count++;
+                    continue;
+                }
+                $tanggal = date('Y-m-d', $ts);
+            }
         }
-        
+
         $periode = date('Y-m', strtotime($tanggal)); // Extract YYYY-MM
 
         // Parse jam_absen (extract jam_masuk and jam_pulang)
@@ -419,6 +445,9 @@ try {
     $upsert_stmt = mysqli_prepare($conn, $upsert_sql);
     if (!$upsert_stmt) throw new Exception('Prepare insert failed: ' . mysqli_error($conn));
 
+    // Cache employee cabang to avoid repeated queries
+    $emp_cabang_cache = array();
+
     foreach ($monthly_data as $key => $data) {
         $npp = $data['npp'];
         $periode = $data['periode'];
@@ -479,13 +508,38 @@ try {
 
         // UANG MAKAN BULANAN
         $uang_makan_base = intval($settings['UANG_MAKAN_BULANAN']);
+
+        // Cabang-specific override: if employee.cabang exactly equals "Cibinong"
+        // then use UANG_MAKANAN_BULANAN_CIBINONG when available in settings.
+        if (!isset($emp_cabang_cache[$npp])) {
+            $qe2 = mysqli_query($conn, "SELECT cabang FROM employee WHERE npp='" . mysqli_real_escape_string($conn, $npp) . "' LIMIT 1");
+            if ($qe2 && mysqli_num_rows($qe2) > 0) {
+                $er2 = mysqli_fetch_assoc($qe2);
+                $emp_cabang_cache[$npp] = $er2['cabang'];
+            } else {
+                $emp_cabang_cache[$npp] = null;
+            }
+        }
+        if ($emp_cabang_cache[$npp] === 'Cibinong' && isset($settings['UANG_MAKANAN_BULANAN_CIBINONG'])) {
+            $uang_makan_base = intval($settings['UANG_MAKANAN_BULANAN_CIBINONG']);
+        }
+
         $potongan_makan = abs($total_makan);
         $uang_makan_final = $uang_makan_base + $total_makan;
         $total_makan = $uang_makan_final;
 
         // Calculate total payment
         $bonus_insentif = $bonus_titik + $bonus_full_hadir;
-        $jumlah_dibayarkan = $total_makan + $bonus_insentif + $total_lembur - $total_denda;
+        // Policy: if employee has any hadir days, always pay the monthly uang makan (guaranteed).
+        // Apply denda only against other components (bonus + lembur). This prevents denda from
+        // reducing the guaranteed uang makan to negative.
+        if ($hari_hadir > 0) {
+            $other_net = $bonus_insentif + $total_lembur - $total_denda;
+            $jumlah_dibayarkan = $uang_makan_final + max(0, $other_net);
+        } else {
+            // If no hadir days, keep previous behavior
+            $jumlah_dibayarkan = $total_makan + $bonus_insentif + $total_lembur - $total_denda;
+        }
 
         // Bind and execute
         if (!mysqli_stmt_bind_param(

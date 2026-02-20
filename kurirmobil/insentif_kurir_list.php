@@ -44,16 +44,6 @@ $total_pages = ceil($total_records / $records_per_page);
 $sql = "SELECT t.*, t.hari_hadir, t.hari_telat, t.hari_cuti, t.hari_alpha, e.nama_emp, b.nama_bagian, e.cabang " . $sql_base . " ORDER BY t.periode DESC, t.npp ASC";
 
 $query = mysqli_query($conn, $sql);
-// Load titik cap from settings (fallback to 25)
-$cap_titik = 25;
-$rs_cap = mysqli_query($conn, "SELECT nilai_angka, nominal_rp FROM pengaturan_insentif_kurir WHERE nama_variabel='BATAS_ATAS_BONUS_TITIK' LIMIT 1");
-if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
-    $rc = mysqli_fetch_assoc($rs_cap);
-    if (!empty($rc['nilai_angka']))
-        $cap_titik = intval($rc['nilai_angka']);
-    elseif (!empty($rc['nominal_rp']))
-        $cap_titik = intval($rc['nominal_rp']);
-}
 ?>
 <style>
     /* Styling untuk meningkatkan readability */
@@ -287,7 +277,7 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                                     <th rowspan="2">Bagian</th>
                                     <th rowspan="2">Cabang</th>
                                     <th rowspan="2">Periode</th>
-                                    <th colspan="9" class="text-center">Performa</th>
+                                    <th colspan="8" class="text-center">Performa</th>
                                     <th colspan="6" class="text-center">Komponen Pembayaran</th>
                                     <th rowspan="2" class="bg-success">Total Dibayarkan</th>
                                     <th rowspan="2">Status</th>
@@ -298,7 +288,6 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                                     <th>Aktual Titik</th>
                                     <th>Target Titik</th>
                                     <th>Kelebihan</th>
-                                    <th title="Titik maksimal yang dibayarkan">Titik Max</th>
                                     <th title="Total menit keterlambatan dalam periode">Akumulasi Telat (menit)</th>
                                     <th title="Jumlah hari hadir dalam periode">Hadir</th>
                                     <th title="Jumlah hari telat dalam periode">Telat</th>
@@ -392,7 +381,6 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                                         <td class="text-right" style="<?php echo $kelebihan_style; ?>">
                                             <?php echo number_format($kelebihan_titik); ?>
                                         </td>
-                                        <td class="text-right"><?php echo number_format($cap_titik); ?></td>
                                         <td class="text-right" style="<?php echo $telat_style; ?>">
                                             <?php echo number_format($row['akumulasi_telat'] ?? 0); ?> menit
                                         </td>
@@ -427,7 +415,6 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                                                 <?php endif; ?>
                                             </span>
                                         </td>
-
                                         <!-- <td><?php echo date('d-m-Y H:i', strtotime($row['updated_at'])); ?></td>
                                         <td>
                                             <a href="insentif_kurir_update.php?id=<?php echo intval($row['id']); ?>"
@@ -505,7 +492,7 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
             order: [[5, 'desc']], // Sort by periode column (descending)
             columnDefs: [
                 { orderable: false, targets: [0] }, // Disable sorting on "No"
-                { className: "text-center", targets: [0, 4, 22] }, // center: No, Cabang, Status (updated index)
+                { className: "text-center", targets: [0, 4, 21] }, // center: No, Cabang, Status (updated index)
                 { className: "text-right", targets: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20] } // numeric columns (updated range)
             ],
             drawCallback: function () {
@@ -561,8 +548,8 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                     var row = $('td.editable-titik[data-npp="' + res.npp + '"][data-periode="' + res.periode + '"]').first().closest('tr');
                     if (row.length) {
                         row.find('td').eq(8).text(numberWithCommas(res.kelebihan));
-                        row.find('td').eq(15).text(numberWithCommas(res.bonus_insentif_titik));
-                        row.find('td').eq(21).text(numberWithCommas(res.jumlah_dibayarkan));
+                        row.find('td').eq(10).text(numberWithCommas(res.bonus_insentif_titik));
+                        row.find('td').eq(16).text(numberWithCommas(res.jumlah_dibayarkan));
                     }
                     $('#modalEditTitik').modal('hide');
                 } else {
