@@ -49,7 +49,8 @@ if (!in_array($file_ext, ['xls', 'xlsx'])) {
 }
 
 // Helper to extract setting value
-function _setting_value($row) {
+function _setting_value($row)
+{
     // Prefer time values when present (nilai_waktu), otherwise monetary (nominal_rp) if non-zero,
     // then numeric value (nilai_angka). This matches the schema where time settings store
     // the jam masuk/pulang in `nilai_waktu` while nominal_rp/nilai_angka may be zero.
@@ -57,10 +58,10 @@ function _setting_value($row) {
         return $row['nilai_waktu'];
     }
     if (isset($row['nominal_rp']) && $row['nominal_rp'] !== null && $row['nominal_rp'] !== '' && floatval($row['nominal_rp']) != 0.0) {
-        return (int)$row['nominal_rp'];
+        return (int) $row['nominal_rp'];
     }
     if (isset($row['nilai_angka']) && $row['nilai_angka'] !== null && $row['nilai_angka'] !== '') {
-        return (int)$row['nilai_angka'];
+        return (int) $row['nilai_angka'];
     }
     return null;
 }
@@ -87,7 +88,7 @@ try {
     if (!isset($settings['UANG_MAKAN_BULANAN'])) {
         $settings['UANG_MAKAN_BULANAN'] = 300000;
     }
-    
+
     // DEBUGGING: Ensure all settings are present
     $required_settings = ['JAM_MASUK_STANDAR', 'DENDA_TELAT_PER_MENIT', 'POTONGAN_MAKAN_PER_HARI', 'BATAS_ATAS_BONUS_TITIK', 'RATE_PER_TITIK_LEBIH', 'UANG_MAKAN_BULANAN', 'RATE_LEMBUR_OPERASIONAL', 'RATE_LEMBUR_AMBIL_BARANG', 'RATE_LEMBUR_LAINNYA', 'BONUS_FULL_HADIR', 'BONUS_FULL_HADIR_MOTOR'];
     foreach ($required_settings as $key) {
@@ -105,20 +106,21 @@ try {
     $insert_absensi_sql = "INSERT INTO absensi_kurir 
         (npp, tanggal_absen, jam_absen, jam_masuk, jam_pulang, jenis_tugas, 
          total_aktual_titik, target_titik, is_hadir, is_late, menit_terlambat, 
-         insentif_titik, denda_telat, uang_makan, uang_lembur, grand_total_harian, is_cuti, 
+         insentif_titik, denda_telat, uang_makan, uang_lembur, grand_total_harian, is_cuti, keterangan_cuti, 
          lembur_operasional, lembur_ambil_barang, lembur_lainnya, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         ON DUPLICATE KEY UPDATE 
         jam_absen=VALUES(jam_absen), jam_masuk=VALUES(jam_masuk), jam_pulang=VALUES(jam_pulang), 
         jenis_tugas=VALUES(jenis_tugas), total_aktual_titik=VALUES(total_aktual_titik), 
         target_titik=VALUES(target_titik), is_hadir=VALUES(is_hadir), is_late=VALUES(is_late), 
         menit_terlambat=VALUES(menit_terlambat), insentif_titik=VALUES(insentif_titik), 
         denda_telat=VALUES(denda_telat), uang_makan=VALUES(uang_makan), uang_lembur=VALUES(uang_lembur), 
-        grand_total_harian=VALUES(grand_total_harian), is_cuti=VALUES(is_cuti), 
+        grand_total_harian=VALUES(grand_total_harian), is_cuti=VALUES(is_cuti), keterangan_cuti=VALUES(keterangan_cuti), 
         lembur_operasional=VALUES(lembur_operasional), lembur_ambil_barang=VALUES(lembur_ambil_barang), lembur_lainnya=VALUES(lembur_lainnya), 
         updated_at=NOW()";
     $insert_absensi_stmt = mysqli_prepare($conn, $insert_absensi_sql);
-    if (!$insert_absensi_stmt) throw new Exception('Prepare insert absensi failed: ' . mysqli_error($conn));
+    if (!$insert_absensi_stmt)
+        throw new Exception('Prepare insert absensi failed: ' . mysqli_error($conn));
 
     // 3. Load Excel spreadsheet and AGGREGATE by (npp, periode)
     $spreadsheet = IOFactory::load($file_tmp);
@@ -127,47 +129,55 @@ try {
     $highestColumnIndex = Coordinate::columnIndexFromString($worksheet->getHighestColumn());
 
     // Default column map (fallback if header names not provided)
+    // NOTE: Lembur and cuti data are now queried from database tables, not from Excel
     $colMap = [
-        'npp' => 'A', 'tanggal' => 'B', 'jam' => 'C', 'jenis_tugas' => 'D',
-        'aktual' => 'E', 'target' => 'F', 'lembur_operasional' => 'G',
-        'lembur_ambil' => 'H', 'lembur_lain' => 'I', 'is_cuti' => 'J'
+        'npp' => 'A',
+        'tanggal' => 'B',
+        'jam' => 'C',
+        'jenis_tugas' => 'D',
+        'aktual' => 'E',
+        'target' => 'F'
     ];
 
     // If header row exists, detect columns by header text (flexible names)
     for ($ci = 1; $ci <= $highestColumnIndex; $ci++) {
         $colLetter = Coordinate::stringFromColumnIndex($ci);
-        $hdr = strtolower(trim((string)$worksheet->getCell($colLetter . '1')->getValue()));
-        if ($hdr === '') continue;
+        $hdr = strtolower(trim((string) $worksheet->getCell($colLetter . '1')->getValue()));
+        if ($hdr === '')
+            continue;
         $norm = preg_replace('/[^a-z0-9]/', '', $hdr);
-        if (strpos($norm, 'npp') !== false) $colMap['npp'] = $colLetter;
-        elseif (strpos($norm, 'tanggal') !== false || strpos($norm, 'date') !== false) $colMap['tanggal'] = $colLetter;
-        elseif (strpos($norm, 'jam') === 0 || strpos($norm, 'time') !== false) $colMap['jam'] = $colLetter;
-        elseif (strpos($norm, 'jenistugas') !== false || strpos($norm, 'jenis') !== false) $colMap['jenis_tugas'] = $colLetter;
-        elseif (strpos($norm, 'aktual') !== false || strpos($norm, 'actual') !== false) $colMap['aktual'] = $colLetter;
-        elseif (strpos($norm, 'target') !== false) $colMap['target'] = $colLetter;
-        elseif (strpos($norm, 'operasional') !== false) $colMap['lembur_operasional'] = $colLetter;
-        elseif (strpos($norm, 'ambil') !== false || strpos($norm, 'pickup') !== false) $colMap['lembur_ambil'] = $colLetter;
-        elseif (strpos($norm, 'lain') !== false || strpos($norm, 'lainnya') !== false) $colMap['lembur_lain'] = $colLetter;
-        elseif (strpos($norm, 'cuti') !== false || strpos($norm, 'iscuti') !== false || strpos($norm, 'izin') !== false) $colMap['is_cuti'] = $colLetter;
+        if (strpos($norm, 'npp') !== false)
+            $colMap['npp'] = $colLetter;
+        elseif (strpos($norm, 'tanggal') !== false || strpos($norm, 'date') !== false)
+            $colMap['tanggal'] = $colLetter;
+        elseif (strpos($norm, 'jam') === 0 || strpos($norm, 'time') !== false)
+            $colMap['jam'] = $colLetter;
+        elseif (strpos($norm, 'jenistugas') !== false || strpos($norm, 'jenis') !== false)
+            $colMap['jenis_tugas'] = $colLetter;
+        elseif (strpos($norm, 'aktual') !== false || strpos($norm, 'actual') !== false)
+            $colMap['aktual'] = $colLetter;
+        elseif (strpos($norm, 'target') !== false)
+            $colMap['target'] = $colLetter;
     }
 
     $success_count = 0;
     $error_count = 0;
     $error_messages = [];
-    
+
     // Accumulator for monthly aggregation: key = "npp|YYYY-MM"
     $monthly_data = [];
 
     // STEP 3a: Read all Excel rows and accumulate by (npp, periode)
     for ($r = 2; $r <= $highestRow; $r++) {
-        $npp = trim((string)$worksheet->getCell('A' . $r)->getValue());
+        $npp = trim((string) $worksheet->getCell('A' . $r)->getValue());
         $tanggal_raw = $worksheet->getCell('B' . $r)->getValue();
-        $jam_raw = trim((string)$worksheet->getCell('C' . $r)->getValue());
-        $jenis_tugas = trim((string)$worksheet->getCell('D' . $r)->getValue());
+        $jam_raw = trim((string) $worksheet->getCell('C' . $r)->getValue());
+        $jenis_tugas = trim((string) $worksheet->getCell('D' . $r)->getValue());
         $aktual_raw = $worksheet->getCell('E' . $r)->getValue();
         $target_raw = $worksheet->getCell('F' . $r)->getValue();
 
-        if ($npp === '') continue;
+        if ($npp === '')
+            continue;
 
         // Parse tanggal (Excel date numbers or various text formats like "1 December 2025", "2025-12-01", "12/01/2025", etc.)
         $tanggal = null;
@@ -184,7 +194,7 @@ try {
                 $tanggal = $dt->format('Y-m-d');
             } catch (Exception $e) {
                 // fallback to strtotime on string representation
-                $ts = strtotime((string)$tanggal_raw);
+                $ts = strtotime((string) $tanggal_raw);
                 if ($ts === false) {
                     $error_messages[] = "Baris $r: Format tanggal tidak dikenali ($tanggal_raw)";
                     $error_count++;
@@ -193,13 +203,22 @@ try {
                 $tanggal = date('Y-m-d', $ts);
             }
         } else {
-            $txt = trim((string)$tanggal_raw);
+            $txt = trim((string) $tanggal_raw);
 
             // Normalize common Indonesian month names to English to support '1 December 2025' and '1 Desember 2025'
             $month_map = [
-                'Januari' => 'January', 'Februari' => 'February', 'Maret' => 'March', 'April' => 'April',
-                'Mei' => 'May', 'Juni' => 'June', 'Juli' => 'July', 'Agustus' => 'August',
-                'September' => 'September', 'Oktober' => 'October', 'November' => 'November', 'Desember' => 'December'
+                'Januari' => 'January',
+                'Februari' => 'February',
+                'Maret' => 'March',
+                'April' => 'April',
+                'Mei' => 'May',
+                'Juni' => 'June',
+                'Juli' => 'July',
+                'Agustus' => 'August',
+                'September' => 'September',
+                'Oktober' => 'October',
+                'November' => 'November',
+                'Desember' => 'December'
             ];
             $txt_norm = str_ireplace(array_keys($month_map), array_values($month_map), $txt);
 
@@ -227,6 +246,9 @@ try {
 
         $periode = date('Y-m', strtotime($tanggal)); // Extract YYYY-MM
 
+        // tambahkan definisi tanggal_str agar query cuti/lembur menerima nilai yang benar
+        $tanggal_str = $tanggal;
+
         // Parse jam_absen (extract jam_masuk and jam_pulang)
         $jam_masuk = null;
         $jam_pulang = null;
@@ -237,15 +259,16 @@ try {
                     $jd = ExcelDate::excelToDateTimeObject($jam_raw);
                     $jam_masuk = $jd->format('H:i:s');
                 } catch (Exception $e) {
-                    $tsj = strtotime((string)$jam_raw);
-                    if ($tsj !== false) $jam_masuk = date('H:i:s', $tsj);
+                    $tsj = strtotime((string) $jam_raw);
+                    if ($tsj !== false)
+                        $jam_masuk = date('H:i:s', $tsj);
                 }
             } else {
                 // Text format: "08:49 16:02" or "08:49"
                 $parts = explode(' ', $jam_raw);
                 $jam_masuk_str = isset($parts[0]) && trim($parts[0]) !== '' ? trim($parts[0]) : null;
                 $jam_pulang_str = isset($parts[1]) && trim($parts[1]) !== '' && trim($parts[1]) !== '00:00' ? trim($parts[1]) : null;
-                
+
                 if ($jam_masuk_str !== null) {
                     $tsj = strtotime($jam_masuk_str);
                     if ($tsj !== false) {
@@ -279,7 +302,7 @@ try {
                 continue;
             }
             mysqli_stmt_close($chk);
-            
+
             // Initialize accumulator
             $monthly_data[$key] = [
                 'npp' => $npp,
@@ -308,7 +331,7 @@ try {
         // ============================================================
         // STEP ETL 1: CALCULATE DAILY FINANCIAL COMPONENTS
         // ============================================================
-        
+
         // Initialize daily variables
         $is_hadir = 0;
         $is_late = 0;
@@ -318,12 +341,61 @@ try {
         $uang_lembur_harian = 0;
         $insentif_titik_harian = 0;
         $is_cuti = 0;
+        $keterangan_cuti = '';
 
-        // Read lembur counts and cuti flag from Excel (columns detected above)
-        $lembur_operasional = intval($worksheet->getCell($colMap['lembur_operasional'] . $r)->getValue() ?? 0);
-        $lembur_ambil = intval($worksheet->getCell($colMap['lembur_ambil'] . $r)->getValue() ?? 0);
-        $lembur_lain = intval($worksheet->getCell($colMap['lembur_lain'] . $r)->getValue() ?? 0);
+        // === DATABASE-DRIVEN: Query cuti from database (not from Excel) ===
+        // Use direct query (works even if mysqlnd isn't enabled) and trim values
+        $npp_q = mysqli_real_escape_string($conn, trim($npp));
+        $tgl_q = mysqli_real_escape_string($conn, $tanggal_str);
+        $cuti_sql = "SELECT keterangan, stt_cuti, tgl_awal, tgl_akhir FROM cuti 
+            WHERE npp = '$npp_q' 
+              AND '$tgl_q' BETWEEN tgl_awal AND tgl_akhir 
+              AND stt_cuti != 'Rejected'";
+        $cuti_keterangan_array = [];
+        $cuti_rs = mysqli_query($conn, $cuti_sql);
+        if ($cuti_rs) {
+            while ($cuti_row = mysqli_fetch_assoc($cuti_rs)) {
+                // debug: uncomment to collect details $_SESSION['debug'][] = $cuti_row;
+                if (!empty($cuti_row['keterangan'])) $cuti_keterangan_array[] = trim($cuti_row['keterangan']);
+                else $cuti_keterangan_array[] = '(' . ($cuti_row['stt_cuti'] ?? 'Unknown') . ')';
+            }
+            mysqli_free_result($cuti_rs);
+        } else {
+            // If query fails, capture error for troubleshooting
+            $error_messages[] = "Baris $r: Query cuti gagal: " . mysqli_error($conn);
+        }
+        if (count($cuti_keterangan_array) > 0) {
+            $is_cuti = 1;
+            $keterangan_cuti = implode('; ', $cuti_keterangan_array);
+        }
 
+        // === DATABASE-DRIVEN: Query lembur from database (not from Excel) ===
+        // Query lembur table: get all lembur records for this npp and date, status = 'Approved' only
+        $lembur_operasional = 0;
+        $lembur_ambil = 0;
+        $lembur_lain = 0;
+
+        $lembur_stmt = mysqli_prepare($conn, "SELECT tujuan_lembur, SUM(jumlah) as total FROM lembur WHERE npp = ? AND DATE(tgl_lembur) = ? AND status = 'Approved' GROUP BY tujuan_lembur");
+        if ($lembur_stmt) {
+            mysqli_stmt_bind_param($lembur_stmt, 'ss', $npp, $tanggal_str);
+            mysqli_stmt_execute($lembur_stmt);
+            $lembur_result = mysqli_stmt_get_result($lembur_stmt);
+            while ($lembur_row = mysqli_fetch_assoc($lembur_result)) {
+                $tujuan = strtolower(trim($lembur_row['tujuan_lembur']));
+                $jumlah = intval($lembur_row['total']);
+                // Map tujuan_lembur to categories (handle typo: 'Oprasional' vs 'Operasional')
+                if (strpos($tujuan, 'operasional') !== false || strpos($tujuan, 'oprasional') !== false) {
+                    $lembur_operasional += $jumlah;
+                } elseif (strpos($tujuan, 'ambil') !== false || strpos($tujuan, 'barang') !== false) {
+                    $lembur_ambil += $jumlah;
+                } else {
+                    $lembur_lain += $jumlah;
+                }
+            }
+            mysqli_stmt_close($lembur_stmt);
+        }
+
+        // Calculate lembur payment using rates from settings
         $rate_op = intval($settings['RATE_LEMBUR_OPERASIONAL']);
         $rate_ambil = intval($settings['RATE_LEMBUR_AMBIL_BARANG']);
         $rate_lain = intval($settings['RATE_LEMBUR_LAINNYA']);
@@ -335,12 +407,12 @@ try {
             // PRESENT (Hadir)
             $is_hadir = 1;
             $uang_makan_harian = intval($settings['POTONGAN_MAKAN_PER_HARI']); // Allowance
-            
+
             // Check if late
             $jam_standar_str = $settings['JAM_MASUK_STANDAR'];
             $waktu_batas = strtotime($jam_standar_str);
             $waktu_masuk = strtotime($jam_masuk);
-            
+
             if ($waktu_masuk > $waktu_batas) {
                 $is_late = 1;
                 $selisih_detik = $waktu_masuk - $waktu_batas;
@@ -358,17 +430,9 @@ try {
                 }
             }
         } else {
-            // ABSENT: determine cuti from Excel column (if provided)
-            $is_cuti_excel = 0;
-            $val_cuti = trim((string)$worksheet->getCell($colMap['is_cuti'] . $r)->getValue());
-            if ($val_cuti !== '') {
-                $v = strtolower($val_cuti);
-                if (in_array($v, ['1','y','yes','true','cuti','izin'])) $is_cuti_excel = 1;
-            }
-
-            if ($is_cuti_excel) {
+            // ABSENT: is_cuti already determined from database query above
+            if ($is_cuti) {
                 // On CUTI: treat like alpha for makan potongan (preserve is_cuti flag)
-                $is_cuti = 1;
                 $is_hadir = 0;
                 $uang_makan_harian = -intval($settings['POTONGAN_MAKAN_PER_HARI']); // Penalty (negative) for cuti
             } else {
@@ -391,12 +455,28 @@ try {
         $jam_absen_str = $jam_raw; // Keep original format from Excel
         mysqli_stmt_bind_param(
             $insert_absensi_stmt,
-            'ssssssiiiiidddddiiii',
-            $npp, $tanggal, $jam_absen_str, $jam_masuk, $jam_pulang, $jenis_tugas,
-            $aktual, $target, $is_hadir, $is_late, $menit_terlambat,
-            $insentif_titik_harian, $denda_telat_harian, $uang_makan_harian,
-            $uang_lembur_harian, $grand_total_harian, $is_cuti,
-            $lembur_operasional, $lembur_ambil, $lembur_lain
+            'ssssssiiiiidddddisiii',
+            $npp,
+            $tanggal,
+            $jam_absen_str,
+            $jam_masuk,
+            $jam_pulang,
+            $jenis_tugas,
+            $aktual,
+            $target,
+            $is_hadir,
+            $is_late,
+            $menit_terlambat,
+            $insentif_titik_harian,
+            $denda_telat_harian,
+            $uang_makan_harian,
+            $uang_lembur_harian,
+            $grand_total_harian,
+            $is_cuti,
+            $keterangan_cuti,
+            $lembur_operasional,
+            $lembur_ambil,
+            $lembur_lain
         );
         if (!mysqli_stmt_execute($insert_absensi_stmt)) {
             $error_messages[] = "Baris $r: Gagal menyimpan ke absensi_kurir: " . mysqli_stmt_error($insert_absensi_stmt);
@@ -410,13 +490,13 @@ try {
         $monthly_data[$key]['target_titik'] += $target;
         $monthly_data[$key]['total_lembur'] += $uang_lembur_harian;
         $monthly_data[$key]['total_denda'] += $denda_telat_harian;
-        
+
         // Akumulasi uang makan: HANYA potongan (negatif), TIDAK akumulasi allowance harian
         // Karena allowance bulanan adalah fix 300rb, hanya potongan alpha yang dikurangi
         if ($uang_makan_harian < 0) {
             $monthly_data[$key]['total_makan'] += $uang_makan_harian; // Akumulasi potongan (negatif)
         }
-        
+
         if ($is_hadir) {
             $monthly_data[$key]['hari_hadir']++;
             if ($is_late) {
@@ -443,7 +523,8 @@ try {
         potongan_makan=VALUES(potongan_makan), uang_makan=VALUES(uang_makan), uang_lembur=VALUES(uang_lembur),
         jumlah_dibayarkan=VALUES(jumlah_dibayarkan), hari_hadir=VALUES(hari_hadir), hari_telat=VALUES(hari_telat), hari_cuti=VALUES(hari_cuti), hari_alpha=VALUES(hari_alpha), updated_at=NOW()";
     $upsert_stmt = mysqli_prepare($conn, $upsert_sql);
-    if (!$upsert_stmt) throw new Exception('Prepare insert failed: ' . mysqli_error($conn));
+    if (!$upsert_stmt)
+        throw new Exception('Prepare insert failed: ' . mysqli_error($conn));
 
     // Cache employee cabang to avoid repeated queries
     $emp_cabang_cache = array();
@@ -542,26 +623,28 @@ try {
         }
 
         // Bind and execute
-        if (!mysqli_stmt_bind_param(
-            $upsert_stmt,
-            'ssiiiiiiiiiiiiii',
-            $npp,
-            $periode,
-            $total_titik,
-            $target_titik,
-            $bonus_titik,
-            $bonus_full_hadir,
-            $total_denda,
-            $akumulasi_menit_telat,
-            $potongan_makan,
-            $total_makan,
-            $total_lembur,
-            $jumlah_dibayarkan,
-            $hari_hadir,
-            $hari_telat,
-            $hari_cuti,
-            $hari_alpha
-        )) {
+        if (
+            !mysqli_stmt_bind_param(
+                $upsert_stmt,
+                'ssiiiiiiiiiiiiii',
+                $npp,
+                $periode,
+                $total_titik,
+                $target_titik,
+                $bonus_titik,
+                $bonus_full_hadir,
+                $total_denda,
+                $akumulasi_menit_telat,
+                $potongan_makan,
+                $total_makan,
+                $total_lembur,
+                $jumlah_dibayarkan,
+                $hari_hadir,
+                $hari_telat,
+                $hari_cuti,
+                $hari_alpha
+            )
+        ) {
             $error_messages[] = "NPP $npp periode $periode: Gagal bind: " . mysqli_error($conn);
             $error_count++;
             continue;
@@ -583,8 +666,10 @@ try {
             $titik_paid = min($selisih_display, intval($settings['BATAS_ATAS_BONUS_TITIK']));
             $bonus_parts[] = "Bonus Titik (+{$selisih_display} titik, dibayar {$titik_paid} titik) = " . number_format($bonus_titik);
         }
-        if ($bonus_full_hadir > 0) $bonus_parts[] = "Bonus Full Hadir = " . number_format($bonus_full_hadir);
-        if (empty($bonus_parts)) $bonus_parts[] = "Tidak ada bonus";
+        if ($bonus_full_hadir > 0)
+            $bonus_parts[] = "Bonus Full Hadir = " . number_format($bonus_full_hadir);
+        if (empty($bonus_parts))
+            $bonus_parts[] = "Tidak ada bonus";
         $bonus_info = implode(" | ", $bonus_parts);
 
         $makan_info = number_format($uang_makan_base);
@@ -600,12 +685,14 @@ try {
     if ($success_count > 0) {
         $_SESSION['alert_type'] = "success";
         $_SESSION['alert_message'] = "Berhasil memproses $success_count transaksi bulanan! Data harian tersimpan di absensi_kurir.";
-        if ($error_count > 0) $_SESSION['alert_message'] .= " ($error_count gagal)";
+        if ($error_count > 0)
+            $_SESSION['alert_message'] .= " ($error_count gagal)";
     } else {
         $_SESSION['alert_type'] = "danger";
         $_SESSION['alert_message'] = "Tidak ada data yang berhasil diproses!";
     }
-    if (!empty($error_messages)) $_SESSION['alert_details'] = implode("<br>", $error_messages);
+    if (!empty($error_messages))
+        $_SESSION['alert_details'] = implode("<br>", $error_messages);
 
 } catch (Exception $e) {
     $_SESSION['alert_type'] = "danger";

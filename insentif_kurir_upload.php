@@ -29,7 +29,7 @@ include("layout_top.php");
                                 </div>
                                 
                                 <div class="alert alert-info">
-                                    <strong>Format Excel (struktur baru, sesuai gambar):</strong><br>
+                                    <strong>Format Excel (struktur baru - Data Cuti & Lembur Otomatis dari Database):</strong><br>
                                     <ul>
                                         <li>Kolom A: npp (NPP Karyawan)</li>
                                         <li>Kolom B: tanggal_absen (Format: MM/DD/YYYY atau YYYY-MM-DD atau Excel date)</li>
@@ -38,8 +38,12 @@ include("layout_top.php");
                                         <li>Kolom E: total_aktual_titik (angka)</li>
                                         <li>Kolom F: target_titik (angka)</li>
                                     </ul>
+                                    <div class="alert alert-success" style="margin-top: 10px;">
+                                        <i class="fa fa-database"></i> <strong>Data cuti dan lembur diambil otomatis dari database!</strong><br>
+                                        <small>Sistem akan query tabel <code>cuti</code> dan <code>lembur</code> berdasarkan NPP dan tanggal. Tidak perlu input manual di Excel.</small>
+                                    </div>
                                     <strong>Contoh (baris):</strong><br>
-                                    <table class="table table-bordered" style="background: white; margin-top: 10px;">
+                                    <table class="table table-bordered" style="background: white; margin-top: 10px; font-size: 11px;">
                                         <tr>
                                             <th>npp</th>
                                             <th>tanggal_absen</th>
@@ -64,7 +68,16 @@ include("layout_top.php");
                                             <td>486</td>
                                             <td>500</td>
                                         </tr>
+                                        <tr>
+                                            <td>23920047</td>
+                                            <td>12/20/2025</td>
+                                            <td></td>
+                                            <td></td>
+                                            <td>0</td>
+                                            <td>0</td>
+                                        </tr>
                                     </table>
+                                    <p class="text-info" style="margin-top: 10px;"><small><strong>Catatan:</strong> Hanya perlu kolom A-F. Data cuti (status & keterangan) dan lembur (jumlah per kategori) akan diquery otomatis dari database saat proses upload.</small></p>
                                 </div>
 
                                 <button type="submit" class="btn btn-primary">

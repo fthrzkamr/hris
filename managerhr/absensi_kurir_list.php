@@ -282,7 +282,7 @@ mysqli_data_seek($query, 0);
 
                                     <!-- Finansial (6 kolom) -->
                                     <th class="bg-success">Bonus Titik</th>
-                                    <th class="bg-success">Bonus Full</th>
+                                    <th class="bg-success">Bonus Full Kehadiran</th>
                                     <th class="bg-success">Makan</th>
                                     <th class="bg-success">Lembur</th>
                                     <th class="bg-success">Denda</th>
