@@ -262,81 +262,69 @@ mysqli_data_seek($query, 0);
                                     <th rowspan="2">NPP</th>
                                     <th rowspan="2">Nama</th>
                                     <th rowspan="2">Tugas</th>
+
                                     <th colspan="2" class="text-center bg-info">Jam Kerja</th>
-                                    <th colspan="3" class="text-center bg-warning">Status</th>
-                                    <!-- Pencapaian (Aktual/Target) dihilangkan untuk input bulanan -->
+
+                                    <th colspan="4" class="text-center bg-warning">Status</th>
+
                                     <th colspan="6" class="text-center bg-success">Komponen Finansial (Rp)</th>
-                                    <!-- <th rowspan="2" class="bg-danger">Total Harian</th> -->
                                 </tr>
                                 <tr>
-                                    <!-- Jam Kerja -->
+                                    <!-- Jam Kerja (2 kolom) -->
                                     <th class="bg-info">Masuk</th>
                                     <th class="bg-info">Pulang</th>
 
-                                    <!-- Status -->
+                                    <!-- Status (4 kolom) -->
                                     <th class="bg-warning">Hadir</th>
-                                    <th class="bg-warning" title="Terlambat (menit)">Telat</th>
+                                    <th class="bg-warning">Telat</th>
                                     <th class="bg-warning">Cuti</th>
+                                    <th class="bg-warning">Ket. Cuti</th>
 
-                                    <!-- Titik (disembunyikan di tampilan harian karena data masuk per-bulan) -->
-
-                                    <!-- Finansial -->
-                                    <th class="bg-success"
-                                        title="Insentif Penambahan Titik (dihitung bulanan, max 500rb/bulan)">Bonus
-                                        Titik</th>
-                                    <th class="bg-success"
-                                        title="Bonus Full Hadir (dihitung bulanan, 250rb jika 0 alpha)">Bonus Full Hadir
-                                    </th>
-                                    <th class="bg-success" title="Rp300rb - ketidakhadiran Rp15rb">Makan</th>
+                                    <!-- Finansial (6 kolom) -->
+                                    <th class="bg-success">Bonus Titik</th>
+                                    <th class="bg-success">Bonus Full</th>
+                                    <th class="bg-success">Makan</th>
                                     <th class="bg-success">Lembur</th>
-                                    <th class="bg-success" title="Potongan denda keterlambatan">Denda</th>
-                                    <th class="bg-success" title="Menit Terlambat">Menit</th>
+                                    <th class="bg-success">Denda</th>
+                                    <th class="bg-success">Menit</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php
                                 $no = $offset + 1;
-                                // Mapping hari ke bahasa Indonesia
-                                $hari_indo = array(
-                                    'Sun' => 'Min',
-                                    'Mon' => 'Sen',
-                                    'Tue' => 'Sel',
-                                    'Wed' => 'Rab',
-                                    'Thu' => 'Kam',
-                                    'Fri' => 'Jum',
-                                    'Sat' => 'Sab'
-                                );
+                                $hari_indo = array('Sun'=>'Min','Mon'=>'Sen','Tue'=>'Sel','Wed'=>'Rab','Thu'=>'Kam','Fri'=>'Jum','Sat'=>'Sab');
 
                                 while ($row = mysqli_fetch_assoc($query)) {
-                                    // Status badges
-                                    $status_cuti = $row['is_cuti'] ? '<span class="label label-info">Cuti</span>' : '-';
+                                    $is_cuti = !empty($row['is_cuti']);
+                                    $is_hadir = !empty($row['is_hadir']);
+                                    $is_late = !empty($row['is_late']);
+                                    $menit_terlambat = intval($row['menit_terlambat'] ?? 0);
 
-                                    if ($row['is_cuti']) {
-                                        // For cuti rows, show '-' for hadir and telat to avoid confusion
+                                    // Status badges
+                                    if ($is_cuti) {
                                         $status_hadir = '-';
                                         $telat_badge = '-';
+                                        $status_cuti = '<span class="label label-info">Ya</span>';
+                                    } elseif ($is_hadir) {
+                                        $status_hadir = '<span class="label label-success">✓</span>';
+                                        $telat_badge = $is_late ? '<span class="label label-warning">'.$menit_terlambat.'\'</span>' : '<span class="label label-default">✓</span>';
+                                        $status_cuti = '-';
                                     } else {
-                                        $status_hadir = $row['is_hadir'] ? '<span class="label label-success">✓ Hadir</span>' : '<span class="label label-danger">✗ Tidak</span>';
-                                        if ($row['is_late']) {
-                                            $telat_badge = '<span class="label label-warning">' . $row['menit_terlambat'] . ' menit</span>';
-                                        } else {
-                                            $telat_badge = '<span class="label label-default">Tepat Waktu</span>';
-                                        }
+                                        $status_hadir = '<span class="label label-danger">✗</span>';
+                                        $telat_badge = '-';
+                                        $status_cuti = '-';
                                     }
 
-                                    // Highlight rows
-                                    $row_class = '';
-                                    if ($row['is_cuti'])
-                                        $row_class = 'info';
-                                    elseif (!$row['is_hadir'])
-                                        $row_class = 'danger';
-                                    elseif ($row['is_late'])
-                                        $row_class = 'warning';
+                                    $row_class = $is_cuti ? 'info' : (!$is_hadir ? 'danger' : ($is_late ? 'warning' : ''));
 
-                                    // Format tanggal dengan hari dalam bahasa Indonesia
                                     $hari_en = date('D', strtotime($row['tanggal_absen']));
-                                    $hari_id = $hari_indo[$hari_en];
-                                    $tanggal_formatted = date('d/m/Y', strtotime($row['tanggal_absen'])) . ' (' . $hari_id . ')';
+                                    $tanggal_formatted = date('d/m/Y', strtotime($row['tanggal_absen'])) . '<br><small>' . ($hari_indo[$hari_en] ?? $hari_en) . '</small>';
+                                    $jam_masuk = $row['jam_masuk'] ? date('H:i', strtotime($row['jam_masuk'])) : '-';
+                                    $jam_pulang = $row['jam_pulang'] ? date('H:i', strtotime($row['jam_pulang'])) : '-';
+
+                                    $uang_makan_harian = floatval($row['uang_makan'] ?? 0);
+                                    $uang_lembur = floatval($row['uang_lembur'] ?? 0);
+                                    $denda = floatval($row['denda_telat'] ?? 0);
                                     ?>
                                     <tr class="<?php echo $row_class; ?>">
                                         <td><?php echo $no++; ?></td>
@@ -345,57 +333,39 @@ mysqli_data_seek($query, 0);
                                         <td><?php echo htmlspecialchars($row['nama_emp'] ?? '-'); ?></td>
                                         <td><?php echo htmlspecialchars($row['jenis_tugas'] ?? '-'); ?></td>
 
-                                        <!-- Jam Kerja -->
-                                        <td><?php echo $row['jam_masuk'] ? date('H:i', strtotime($row['jam_masuk'])) : '-'; ?>
-                                        </td>
-                                        <td><?php echo $row['jam_pulang'] ? date('H:i', strtotime($row['jam_pulang'])) : '-'; ?>
-                                        </td>
+                                        <!-- Jam Kerja (2) -->
+                                        <td class="text-center"><?php echo $jam_masuk; ?></td>
+                                        <td class="text-center"><?php echo $jam_pulang; ?></td>
 
-                                        <!-- Status -->
+                                        <!-- Status (4) -->
                                         <td class="text-center"><?php echo $status_hadir; ?></td>
                                         <td class="text-center"><?php echo $telat_badge; ?></td>
                                         <td class="text-center"><?php echo $status_cuti; ?></td>
+                                        <td><?php echo htmlspecialchars($row['keterangan_cuti'] ?? '-'); ?></td>
 
-                                        <!-- Titik dihilangkan (data bulanan) -->
-
-                                        <!-- Finansial -->
-                                        <td class="text-center text-muted" title="Dihitung bulanan (lihat total)">-</td>
-                                        <td class="text-center text-muted" title="Dihitung bulanan (lihat total)">-</td>
-                                        <?php $uang_makan_harian = floatval($row['uang_makan'] ?? 0); ?>
+                                        <!-- Finansial (6) -->
+                                        <td class="text-center text-muted">-</td>
+                                        <td class="text-center text-muted">-</td>
                                         <td class="text-right <?php echo ($uang_makan_harian < 0) ? 'text-danger' : ''; ?>">
-                                            <?php if ($uang_makan_harian < 0): ?>
-                                                <?php echo number_format($uang_makan_harian); ?>
-                                            <?php else: ?>
-                                                <span class="text-muted">-</span>
-                                            <?php endif; ?>
+                                            <?php echo ($uang_makan_harian < 0) ? number_format($uang_makan_harian) : '-'; ?>
                                         </td>
-                                        <td class="text-right"><?php echo number_format($row['uang_lembur'] ?? 0); ?></td>
-                                        <td class="text-right text-danger">
-                                            <?php echo number_format($row['denda_telat'] ?? 0); ?>
+                                        <td class="text-right"><?php echo $uang_lembur > 0 ? number_format($uang_lembur) : '-'; ?></td>
+                                        <td class="text-right <?php echo $denda > 0 ? 'text-danger' : ''; ?>">
+                                            <?php echo $denda > 0 ? number_format($denda) : '-'; ?>
                                         </td>
-                                        <td class="text-center"><?php echo $row['menit_terlambat'] ?? 0; ?></td>
-
-                                        <!-- Total -->
-                                        <!-- <td class="text-right"><strong><?php echo number_format($row['grand_total_harian'] ?? 0); ?></strong></td> -->
+                                        <td class="text-center"><?php echo $menit_terlambat > 0 ? $menit_terlambat : '-'; ?></td>
                                     </tr>
                                 <?php } ?>
                             </tbody>
                             <tfoot>
                                 <tr class="info">
-                                    <th colspan="10" class="text-right"><strong>TOTAL KESELURUHAN:</strong></th>
-                                    <th class="text-right" title="Total bonus titik bulan ini"><strong>Rp
-                                            <?php echo number_format($grand_total_bonus_titik); ?></strong></th>
-                                    <th class="text-right" title="Total bonus full hadir bulan ini"><strong>Rp
-                                            <?php echo number_format($grand_total_bonus_full_hadir); ?></strong></th>
-                                    <th class="text-right"><strong>Rp
-                                            <?php echo number_format($grand_total_makan); ?></strong></th>
-                                    <th class="text-right"><strong>Rp
-                                            <?php echo number_format($grand_total_lembur); ?></strong></th>
-                                    <th class="text-right text-danger"><strong>Rp
-                                            <?php echo number_format($grand_total_denda); ?></strong></th>
-                                    <th class="text-center"><strong><?php echo number_format($grand_total_menit); ?>
-                                            mnt</strong></th>
-                                    <!-- <th class="text-right bg-warning"><strong>Rp <?php echo number_format($grand_total_bayar); ?></strong></th> -->
+                                    <th colspan="11" class="text-right"><strong>TOTAL:</strong></th>
+                                    <th class="text-right"><strong>Rp <?php echo number_format($grand_total_bonus_titik); ?></strong></th>
+                                    <th class="text-right"><strong>Rp <?php echo number_format($grand_total_bonus_full_hadir); ?></strong></th>
+                                    <th class="text-right text-danger"><strong>Rp <?php echo number_format($grand_total_makan); ?></strong></th>
+                                    <th class="text-right"><strong>Rp <?php echo number_format($grand_total_lembur); ?></strong></th>
+                                    <th class="text-right text-danger"><strong>Rp <?php echo number_format($grand_total_denda); ?></strong></th>
+                                    <th class="text-center"><strong><?php echo number_format($grand_total_menit); ?></strong></th>
                                 </tr>
                             </tfoot>
                         </table>
