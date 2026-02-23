@@ -13,6 +13,7 @@
 	// menyimpan id_pengguna yang sedang login
 	$sess_mngid = $row_sess['npp'];
 	$sess_mngname = $row_sess['nama_emp'];
+	$sess_bagian = $row_sess['nama_bagian'];
 	// mengarahkan ke halaman login.php apabila session belum terdaftar
 	if(! isset($chk_sess)) {
 		header("location: ../login.php?login=false");

@@ -76,14 +76,18 @@ $tahun = date("Y");
 
                         <!-- Insentif menu -->
                         <?php
-                        if (isset($menuparent) && $menuparent == "insentif") {
-                            echo '<li class="active">';
-                        } else {
-                            echo '<li>';
+                        if (isset($sess_bagian) && $sess_bagian == 18) {
+                            if (isset($menuparent) && $menuparent == "insentif") {
+                                echo '<li class="active">';
+                            } else {
+                                echo '<li>';
+                            }
+                            ?>
+                            <a href="insentif_kurir_list.php"><i class="fa fa-money fa-fw"></i>&nbsp;Insentif Kurir</a>
+                            </li>
+                            <?php
                         }
                         ?>
-                        <a href="insentif_kurir_list.php"><i class="fa fa-money fa-fw"></i>&nbsp;Insentif Kurir</a>
-                        </li>
                     </ul>
                 </div>
             </div>
