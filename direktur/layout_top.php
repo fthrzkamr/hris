@@ -169,6 +169,18 @@ $tahun = date("Y");
                             <a href="pengajuan_sistem.php"><i class="fa fa-download fa-fw"></i> Pengajuan Sistem</a>
                         </li>
 
+                        <!-- Menu Pengajuan Karyawan -->
+                        <?php
+						// Link to Pengajuan Karyawan
+						if (
+							isset($pagedesc) && $pagedesc == "Pengajuan Karyawan"
+						) {
+							echo '<li><a href="permintaan_karyawan_list.php" class="active"><i class="fa fa-file-text fa-fw"></i>&nbsp;Pengajuan Karyawan</a></li>';
+						} else {
+							echo '<li><a href="permintaan_karyawan_list.php"><i class="fa fa-file-text fa-fw"></i>&nbsp;Pengajuan Karyawan</a></li>';
+						}
+						?>
+
                         <!-- Insentif menu -->
                         <?php
                         if (isset($menuparent) && $menuparent == "insentif") {
