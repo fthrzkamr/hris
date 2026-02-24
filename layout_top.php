@@ -145,6 +145,16 @@ $tahun = date("Y");
 						</ul><!-- /.nav-second-level -->
 						</li>
 						<?php
+						// Link to Pengajuan Karyawan
+						if (
+							isset($pagedesc) && $pagedesc == "Pengajuan Karyawan"
+						) {
+							echo '<li><a href="permintaan_karyawan_list.php" class="active"><i class="fa fa-file-text fa-fw"></i>&nbsp;Pengajuan Karyawan</a></li>';
+						} else {
+							echo '<li><a href="permintaan_karyawan_list.php"><i class="fa fa-file-text fa-fw"></i>&nbsp;Pengajuan Karyawan</a></li>';
+						}
+						?>
+						<?php
 						if (isset($menuparent) && $menuparent == "approval") {
 							echo '<li class="active">';
 						} else {
