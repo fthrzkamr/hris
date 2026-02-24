@@ -332,8 +332,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
         <?php if (!empty($saved)): ?>
-            <div class="saved-notice" style="padding:8px;background:#e6ffe6;border:1px solid #0a0;color:#060;margin-bottom:10px">Data tersimpan
-                (ID: <?php echo $saved_id ?>). No. Dokumen: <?php echo htmlspecialchars($doc_no) ?></div>
+            <div class="saved-notice" style="padding:8px;background:#e6ffe6;border:1px solid #0a0;color:#060;margin-bottom:10px">Data tersimpan </div>
         <?php elseif (!empty($error)): ?>
             <div style="padding:8px;background:#ffe6e6;border:1px solid #a00;color:#800;margin-bottom:10px">Terjadi
                 kesalahan: <?php echo htmlspecialchars($error) ?></div>
