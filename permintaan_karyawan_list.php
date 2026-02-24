@@ -12,6 +12,7 @@ include __DIR__ . '/dist/config/koneksi.php';
 $createPengajuan = "CREATE TABLE IF NOT EXISTS permintaan_pengajuan (
     id INT AUTO_INCREMENT PRIMARY KEY,
     id_permintaan INT NOT NULL,
+    npp VARCHAR(50),
     pengaju VARCHAR(100),
     tanggal_pengajuan DATETIME,
     status VARCHAR(50),
@@ -25,10 +26,11 @@ $message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'ajukan') {
     $pid = intval($_POST['permintaan_id'] ?? 0);
     $user = isset($sess_admname) ? $sess_admname : 'SYSTEM';
+    $npp = isset($sess_admuser) ? $sess_admuser : null;
     $status = 'DIAJUKAN';
     // insert menggunakan nama kolom Bahasa Indonesia
-    $stmt = mysqli_prepare($conn, "INSERT INTO permintaan_pengajuan (id_permintaan, pengaju, tanggal_pengajuan, status) VALUES (?,?,NOW(),?)");
-    mysqli_stmt_bind_param($stmt, 'iss', $pid, $user, $status);
+    $stmt = mysqli_prepare($conn, "INSERT INTO permintaan_pengajuan (id_permintaan, npp, pengaju, tanggal_pengajuan, status) VALUES (?,?,?,NOW(),?)");
+    mysqli_stmt_bind_param($stmt, 'isss', $pid, $npp, $user, $status);
     $ok = mysqli_stmt_execute($stmt);
     if ($ok) {
         $message = 'Pengajuan berhasil dikirim.';
