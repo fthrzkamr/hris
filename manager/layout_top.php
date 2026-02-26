@@ -74,6 +74,29 @@ $tahun = date("Y");
                             <i class="fa fa-home fa-fw"></i> Beranda</a>
                         </li>
 
+                        <!-- Menu Request Slip Gaji -->
+                        <?php
+                        if (isset($menuparent) && $menuparent == "gaji") {
+                            echo '<li class="active">';
+                        } else {
+                            echo '<li>';
+                        }
+                        ?>
+                            <a href="#"><i class="fa fa-money fa-fw"></i> Slip Gaji<span class="fa arrow"></span></a>
+                            <ul class="nav nav-second-level">
+                                <li>
+                                    <a href="request_slip_gaji.php">
+                                        <i class="fa fa-file-text-o fa-fw"></i> Request Slip Gaji
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="request_slip_gaji_list.php">
+                                        <i class="fa fa-list fa-fw"></i> Daftar Request Saya
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+
                         <!-- Insentif menu -->
                         <?php
                         if (isset($sess_bagian) && $sess_bagian == 18) {

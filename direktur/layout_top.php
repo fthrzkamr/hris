@@ -22,7 +22,7 @@ $tahun = date("Y");
 
     <title>HRIS Dua farma Group- <?php echo $pagedesc ?></title>
 
-    <!-- <link href="libs/images/dua.png" rel="icon" type="images/x-icon"> -->
+    <link href="libs/images/dua.png" rel="icon" type="images/x-icon">
 
     <!-- Bootstrap Core CSS -->
     <link href="libs/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -180,6 +180,15 @@ $tahun = date("Y");
 							echo '<li><a href="permintaan_karyawan_list.php"><i class="fa fa-file-text fa-fw"></i>&nbsp;Pengajuan Karyawan</a></li>';
 						}
 						?>
+
+                        <!-- Perjalanan Dinas Menu -->
+                        <?php
+                        if (isset($pagedesc) && $pagedesc == "Daftar Perjalanan Dinas") {
+                            echo '<li><a href="perjalanan_dinas_list.php" class="active"><i class="fa fa-plane fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+                        } else {
+                            echo '<li><a href="perjalanan_dinas_list.php"><i class="fa fa-plane fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+                        }
+                        ?>
 
                         <!-- Insentif menu -->
                         <?php

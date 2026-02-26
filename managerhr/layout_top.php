@@ -167,6 +167,15 @@ $tahun = date("Y");
                         }
                         ?>
 
+                        <!-- Perjalanan Dinas Menu -->
+                        <?php
+                        if (isset($pagedesc) && $pagedesc == "Daftar Perjalanan Dinas") {
+                            echo '<li><a href="perjalanan_dinas_list.php" class="active"><i class="fa fa-plane fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+                        } else {
+                            echo '<li><a href="perjalanan_dinas_list.php"><i class="fa fa-plane fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+                        }
+                        ?>
+
                         <!-- Insentif menu -->
                         <?php
                         if (isset($menuparent) && $menuparent == "insentif") {

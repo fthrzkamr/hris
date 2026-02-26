@@ -9,6 +9,16 @@ $bulan_ini = $bulans[date("n")];
 $tanggal = date("d");
 $bulan = date("m");
 $tahun = date("Y");
+
+// Count pending request slip gaji untuk badge notifikasi
+$count_pending_slip = 0;
+if (isset($conn)) {
+	$sql_count_slip = "SELECT COUNT(*) as total FROM request_slip_gaji WHERE status = 'pending'";
+	$result_count_slip = mysqli_query($conn, $sql_count_slip);
+	if ($result_count_slip) {
+		$count_pending_slip = mysqli_fetch_assoc($result_count_slip)['total'];
+	}
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -144,6 +154,8 @@ $tahun = date("Y");
 							?>
 						</ul><!-- /.nav-second-level -->
 						</li>
+
+						<!-- Pengajuan karyawan menu -->
 						<?php
 						// Link to Pengajuan Karyawan
 						if (
@@ -159,6 +171,15 @@ $tahun = date("Y");
 							echo '<li class="active">';
 						} else {
 							echo '<li>';
+						}
+						?>
+
+						<!-- Perjalanan Dinas Menu -->
+						<?php
+						if (isset($pagedesc) && $pagedesc == "Perjalanan Dinas") {
+							echo '<li><a href="perjalanan_dinas_list.php" class="active"><i class="fa fa-plane fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+						} else {
+							echo '<li><a href="perjalanan_dinas_list.php"><i class="fa fa-plane fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
 						}
 						?>
 
@@ -191,6 +212,16 @@ $tahun = date("Y");
 							?>
 						</ul><!-- /.nav-second-level -->
 						</li>
+
+						<!-- Menu Approval Request Slip Gaji untuk HR/Admin -->
+						<?php
+						$badge_slip = ($count_pending_slip > 0) ? ' <span class="badge" style="background-color: #d9534f;">' . $count_pending_slip . '</span>' : '';
+						if (isset($pagedesc) && $pagedesc == "Approval Request Slip Gaji") {
+							echo '<li><a href="request_slip_gaji_approval_list.php" class="active"><i class="fa fa-file-text fa-fw"></i>&nbsp;Approval Slip Gaji' . $badge_slip . '</a></li>';
+						} else {
+							echo '<li><a href="request_slip_gaji_approval_list.php"><i class="fa fa-file-text fa-fw"></i>&nbsp;Approval Slip Gaji' . $badge_slip . '</a></li>';
+						}
+						?>
 
 						<?php
 						if (isset($menuparent) && $menuparent == "laporan") {

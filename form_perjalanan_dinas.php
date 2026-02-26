@@ -26,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         revisi VARCHAR(20),
         tanggal_dokumen DATE,
         nama VARCHAR(255),
+        npp VARCHAR(50),
         departemen VARCHAR(255),
         tanggal_perjalanan VARCHAR(100),
         jumlah_hari INT,
@@ -54,6 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // collect inputs
     $nama = $_POST['nama'] ?? '';
+    $npp = $_POST['npp'] ?? '';
     $departemen = $_POST['departemen'] ?? '';
     $tanggal = $_POST['tanggal'] ?? '';
     $jumlah_hari = !empty($_POST['jumlah_hari']) ? intval($_POST['jumlah_hari']) : null;
@@ -64,8 +66,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $doc_date_db = date('Y-m-d');
 
     // insert main record
-    $stmt = mysqli_prepare($conn, "INSERT INTO perjalanan_dinas (no_dokumen,revisi,tanggal_dokumen,nama,departemen,tanggal_perjalanan,jumlah_hari,kota_asal,kota_tujuan,tujuan,budget_total) VALUES (?,?,?,?,?,?,?,?,?,?,?)");
-    mysqli_stmt_bind_param($stmt, 'ssssssissss', $doc_no, $revision, $doc_date_db, $nama, $departemen, $tanggal, $jumlah_hari, $kota_asal, $kota_tujuan, $tujuan, $budget_total);
+    $stmt = mysqli_prepare($conn, "INSERT INTO perjalanan_dinas (no_dokumen,revisi,tanggal_dokumen,nama,npp,departemen,tanggal_perjalanan,jumlah_hari,kota_asal,kota_tujuan,tujuan,budget_total) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)");
+    mysqli_stmt_bind_param($stmt, 'sssssssissss', $doc_no, $revision, $doc_date_db, $nama, $npp, $departemen, $tanggal, $jumlah_hari, $kota_asal, $kota_tujuan, $tujuan, $budget_total);
     $ok = mysqli_stmt_execute($stmt);
     if ($ok) {
         $saved = true;
@@ -103,6 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Form Anggaran Perjalanan Dinas</title>
+    <link href="libs/font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css">
     <style>
         body {
             font-family: Arial, Helvetica, sans-serif;
@@ -181,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             html, body { height: auto; }
             body { font-size: 11px; -webkit-print-color-adjust: exact; }
             .print-controls, .notes, .saved-notice { display: none !important; }
-            input[type="text"], input[type="number"], button { display: none !important; }
+            input[type="text"], input[type="number"], input[type="date"], button { display: none !important; }
             .print-value { display: inline !important; }
             .field-hint { display: none !important; }
 
@@ -258,6 +261,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Siapkan daftar nama karyawan untuk autocomplete (datalist)
         // Bahasa: komentar ini menggunakan Bahasa Indonesia.
         $employee_names = [];
+        $employee_npps = [];
         if (!isset($conn) && file_exists(__DIR__ . '/dist/config/koneksi.php')) {
             include __DIR__ . '/dist/config/koneksi.php';
         }
@@ -277,12 +281,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $hasAktif = true;
                 }
 
-                // Susun query: ambil nama_emp yang tidak kosong.
-                // Jika kolom 'aktif' ada, tampilkan baris yang "aktif" adalah NULL atau tepat sama dengan 'Aktif' (case-sensitive).
-                $q = "SELECT DISTINCT nama_emp FROM `" . $found . "` WHERE nama_emp IS NOT NULL AND nama_emp<>''";
+                // Cek apakah kolom npp ada
+                $hasNpp = false;
+                $colNppChk = @mysqli_query($conn, "SHOW COLUMNS FROM `" . mysqli_real_escape_string($conn, $found) . "` LIKE 'npp'");
+                if ($colNppChk && mysqli_num_rows($colNppChk) > 0) {
+                    $hasNpp = true;
+                }
+
+                // Susun query: ambil nama_emp dan npp jika ada
+                $q = "SELECT DISTINCT nama_emp" . ($hasNpp ? ", npp" : "") . " FROM `" . $found . "` WHERE nama_emp IS NOT NULL AND nama_emp<>''";
                 if ($hasAktif) {
-                    // Gunakan perbandingan case-sensitive dengan BINARY untuk memastikan hanya 'Aktif' (huruf besar-kecil persis)
-                    // Selain itu tampilkan juga ketika kolom aktif bernilai NULL atau kosong (setingan kosong)
                     $q .= " AND (aktif IS NULL OR BINARY aktif = 'Aktif' OR TRIM(aktif) = '')";
                 }
                 $q .= " ORDER BY nama_emp LIMIT 1000";
@@ -291,6 +299,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($res2) {
                     while ($r = mysqli_fetch_assoc($res2)) {
                         $employee_names[] = $r['nama_emp'];
+                        if ($hasNpp) $employee_npps[$r['nama_emp']] = $r['npp'];
                     }
                 }
             }
@@ -298,13 +307,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ?>
 
         <form method="post" action="">
+            <script>
+            // Force uppercase for all text inputs except 'Nama' (name="nama")
+            document.addEventListener('DOMContentLoaded', function() {
+                var form = document.querySelector('form');
+                if (!form) return;
+                form.querySelectorAll('input[type="text"]').forEach(function(input) {
+                    if (input.name && input.name.toLowerCase() === 'nama') return; // skip 'Nama'
+                    input.addEventListener('input', function() {
+                        this.value = this.value.toUpperCase();
+                    });
+                });
+                // On submit, force all text inputs except 'Nama' to uppercase (for autofill/paste)
+                form.addEventListener('submit', function() {
+                    form.querySelectorAll('input[type="text"]').forEach(function(input) {
+                        if (input.name && input.name.toLowerCase() === 'nama') return;
+                        input.value = input.value.toUpperCase();
+                    });
+                });
+            });
+            </script>
             <table class="form">
                 <tr>
                     <td style="width:160px">Nama</td>
                     <td style="width:10px">:</td>
                     <td>
-                        <input type="text" name="nama" list="employees-list" style="width:95%" value="<?php echo htmlspecialchars($_POST['nama'] ?? '') ?>">
+                        <input type="text" name="nama" id="nama-input" list="employees-list" style="width:95%" value="<?php echo htmlspecialchars($_POST['nama'] ?? '') ?>">
                         <span class="field-hint">Nama lengkap sesuai identitas (KTP). Maks 255 karakter.</span>
+                        <input type="hidden" name="npp" id="npp-input" value="<?php echo htmlspecialchars($_POST['npp'] ?? '') ?>">
                     </td>
                     <td style="width:160px">Departemen</td>
                     <td style="width:10px">:</td>
@@ -453,7 +483,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div style="font-weight:600;">Disetujui Oleh Direktur,</div>
                 <div class="signature" style="height:90px; margin-top:6px"></div>
                 <div style="margin-top:6px; font-size:11px">Nama : Lucky Hafiansyah</div>
-                <div style="font-size:11px">Tanggal : <?php echo htmlspecialchars($doc_date_display) ?></div>
+                <div style="font-size:11px">Tanggal : </div>
             </div>
 
             <div style="margin-top:20px; text-align:center">
@@ -467,6 +497,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <option value="<?php echo htmlspecialchars($e) ?>"></option>
             <?php endforeach; ?>
         </datalist>
+        <script>
+        // Map nama to NPP for autofill
+        var namaToNpp = {};
+        <?php foreach ($employee_npps as $ename => $npp): ?>
+            namaToNpp[<?php echo json_encode($ename); ?>] = <?php echo json_encode($npp); ?>;
+        <?php endforeach; ?>
+        document.addEventListener('DOMContentLoaded', function() {
+            var namaInput = document.getElementById('nama-input');
+            var nppInput = document.getElementById('npp-input');
+            if (namaInput && nppInput) {
+                function updateNpp() {
+                    var v = namaInput.value;
+                    nppInput.value = namaToNpp[v] || '';
+                }
+                namaInput.addEventListener('input', updateNpp);
+                // Set initial value if POST
+                updateNpp();
+            }
+        });
+        </script>
 
         
 
@@ -475,9 +525,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             function syncPrintValues() {
                 var form = document.querySelector('form');
                 if (!form) return;
-                var elems = form.querySelectorAll('input[type="text"], input[type="number"]');
+                // Sertakan input date juga
+                var elems = form.querySelectorAll('input[type="text"], input[type="number"], input[type="date"]');
                 elems.forEach(function (el) {
                     var v = el.value || '';
+                    // Jika input date, ubah format dari yyyy-mm-dd ke dd-mm-YYYY untuk pencetakan
+                    if (el.type === 'date' && v) {
+                        var m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                        if (m) v = m[3] + '-' + m[2] + '-' + m[1];
+                    }
                     var next = el.nextElementSibling;
                     if (next && next.classList && next.classList.contains('print-value')) {
                         next.textContent = v;
@@ -549,6 +605,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             document.addEventListener('DOMContentLoaded', function () { computeAll(); attachCalcListeners(); syncPrintValues(); });
             window.addEventListener('beforeprint', function () { computeAll(); syncPrintValues(); });
+
+            // Auto-fill "Diusulkan Oleh" signature name from main "Nama" field
+            document.addEventListener('DOMContentLoaded', function() {
+                var namaInput = document.querySelector('input[name="nama"]');
+                var signNama1 = document.querySelector('input[name="sign_nama_1"]');
+                
+                if (namaInput && signNama1) {
+                    namaInput.addEventListener('input', function() {
+                        signNama1.value = namaInput.value;
+                        syncPrintValues();
+                    });
+                    
+                    // Set initial value if nama already has value (from POST)
+                    if (namaInput.value) {
+                        signNama1.value = namaInput.value;
+                    }
+                }
+            });
         </script>
         <!-- SweetAlert2 for nicer submit notifications -->
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
