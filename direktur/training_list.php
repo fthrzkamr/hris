@@ -50,15 +50,16 @@
                             <thead>
                                 <tr>
                                     <th width="4%">No</th>
-                                    <th width="10%">Tgl Pengajuan</th>
+                                    <th width="9%">Tgl Pengajuan</th>
                                     <th width="12%">Nama Karyawan</th>
                                     <th width="10%">Bagian</th>
-                                    <th width="18%">Judul Training</th>
-                                    <th width="12%">Tanggal Training</th>
-                                    <th width="10%">Lokasi</th>
-                                    <th width="10%">Budget</th>
-                                    <th width="8%">Status</th>
-                                    <th width="8%">Opsi</th>
+                                    <th width="16%">Judul Training</th>
+                                    <th width="9%">Tanggal Mulai</th>
+                                    <th width="9%">Tanggal Selesai</th>
+                                    <th width="9%">Lokasi</th>
+                                    <th width="9%">Budget</th>
+                                    <th width="7%">Status</th>
+                                    <th width="6%">Opsi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -77,7 +78,8 @@
                                         echo '<td>'. $data['nama_emp'] .'</td>';
                                         echo '<td>'. $data['nama_bagian'] .'</td>';
                                         echo '<td>'. $data['judul_training'] .'</td>';
-                                        echo '<td class="text-center">'. IndonesiaTgl($data['tanggal_mulai']) .' s/d<br>'. IndonesiaTgl($data['tanggal_selesai']) .'</td>';
+                                        echo '<td class="text-center">'. IndonesiaTgl($data['tanggal_mulai']) .'</td>';
+                                        echo '<td class="text-center">'. IndonesiaTgl($data['tanggal_selesai']) .'</td>';
                                         echo '<td>'. $data['lokasi_training'] .'</td>';
                                         echo '<td class="text-right">'. format_rupiah($data['budget_total']) .'</td>';
                                         echo '<td class="text-center"><span class="label label-'. $badge .'">'. $status .'</span></td>';
@@ -119,9 +121,9 @@ $(document).ready(function(){
     $('#filterStatus').on('change', function() {
         var status = $(this).val();
         if(status) {
-            table.column(8).search('^' + status + '$', true, false).draw();
+            table.column(9).search('^' + status + '$', true, false).draw();
         } else {
-            table.column(8).search('').draw();
+            table.column(9).search('').draw();
         }
     });
     

@@ -38,14 +38,15 @@
                             <thead>
                                 <tr>
                                     <th width="5%">No</th>
-                                    <th width="12%">Tanggal Pengajuan</th>
-                                    <th width="15%">Nama Karyawan</th>
-                                    <th width="12%">Bagian</th>
-                                    <th width="18%">Judul Training</th>
-                                    <th width="12%">Tanggal Training</th>
-                                    <th width="10%">Budget</th>
-                                    <th width="10%">Status</th>
-                                    <th width="10%">Opsi</th>
+                                    <th width="10%">Tanggal Pengajuan</th>
+                                    <th width="12%">Nama Karyawan</th>
+                                    <th width="10%">Bagian</th>
+                                    <th width="16%">Judul Training</th>
+                                    <th width="9%">Tanggal Mulai</th>
+                                    <th width="9%">Tanggal Selesai</th>
+                                    <th width="9%">Budget</th>
+                                    <th width="8%">Status</th>
+                                    <th width="8%">Opsi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -64,7 +65,8 @@
                                         echo '<td>'. $data['nama_emp'] .'</td>';
                                         echo '<td>'. $data['nama_bagian'] .'</td>';
                                         echo '<td>'. $data['judul_training'] .'</td>';
-                                        echo '<td class="text-center">'. IndonesiaTgl($data['tanggal_mulai']) .' s/d '. IndonesiaTgl($data['tanggal_selesai']) .'</td>';
+                                        echo '<td class="text-center">'. IndonesiaTgl($data['tanggal_mulai']) .'</td>';
+                                        echo '<td class="text-center">'. IndonesiaTgl($data['tanggal_selesai']) .'</td>';
                                         echo '<td class="text-right">'. format_rupiah($data['budget_total']) .'</td>';
                                         echo '<td class="text-center"><span class="label label-'. $badge .'">'. $status .'</span></td>';
                                         echo '<td class="text-center">
