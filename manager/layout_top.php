@@ -11,6 +11,14 @@ $hari_ini = $haries[date("l")];
 $bulan_ini = $bulans[date("n")];
 $tanggal = date("d");
 $tahun = date("Y");
+
+// Hitung notifikasi training yang sudah diproses (Approved/Rejected)
+$sql_notif_training = "SELECT COUNT(*) as total FROM pengajuan_training 
+                       WHERE npp = '$sess_mngid' 
+                       AND status IN ('Approved', 'Rejected')";
+$res_notif_training = mysqli_query($conn, $sql_notif_training);
+$row_notif_training = mysqli_fetch_array($res_notif_training);
+$count_training_notif = $row_notif_training['total'];
 ?>
 
 <!DOCTYPE html>
@@ -72,6 +80,30 @@ $tahun = date("Y");
                         </li>
                         <li><a href="index.php" class="<?php echo ($pagedesc == 'Beranda') ? 'active' : ''; ?>">
                             <i class="fa fa-home fa-fw"></i> Beranda</a>
+                        </li>
+
+                        <!-- Menu Training -->
+                        <?php
+                        if (isset($menuparent) && $menuparent == "training") {
+                            echo '<li class="active">';
+                        } else {
+                            echo '<li>';
+                        }
+                        $badge_training = ($count_training_notif > 0) ? ' <span class="badge" style="background-color: #f0ad4e;">' . $count_training_notif . '</span>' : '';
+                        ?>
+                            <a href="#"><i class="fa fa-graduation-cap fa-fw"></i> Training<?php echo $badge_training; ?><span class="fa arrow"></span></a>
+                            <ul class="nav nav-second-level">
+                                <li>
+                                    <a href="form_pengajuan_training.php">
+                                        <i class="fa fa-plus fa-fw"></i> Buat Pengajuan
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="training_status.php">
+                                        <i class="fa fa-list fa-fw"></i> Status Pengajuan<?php echo $badge_training; ?>
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
 
                         <!-- Menu Request Slip Gaji -->

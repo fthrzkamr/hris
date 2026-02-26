@@ -190,6 +190,15 @@ $tahun = date("Y");
                         }
                         ?>
 
+                        <!-- Menu Training -->
+                        <?php
+                        if (isset($menuparent) && $menuparent == "training") {
+                            echo '<li><a href="training_list.php" class="active"><i class="fa fa-graduation-cap fa-fw"></i>&nbsp;Pengajuan Training</a></li>';
+                        } else {
+                            echo '<li><a href="training_list.php"><i class="fa fa-graduation-cap fa-fw"></i>&nbsp;Pengajuan Training</a></li>';
+                        }
+                        ?>
+
                         <!-- Insentif menu -->
                         <?php
                         if (isset($menuparent) && $menuparent == "insentif") {

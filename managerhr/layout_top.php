@@ -143,6 +143,21 @@ $tahun = date("Y");
                             </ul>
                         </li>
 
+                        <!-- Menu Training -->
+                        <?php
+                        if (isset($menuparent) && $menuparent == "training") {
+                            echo '<li class="active">';
+                        } else {
+                            echo '<li>';
+                        }
+                        ?>
+                            <a href="#"><i class="fa fa-graduation-cap fa-fw"></i> Pengajuan Training<span class="fa arrow"></span></a>
+                            <ul class="nav nav-second-level">
+                                <li><a href="training_wait.php">Menunggu Approval</a></li>
+                                <li><a href="training_list.php">Semua Pengajuan</a></li>
+                            </ul>
+                        </li>
+
                         <li>
                             <a href="#"><i class="fa fa-download fa-fw"></i> Pinjaman<span class="fa arrow"></span></a>
                             <ul class="nav nav-second-level">
