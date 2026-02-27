@@ -16,6 +16,15 @@ $hari_ini = $haries[date("l")];
 $bulan_ini = $bulans[date("n")];
 $tanggal = date("d");
 $tahun = date("Y");
+
+// Notifikasi Training Pending
+$count_pending_training = 0;
+$sql_notif = "SELECT COUNT(*) as total FROM pengajuan_training WHERE status IS NULL OR status = 'Pending'";
+$res_notif = mysqli_query($conn, $sql_notif);
+if($res_notif){
+    $row_notif = mysqli_fetch_array($res_notif);
+    $count_pending_training = $row_notif['total'];
+}
 ?>
 
 <!DOCTYPE html>
@@ -151,9 +160,17 @@ $tahun = date("Y");
                             echo '<li>';
                         }
                         ?>
-                            <a href="#"><i class="fa fa-graduation-cap fa-fw"></i> Pengajuan Training<span class="fa arrow"></span></a>
+                            <a href="#"><i class="fa fa-graduation-cap fa-fw"></i> Pengajuan Training
+                            <?php if($count_pending_training > 0){ ?>
+                                <span class="badge" style="background-color: #d9534f; margin-left: 5px;"><?php echo $count_pending_training; ?></span>
+                            <?php } ?>
+                            <span class="fa arrow"></span></a>
                             <ul class="nav nav-second-level">
-                                <li><a href="training_wait.php">Menunggu Approval</a></li>
+                                <li><a href="training_wait.php">Menunggu Approval
+                                <?php if($count_pending_training > 0){ ?>
+                                    <span class="badge" style="background-color: #d9534f;"><?php echo $count_pending_training; ?></span>
+                                <?php } ?>
+                                </a></li>
                                 <li><a href="training_list.php">Semua Pengajuan</a></li>
                             </ul>
                         </li>

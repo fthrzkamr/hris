@@ -37,20 +37,10 @@ $sqle = "SELECT * FROM rembes WHERE npp='$id'";
 $resse = mysqli_query($conn, $sqle);
 $g = mysqli_num_rows($resse);
 
-// Check training yang baru diproses
-$sql_training_notif = "SELECT * FROM pengajuan_training 
-                       WHERE npp='$id' 
-                       AND status IN ('Approved', 'Rejected')
-                       ORDER BY approved_date DESC 
-                       LIMIT 3";
-$res_training_notif = mysqli_query($conn, $sql_training_notif);
-$has_training_notif = mysqli_num_rows($res_training_notif) > 0;
-
 // deskripsi halaman
 $pagedesc = "Beranda";
 include("layout_top.php");
 include("dist/function/format_rupiah.php");
-include("dist/function/format_tanggal.php");
 ?>
 <!-- top of file -->
 <!-- Page Content -->
@@ -92,44 +82,13 @@ include("dist/function/format_tanggal.php");
 											<center>:</center><br>
 										</th>
 										<th><?php echo $res['nama_bagian']; ?></th>
-									</tr>
+										</tr>
 								</table>
 							</div>
 						</div>
 				</form>
 			</div><!-- /.col-lg-12 -->
 		</div><!-- /.row -->
-		
-		<!-- Notifikasi Training -->
-		<?php if($has_training_notif){ ?>
-		<div class="row">
-			<div class="col-lg-12">
-				<div class="alert alert-warning alert-dismissible" style="border-left: 4px solid #f0ad4e;">
-					<button type="button" class="close" data-dismiss="alert">&times;</button>
-					<h4><i class="fa fa-graduation-cap"></i> Notifikasi Pengajuan Training</h4>
-					<p>Anda memiliki pengajuan training yang telah diproses:</p>
-					<ul style="margin-bottom: 0;">
-						<?php 
-						while($training_notif = mysqli_fetch_array($res_training_notif)){
-							$status_icon = ($training_notif['status'] == 'Approved') ? 'check-circle' : 'times-circle';
-							$status_class = ($training_notif['status'] == 'Approved') ? 'success' : 'danger';
-							$status_text = ($training_notif['status'] == 'Approved') ? 'Disetujui' : 'Ditolak';
-							echo '<li>';
-							echo '<strong>'. $training_notif['judul_training'] .'</strong> - ';
-							echo '<span class="label label-'. $status_class .'"><i class="fa fa-'. $status_icon .'"></i> '. $status_text .'</span> ';
-							echo 'oleh ' . $training_notif['approved_by'] . ' pada ' . IndonesiaTgl(date('Y-m-d', strtotime($training_notif['approved_date'])));
-							echo '</li>';
-						}
-						?>
-					</ul>
-					<hr style="margin: 10px 0;">
-					<a href="training_status.php" class="btn btn-sm btn-warning">
-						<i class="fa fa-list"></i> Lihat Semua Status Training
-					</a>
-				</div>
-			</div>
-		</div>
-		<?php } ?>
 		
 		<div class="row">
 			<div class="col-lg-4 col-md-4">

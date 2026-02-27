@@ -44,13 +44,14 @@
                             <thead>
                                 <tr>
                                     <th width="5%">No</th>
-                                    <th width="12%">Tgl Pengajuan</th>
-                                    <th width="25%">Judul Training</th>
-                                    <th width="15%">Tanggal Training</th>
+                                    <th width="10%">Tgl Pengajuan</th>
+                                    <th width="22%">Judul Training</th>
+                                    <th width="10%">Tanggal Mulai</th>
+                                    <th width="10%">Tanggal Selesai</th>
                                     <th width="12%">Budget</th>
                                     <th width="12%">Status</th>
-                                    <th width="12%">Diproses Oleh</th>
-                                    <th width="10%">Opsi</th>
+                                    <!-- <th width="12%">Diproses Oleh</th> -->
+                                    <th width="9%">Opsi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -76,10 +77,11 @@
                                         echo '<td class="text-center">'. $i .'</td>';
                                         echo '<td class="text-center">'. IndonesiaTgl(date('Y-m-d', strtotime($data['tanggal_pengajuan']))) .'</td>';
                                         echo '<td>'. $data['judul_training'] .'</td>';
-                                        echo '<td class="text-center">'. IndonesiaTgl($data['tanggal_mulai']) .'<br><small>s/d '. IndonesiaTgl($data['tanggal_selesai']) .'</small></td>';
+                                        echo '<td class="text-center">'. IndonesiaTgl($data['tanggal_mulai']) .'</td>';
+                                        echo '<td class="text-center">'. IndonesiaTgl($data['tanggal_selesai']) .'</td>';
                                         echo '<td class="text-right">'. format_rupiah($data['budget_total']) .'</td>';
                                         echo '<td class="text-center"><span class="label label-'. $badge .'"><i class="fa fa-'. $icon .'"></i> '. $status .'</span></td>';
-                                        echo '<td class="text-center">'. ($data['approved_by'] ?: '-') .'</td>';
+                                        // echo '<td class="text-center">'. ($data['approved_by'] ?: '-') .'</td>';
                                         echo '<td class="text-center">
                                               <a href="#" class="btn btn-info btn-xs" data-toggle="modal" data-target="#myModal" data-id="'. $data['id_pengajuan'] .'" title="Lihat Detail">
                                                 <i class="fa fa-eye"></i> Detail

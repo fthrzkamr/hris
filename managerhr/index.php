@@ -42,6 +42,8 @@
 	$resse = mysqli_query($conn, $sqle);
 	$kacamata = mysqli_num_rows($resse);
 	
+
+	
 	// deskripsi halaman
 	$pagedesc = "Beranda";
 	include("layout_top.php");
@@ -91,7 +93,6 @@
 				</div><!-- /.row -->
 
 			
-				
 			
 				<div class="row">
 					<div class="col-lg-4 col-md-4">
