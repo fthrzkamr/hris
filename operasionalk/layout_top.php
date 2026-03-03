@@ -80,7 +80,7 @@ $id = $sess_mngid;
                             echo '<li>';
                         }
                         ?>
-                        <a href="insentif_kurir_list.php"><i class="fa fa-money fa-fw"></i>&nbsp;Insentif Kurir</a>
+                        <a href="insentif_kurir_list.php"><i class="fa fa-download fa-fw"></i>&nbsp;Insentif Kurir</a>
                         </li>
                     </ul>
                 </div>

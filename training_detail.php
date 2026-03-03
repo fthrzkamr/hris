@@ -38,11 +38,11 @@ else {
 </div>
 <div><br/>
 <table width="100%">
-    <tr>
+    <!-- <tr>
         <td width="25%"><b>ID Pengajuan</b></td>
         <td width="2%"><b>:</b></td>
         <td width="73%"><?php echo $result['id_pengajuan'];?></td>
-    </tr>
+    </tr> -->
     <tr>
         <td colspan="3">&nbsp;</td>
     </tr>

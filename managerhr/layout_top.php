@@ -160,7 +160,7 @@ if($res_notif){
                             echo '<li>';
                         }
                         ?>
-                            <a href="#"><i class="fa fa-graduation-cap fa-fw"></i> Pengajuan Training
+                            <a href="#"><i class="fa fa-download fa-fw"></i> Pengajuan Training
                             <?php if($count_pending_training > 0){ ?>
                                 <span class="badge" style="background-color: #d9534f; margin-left: 5px;"><?php echo $count_pending_training; ?></span>
                             <?php } ?>
@@ -193,18 +193,18 @@ if($res_notif){
                         if (
                             isset($pagedesc) && $pagedesc == "Pengajuan Karyawan"
                         ) {
-                            echo '<li><a href="permintaan_karyawan_list.php" class="active"><i class="fa fa-file-text fa-fw"></i>&nbsp;Pengajuan Karyawan</a></li>';
+                            echo '<li><a href="permintaan_karyawan_list.php" class="active"><i class="fa fa-download fa-fw"></i>&nbsp;Pengajuan Karyawan</a></li>';
                         } else {
-                            echo '<li><a href="permintaan_karyawan_list.php"><i class="fa fa-file-text fa-fw"></i>&nbsp;Pengajuan Karyawan</a></li>';
+                            echo '<li><a href="permintaan_karyawan_list.php"><i class="fa fa-download fa-fw"></i>&nbsp;Pengajuan Karyawan</a></li>';
                         }
                         ?>
 
                         <!-- Perjalanan Dinas Menu -->
                         <?php
                         if (isset($pagedesc) && $pagedesc == "Daftar Perjalanan Dinas") {
-                            echo '<li><a href="perjalanan_dinas_list.php" class="active"><i class="fa fa-plane fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+                            echo '<li><a href="perjalanan_dinas_list.php" class="active"><i class="fa fa-download fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
                         } else {
-                            echo '<li><a href="perjalanan_dinas_list.php"><i class="fa fa-plane fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+                            echo '<li><a href="perjalanan_dinas_list.php"><i class="fa fa-download fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
                         }
                         ?>
 
@@ -216,7 +216,7 @@ if($res_notif){
                             echo '<li>';
                         }
                         ?>
-                        <a href="#"><i class="fa fa-money fa-fw"></i>&nbsp;Insentif<span class="fa arrow"></span></a>
+                        <a href="#"><i class="fa fa-download fa-fw"></i>&nbsp;Insentif<span class="fa arrow"></span></a>
                         <ul class="nav nav-second-level">
                             <?php
                             if ($pagedesc == "Upload Insentif Kurir") {

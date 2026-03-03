@@ -72,7 +72,7 @@ $result = mysqli_stmt_get_result($stmt);
                                         <th class="text-center">Status</th>
                                         <th class="text-center">Tanggal Approval</th>
                                         <th class="text-center">Disetujui Oleh</th>
-                                        <th class="text-center" width="15%">Aksi</th>
+                                        <!-- <th class="text-center" width="15%">Aksi</th> -->
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -100,7 +100,7 @@ $result = mysqli_stmt_get_result($stmt);
                                         <td class="text-center"><?php echo $status_badge; ?></td>
                                         <td class="text-center"><?php echo $tanggal_approval; ?></td>
                                         <td class="text-center"><?php echo $row['approved_by'] ? $row['approved_by'] : '-'; ?></td>
-                                        <td class="text-center">
+                                        <!-- <td class="text-center">
                                             <?php if ($row['status'] == 'approved') { ?>
                                                 <a href="request_slip_gaji_download.php?id=<?php echo $row['id_request']; ?>" 
                                                    class="btn btn-sm btn-success" target="_blank">
@@ -114,7 +114,7 @@ $result = mysqli_stmt_get_result($stmt);
                                             <?php } else { ?>
                                                 <span class="text-muted"><i>Menunggu approval</i></span>
                                             <?php } ?>
-                                        </td>
+                                        </td> -->
                                     </tr>
                                     <?php 
                                         }

@@ -91,7 +91,7 @@ $count_training_notif = $row_notif_training['total'];
                         }
                         $badge_training = ($count_training_notif > 0) ? ' <span class="badge" style="background-color: #f0ad4e;">' . $count_training_notif . '</span>' : '';
                         ?>
-                            <a href="#"><i class="fa fa-graduation-cap fa-fw"></i> Training<?php echo $badge_training; ?><span class="fa arrow"></span></a>
+                            <a href="#"><i class="fa fa-download fa-fw"></i> Training<?php echo $badge_training; ?><span class="fa arrow"></span></a>
                             <ul class="nav nav-second-level">
                                 <li>
                                     <a href="form_pengajuan_training.php">
@@ -114,7 +114,7 @@ $count_training_notif = $row_notif_training['total'];
                             echo '<li>';
                         }
                         ?>
-                            <a href="#"><i class="fa fa-money fa-fw"></i> Slip Gaji<span class="fa arrow"></span></a>
+                            <a href="#"><i class="fa fa-download fa-fw"></i> Slip Gaji<span class="fa arrow"></span></a>
                             <ul class="nav nav-second-level">
                                 <li>
                                     <a href="request_slip_gaji.php">
@@ -138,7 +138,7 @@ $count_training_notif = $row_notif_training['total'];
                                 echo '<li>';
                             }
                             ?>
-                            <a href="insentif_kurir_list.php"><i class="fa fa-money fa-fw"></i>&nbsp;Insentif Kurir</a>
+                            <a href="insentif_kurir_list.php"><i class="fa fa-download fa-fw"></i>&nbsp;Insentif Kurir</a>
                             </li>
                             <?php
                         }

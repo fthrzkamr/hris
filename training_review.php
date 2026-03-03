@@ -55,12 +55,12 @@ $(document).ready(function() {
                         <div class="panel-heading"><h3>Detail Pengajuan Training</h3></div>
                         <div class="panel-body">
                         
-                            <div class="form-group">
+                            <!-- <div class="form-group">
                                 <label class="control-label col-sm-3">ID Pengajuan</label>
                                 <div class="col-sm-4">
                                     <input type="text" name="id_pengajuan" class="form-control" value="<?php echo $data['id_pengajuan'];?>" readonly>
                                 </div>
-                            </div>
+                            </div> -->
 
                             <div class="form-group">
                                 <label class="control-label col-sm-3">NPP</label>

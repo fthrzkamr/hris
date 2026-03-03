@@ -4,7 +4,7 @@ include("sess_check.php");
 $id_pengajuan = $_POST['id_pengajuan'];
 $aksi = $_POST['aksi'];
 $reject_reason = isset($_POST['reject_reason']) ? $_POST['reject_reason'] : '';
-$approved_by = $sess_manhrname; // dari session managerhr
+$approved_by = $sess_mngname; // dari session managerhr
 $approved_date = date('Y-m-d H:i:s');
 
 if($aksi == "Rejected"){

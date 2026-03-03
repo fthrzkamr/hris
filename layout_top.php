@@ -161,9 +161,9 @@ if (isset($conn)) {
 						if (
 							isset($pagedesc) && $pagedesc == "Pengajuan Karyawan"
 						) {
-							echo '<li><a href="permintaan_karyawan_list.php" class="active"><i class="fa fa-file-text fa-fw"></i>&nbsp;Pengajuan Karyawan</a></li>';
+							echo '<li><a href="permintaan_karyawan_list.php" class="active"><i class="fa fa-download fa-fw"></i>&nbsp;Pengajuan Karyawan</a></li>';
 						} else {
-							echo '<li><a href="permintaan_karyawan_list.php"><i class="fa fa-file-text fa-fw"></i>&nbsp;Pengajuan Karyawan</a></li>';
+							echo '<li><a href="permintaan_karyawan_list.php"><i class="fa fa-download fa-fw"></i>&nbsp;Pengajuan Karyawan</a></li>';
 						}
 						?>
 						<?php
@@ -177,18 +177,18 @@ if (isset($conn)) {
 						<!-- Perjalanan Dinas Menu -->
 						<?php
 						if (isset($pagedesc) && $pagedesc == "Perjalanan Dinas") {
-							echo '<li><a href="perjalanan_dinas_list.php" class="active"><i class="fa fa-plane fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+							echo '<li><a href="perjalanan_dinas_list.php" class="active"><i class="fa fa-download fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
 						} else {
-							echo '<li><a href="perjalanan_dinas_list.php"><i class="fa fa-plane fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+							echo '<li><a href="perjalanan_dinas_list.php"><i class="fa fa-download fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
 						}
 						?>
 
 						<!-- Menu Training -->
 						<?php
 						if (isset($menuparent) && $menuparent == "training") {
-							echo '<li><a href="training_list.php" class="active"><i class="fa fa-graduation-cap fa-fw"></i>&nbsp;Pengajuan Training</a></li>';
+							echo '<li><a href="training_list.php" class="active"><i class="fa fa-download fa-fw"></i>&nbsp;Pengajuan Training</a></li>';
 						} else {
-							echo '<li><a href="training_list.php"><i class="fa fa-graduation-cap fa-fw"></i>&nbsp;Pengajuan Training</a></li>';
+							echo '<li><a href="training_list.php"><i class="fa fa-download fa-fw"></i>&nbsp;Pengajuan Training</a></li>';
 						}
 						?>
 
@@ -200,7 +200,7 @@ if (isset($conn)) {
 							echo '<li>';
 						}
 						?>
-						<a href="#"><i class="fa fa-money fa-fw"></i>&nbsp;Insentif<span class="fa arrow"></span></a>
+						<a href="#"><i class="fa fa-download fa-fw"></i>&nbsp;Insentif<span class="fa arrow"></span></a>
 						<ul class="nav nav-second-level">
 							<?php
 							if ($pagedesc == "Upload Insentif Kurir") {
@@ -226,9 +226,9 @@ if (isset($conn)) {
 						<?php
 						$badge_slip = ($count_pending_slip > 0) ? ' <span class="badge" style="background-color: #d9534f;">' . $count_pending_slip . '</span>' : '';
 						if (isset($pagedesc) && $pagedesc == "Approval Request Slip Gaji") {
-							echo '<li><a href="request_slip_gaji_approval_list.php" class="active"><i class="fa fa-file-text fa-fw"></i>&nbsp;Approval Slip Gaji' . $badge_slip . '</a></li>';
+							echo '<li><a href="request_slip_gaji_approval_list.php" class="active"><i class="fa fa-download fa-fw"></i>&nbsp;Approval Slip Gaji' . $badge_slip . '</a></li>';
 						} else {
-							echo '<li><a href="request_slip_gaji_approval_list.php"><i class="fa fa-file-text fa-fw"></i>&nbsp;Approval Slip Gaji' . $badge_slip . '</a></li>';
+							echo '<li><a href="request_slip_gaji_approval_list.php"><i class="fa fa-download fa-fw"></i>&nbsp;Approval Slip Gaji' . $badge_slip . '</a></li>';
 						}
 						?>
 
@@ -240,7 +240,7 @@ if (isset($conn)) {
 						}
 						?>
 						<!-- open <li> tag generated with php, see line 155-160 -->
-						<a href="#"><i class="fa fa-folder fa-fw"></i>&nbsp;Laporan<span class="fa arrow"></span></a>
+						<a href="#"><i class="fa fa-download fa-fw"></i>&nbsp;Laporan<span class="fa arrow"></span></a>
 						<ul class="nav nav-second-level">
 							<?php
 							if ($pagedesc == "Laporan") {
