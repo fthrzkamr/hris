@@ -192,7 +192,7 @@ $res = mysqli_query($conn, $sql);
     <div class="row">
         <div class="col-lg-12">
             <!-- Action Panel -->
-            <div class="panel panel-default">
+            <!-- <div class="panel panel-default">
                 <div class="panel-heading">
                     <i class="fa fa-cog"></i> Aksi
                 </div>
@@ -201,7 +201,7 @@ $res = mysqli_query($conn, $sql);
                         <i class="fa fa-plus"></i> Buat Permintaan Baru
                     </a>
                 </div>
-            </div>
+            </div> -->
 
             <!-- Data Table Panel -->
             <div class="panel panel-primary">

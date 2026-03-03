@@ -41,4 +41,5 @@ if (mysqli_num_rows($result) == 0) {
 $row_sess = mysqli_fetch_array($result);
 $sess_mngid = $row_sess['npp'];
 $sess_mngname = $row_sess['nama_emp'];
+$sess_jabatan = $row_sess['jabatan'];
 ?>

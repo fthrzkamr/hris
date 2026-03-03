@@ -281,6 +281,18 @@
                         <!-- open <li> tag generated with php, see line 155-160 -->
 							
 						</li>
+						<?php
+							// Only show for Manager or Leader
+							if($sess_jabatan == 'Manager' || $sess_jabatan == 'Leader') {
+								echo '<li>';
+								echo '<a href="#"><i class="fa fa-users fa-fw"></i> Permintaan Karyawan<span class="fa arrow"></span></a>';
+								echo '<ul class="nav nav-second-level">';
+								echo '<li><a href="form_permintaan_karyawan.php"><i class="fa fa-plus-circle"></i> Buat Permintaan Baru</a></li>';
+								echo '<li><a href="permintaan_karyawan_list.php"><i class="fa fa-list"></i> Daftar Permintaan Saya</a></li>';
+								echo '</ul>';
+								echo '</li>';
+							}
+						?>
 	                </ul>
                 </div>
                 <!-- /.sidebar-collapse -->

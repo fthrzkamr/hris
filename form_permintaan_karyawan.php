@@ -27,6 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             revisi VARCHAR(20),
             tanggal_dokumen DATE,
             jabatan VARCHAR(255),
+            unit_kerja VARCHAR(255),
             tgl_mulai DATE,
             jumlah_dibutuhkan INT,
             untuk VARCHAR(255),
@@ -66,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // collect inputs
     $jabatan = $_POST['jabatan'] ?? '';
+    $unit_kerja = $_POST['unit_kerja'] ?? '';
     $tgl_mulai = isset($_POST['tgl_mulai']) ? trim($_POST['tgl_mulai']) : '';
     if ($tgl_mulai === '') $tgl_mulai = null;
     $jumlah_dibutuhkan = $_POST['jumlah_dibutuhkan'] ?? null;
@@ -121,6 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     };
 
     $jabatan = $up($jabatan);
+    $unit_kerja = $up($unit_kerja);
     $untuk = $up($untuk);
     $alasan = $up($alasan);
     // uppercase each duty line
@@ -134,9 +137,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // insert into permintaan_karyawan (main record)
     $stmt = mysqli_prepare($conn, "INSERT INTO permintaan_karyawan
-            (no_dokumen,revisi,tanggal_dokumen,jabatan,tgl_mulai,jumlah_dibutuhkan,untuk,jumlah_sekarang,alasan,gender,usia,pendidikan,jurusan,pengalaman,tinggi,berat,rentang_gaji,lain_lain)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-    $types = 'sssssisissssssssss';
+            (no_dokumen,revisi,tanggal_dokumen,jabatan,unit_kerja,tgl_mulai,jumlah_dibutuhkan,untuk,jumlah_sekarang,alasan,gender,usia,pendidikan,jurusan,pengalaman,tinggi,berat,rentang_gaji,lain_lain)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+    $types = 'ssssssisisssssssss';  // added unit_kerja
     mysqli_stmt_bind_param(
         $stmt,
         $types,
@@ -144,6 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $revision,
         $doc_date_db,
         $jabatan,
+        $unit_kerja,
         $tgl_mulai,
         $jumlah_dibutuhkan,
         $untuk,
@@ -357,6 +361,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <td style="width:40%">: <input type="text" style="width:95%" name="jabatan"
                             value="<?php echo htmlspecialchars($_POST['jabatan'] ?? '') ?>"><span class="hint">Contoh:
                             Staff Administrasi (maks 255 karakter)</span></td>
+                    <td style="width:20%">Unit Kerja</td>
+                    <td>: <input type="text" style="width:95%" name="unit_kerja"
+                            value="<?php echo htmlspecialchars($_POST['unit_kerja'] ?? '') ?>"><span class="hint">Contoh: IT, HR, Finance, dll.</span></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td></td>
                     <td style="width:20%">Tanggal Mulai Bekerja</td>
                     <td>: <input type="date" name="tgl_mulai"
                             value="<?php echo htmlspecialchars($_POST['tgl_mulai'] ?? '') ?>"><span class="hint">Format:

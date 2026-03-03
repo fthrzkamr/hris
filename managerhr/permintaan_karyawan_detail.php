@@ -1,6 +1,6 @@
 <?php
 include("sess_check.php");
-$pagedesc = 'Detail Permintaan Karyawan';
+$pagedesc = 'Review Permintaan Karyawan';
 $menuparent = 'approval';
 include("layout_top.php");
 
@@ -55,257 +55,245 @@ mysqli_stmt_bind_param($stmt_status, 'i', $id);
 mysqli_stmt_execute($stmt_status);
 $result_status = mysqli_stmt_get_result($stmt_status);
 $submission = mysqli_fetch_assoc($result_status);
+
+// Check if can approve (status = DIAJUKAN)
+$can_approve = ($submission && $submission['status'] === 'DIAJUKAN');
 ?>
-<!doctype html>
-<html lang="id">
+<style>
+    .document-header {
+        border: 1px solid #ddd;
+        padding: 15px;
+        margin-bottom: 20px;
+        background-color: #f9f9f9;
+    }
 
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Detail Permintaan Karyawan</title>
-    <style>
-        body {
-            font-family: Arial, Helvetica, sans-serif;
-            color: #111;
-        }
+    .info-table {
+        width: 100%;
+        margin-bottom: 15px;
+    }
 
-        .container {
-            max-width: 1000px;
-            margin: 20px auto;
-            padding: 10px
-        }
+    .info-table td {
+        padding: 8px;
+        border: 1px solid #ddd;
+    }
 
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center
-        }
+    .info-table td:first-child {
+        font-weight: bold;
+        width: 25%;
+        background-color: #f5f5f5;
+    }
 
-        .title {
-            flex: 1;
-            text-align: center;
-            font-weight: 700;
-            font-size: 22px
-        }
+    .section-title {
+        background-color: #337ab7;
+        color: white;
+        padding: 10px;
+        margin-top: 20px;
+        margin-bottom: 10px;
+        font-weight: bold;
+    }
 
-        table.form {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 12px
-        }
+    .duties-list {
+        list-style: decimal;
+        padding-left: 20px;
+    }
 
-        table.form td,
-        table.form th {
-            border: 1px solid #000;
-            padding: 6px;
-            font-size: 13px
-        }
+    .duties-list li {
+        margin-bottom: 8px;
+        padding: 5px;
+        border-bottom: 1px solid #eee;
+    }
 
-        .duties tr td {
-            border: 1px solid #000;
-            height: 24px
-        }
+    .status-info {
+        background-color: #fcf8e3;
+        border: 1px solid #faebcc;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+    }
 
-        .duties-number {
-            width: 40px;
-            text-align: center
-        }
+    .action-buttons {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #f5f5f5;
+        border-radius: 4px;
+    }
 
-        .center {
-            text-align: center
-        }
+    .approval-form {
+        margin-top: 20px;
+    }
+</style>
 
-        .small {
-            font-size: 12px
-        }
-
-        .print-controls {
-            margin-bottom: 8px
-        }
-
-        .status-info {
-            background-color: #f0f8ff;
-            border: 1px solid #337ab7;
-            padding: 12px;
-            margin: 12px 0;
-            border-radius: 4px;
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 6px 14px;
-            border-radius: 3px;
-            font-size: 12px;
-            font-weight: bold;
-            text-transform: uppercase;
-            margin: 5px 0;
-        }
-
-        .status-belum {
-            background-color: #d9edf7;
-            color: #31708f;
-        }
-
-        .status-diajukan {
-            background-color: #fcf8e3;
-            color: #8a6d3b;
-        }
-
-        .status-disetujui {
-            background-color: #dff0d8;
-            color: #3c763d;
-        }
-
-        .status-ditolak {
-            background-color: #f2dede;
-            color: #a94442;
-        }
-
-        @media print {
-            .print-controls,
-            .status-info {
-                display: none !important;
-            }
-
-            body {
-                background: white !important;
-            }
-
-            .container {
-                max-width: 100%;
-            }
-        }
-    </style>
-</head>
-
-<body>
-    <div class="container">
-        <div class="print-controls">
-            <a href="permintaan_karyawan_list.php" style="text-decoration:none;padding:6px 12px;background:#f5f5f5;border:1px solid #ccc;border-radius:3px;color:#333;margin-right:8px">← Kembali</a>
-            <button onclick="window.print()" style="padding:6px 12px;background:#337ab7;color:white;border:none;border-radius:3px;cursor:pointer">Cetak / Print</button>
+<div id="page-wrapper">
+    <div class="row">
+        <div class="col-lg-12">
+            <h1 class="page-header">Review Permintaan Karyawan</h1>
         </div>
+    </div>
 
-        <?php if ($submission): ?>
-        <div class="status-info">
-            <strong>Status Pengajuan:</strong>
-            <?php 
-            $status = $submission['status'];
-            $status_class = 'status-belum';
-            if ($status == 'DIAJUKAN') $status_class = 'status-diajukan';
-            elseif ($status == 'DISETUJUI') $status_class = 'status-disetujui';
-            elseif ($status == 'DITOLAK') $status_class = 'status-ditolak';
-            ?>
-            <span class="status-badge <?php echo $status_class; ?>">
-                <?php echo htmlspecialchars($status); ?>
-            </span>
-            <br>
-            <small>
-                Diajukan oleh: <strong><?php echo htmlspecialchars($submission['pengaju']); ?></strong> 
-                pada <?php echo date('d-m-Y H:i', strtotime($submission['tanggal_pengajuan'])); ?>
-                <?php if (!empty($submission['catatan'])): ?>
-                    <br>Catatan: <?php echo htmlspecialchars($submission['catatan']); ?>
-                <?php endif; ?>
-            </small>
-        </div>
-        <?php endif; ?>
+    <?php include("layout_alert.php"); ?>
 
-        <div class="header">
-            <div style="width:18%">
-                <div style="border:1px solid #000;padding:8px;font-size:12px;text-align:left">
-                    <strong>No. Dokumen:</strong> <?php echo htmlspecialchars($data['no_dokumen']); ?><br>
-                    <strong>Revisi:</strong> <?php echo htmlspecialchars($data['revisi']); ?><br>
-                    <strong>Tanggal Dokumen:</strong> <?php echo date('d-m-Y', strtotime($data['tanggal_dokumen'])); ?>
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <i class="fa fa-file-text"></i> Detail Permintaan Karyawan
+                    <div class="pull-right">
+                        <a href="permintaan_karyawan_list.php" class="btn btn-xs btn-default">
+                            <i class="fa fa-arrow-left"></i> Kembali
+                        </a>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    
+                    <?php if ($submission): ?>
+                    <div class="status-info">
+                        <strong><i class="fa fa-info-circle"></i> Status Pengajuan:</strong>
+                        <span class="label label-warning"><?php echo htmlspecialchars($submission['status']); ?></span>
+                        <br>
+                        Diajukan oleh: <strong><?php echo htmlspecialchars($submission['pengaju']); ?></strong> 
+                        pada <?php echo date('d-m-Y H:i', strtotime($submission['tanggal_pengajuan'])); ?>
+                    </div>
+                    <?php endif; ?>
+
+                    <!-- Document Info -->
+                    <div class="document-header">
+                        <h4 class="text-center" style="margin-top: 0;"><strong>FORM PERMINTAAN KARYAWAN BARU</strong></h4>
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <strong>No. Dokumen:</strong> <?php echo htmlspecialchars($data['no_dokumen']); ?>
+                            </div>
+                            <div class="col-sm-4">
+                                <strong>Revisi:</strong> <?php echo htmlspecialchars($data['revisi']); ?>
+                            </div>
+                            <div class="col-sm-4">
+                                <strong>Tanggal:</strong> <?php echo date('d-m-Y', strtotime($data['tanggal_dokumen'])); ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Main Information -->
+                    <table class="info-table">
+                        <tr>
+                            <td>Jabatan</td>
+                            <td><?php echo htmlspecialchars($data['jabatan']); ?></td>
+                            <td>Unit Kerja</td>
+                            <td><?php echo htmlspecialchars($data['unit_kerja'] ?? '-'); ?></td>
+                        </tr>
+                        <tr>
+                            <td>Tanggal Mulai Bekerja</td>
+                            <td colspan="3"><?php echo $data['tgl_mulai'] ? date('d-m-Y', strtotime($data['tgl_mulai'])) : '-'; ?></td>
+                        </tr>
+                        <tr>
+                            <td>Jumlah Dibutuhkan</td>
+                            <td><?php echo htmlspecialchars($data['jumlah_dibutuhkan']); ?> orang</td>
+                            <td>Untuk</td>
+                            <td><?php echo htmlspecialchars($data['untuk']); ?></td>
+                        </tr>
+                        <tr>
+                            <td>Jumlah Karyawan Sekarang</td>
+                            <td><?php echo htmlspecialchars($data['jumlah_sekarang']); ?> orang</td>
+                            <td>Alasan</td>
+                            <td><?php echo htmlspecialchars($data['alasan']); ?></td>
+                        </tr>
+                    </table>
+
+                    <!-- Job Duties -->
+                    <div class="section-title">Job Duties</div>
+                    <?php if (!empty($duties)): ?>
+                        <ol class="duties-list">
+                            <?php foreach ($duties as $duty): ?>
+                                <li><?php echo htmlspecialchars($duty); ?></li>
+                            <?php endforeach; ?>
+                        </ol>
+                    <?php else: ?>
+                        <p class="text-muted">Tidak ada tugas pekerjaan yang tercatat.</p>
+                    <?php endif; ?>
+
+                    <!-- Requirements -->
+                    <div class="section-title">Requirements</div>
+                    <table class="info-table">
+                        <tr>
+                            <td>Jenis Kelamin</td>
+                            <td><?php echo htmlspecialchars($data['gender']); ?></td>
+                            <td>Usia</td>
+                            <td><?php echo htmlspecialchars($data['usia']); ?> tahun</td>
+                        </tr>
+                        <tr>
+                            <td>Pendidikan</td>
+                            <td><?php echo htmlspecialchars($data['pendidikan']); ?></td>
+                            <td>Jurusan</td>
+                            <td><?php echo htmlspecialchars($data['jurusan']); ?></td>
+                        </tr>
+                        <tr>
+                            <td>Pengalaman</td>
+                            <td><?php echo htmlspecialchars($data['pengalaman']); ?> tahun</td>
+                            <td>Tinggi / Berat</td>
+                            <td><?php echo htmlspecialchars($data['tinggi']); ?> cm / <?php echo htmlspecialchars($data['berat']); ?> kg</td>
+                        </tr>
+                        <tr>
+                            <td>Rentang Gaji</td>
+                            <td>Rp <?php echo number_format($data['rentang_gaji'], 0, ',', '.'); ?></td>
+                            <td>Keahlian dan Kemampuan</td>
+                            <td>
+                                <?php if (!empty($skills)): ?>
+                                    <ol style="margin: 0; padding-left: 20px;">
+                                        <?php foreach ($skills as $skill): ?>
+                                            <li><?php echo htmlspecialchars($skill); ?></li>
+                                        <?php endforeach; ?>
+                                    </ol>
+                                <?php else: ?>
+                                    <span class="text-muted">-</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php if (!empty($data['lain_lain'])): ?>
+                        <tr>
+                            <td>Lain-lain</td>
+                            <td colspan="3"><?php echo htmlspecialchars($data['lain_lain']); ?></td>
+                        </tr>
+                        <?php endif; ?>
+                    </table>
+
+                    <?php if ($can_approve): ?>
+                    <!-- Approval Form -->
+                    <div class="action-buttons">
+                        <h4><strong>Approval Manager HR</strong></h4>
+                        <form method="POST" action="permintaan_karyawan_approve.php" class="approval-form">
+                            <input type="hidden" name="id_permintaan" value="<?php echo $id; ?>">
+                            <input type="hidden" name="pengajuan_id" value="<?php echo $submission['id']; ?>">
+                            
+                            <div class="form-group">
+                                <label>Keputusan:</label>
+                                <select name="keputusan" class="form-control" required style="max-width: 300px;">
+                                    <option value="">-- Pilih Keputusan --</option>
+                                    <option value="DISETUJUI">Setujui</option>
+                                    <option value="DITOLAK">Tolak</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Catatan (Opsional):</label>
+                                <textarea name="catatan" class="form-control" rows="3" placeholder="Masukkan catatan jika perlu..."></textarea>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa fa-check"></i> Kirim Keputusan
+                            </button>
+                            <a href="permintaan_karyawan_list.php" class="btn btn-default">
+                                <i class="fa fa-times"></i> Batal
+                            </a>
+                        </form>
+                    </div>
+                    <?php else: ?>
+                    <div class="alert alert-info">
+                        <i class="fa fa-info-circle"></i> Permintaan ini sudah diproses atau tidak memerlukan approval.
+                    </div>
+                    <?php endif; ?>
+
                 </div>
             </div>
-            <div class="title">FORM PERMINTAAN KARYAWAN BARU</div>
-            <div style="width:18%"></div>
         </div>
-
-        <table class="form">
-            <tr>
-                <td style="width:20%">Jabatan</td>
-                <td style="width:40%">: <?php echo htmlspecialchars($data['jabatan']); ?></td>
-                <td style="width:20%">Tanggal Mulai Bekerja</td>
-                <td>: <?php echo $data['tgl_mulai'] ? date('d-m-Y', strtotime($data['tgl_mulai'])) : '-'; ?></td>
-            </tr>
-            <tr>
-                <td>Jumlah dibutuhkan</td>
-                <td>: <?php echo htmlspecialchars($data['jumlah_dibutuhkan']); ?> orang</td>
-                <td>Untuk</td>
-                <td>: <?php echo htmlspecialchars($data['untuk']); ?></td>
-            </tr>
-            <tr>
-                <td>Jumlah Karyawan Sekarang</td>
-                <td>: <?php echo htmlspecialchars($data['jumlah_sekarang']); ?> orang</td>
-                <td>Alasan</td>
-                <td>: <?php echo htmlspecialchars($data['alasan']); ?></td>
-            </tr>
-        </table>
-
-        <table class="form" style="margin-top:18px">
-            <tr>
-                <th colspan="4" class="center">Job Duties</th>
-            </tr>
-            <?php if (!empty($duties)): ?>
-                <?php foreach ($duties as $idx => $duty): ?>
-                <tr class="duties">
-                    <td class="duties-number"><?php echo ($idx + 1); ?></td>
-                    <td colspan="3"><?php echo htmlspecialchars($duty); ?></td>
-                </tr>
-                <?php endforeach; ?>
-            <?php else: ?>
-                <tr>
-                    <td colspan="4" class="center small">Tidak ada tugas pekerjaan yang tercatat.</td>
-                </tr>
-            <?php endif; ?>
-        </table>
-
-        <table class="form" style="margin-top:12px">
-            <tr>
-                <th colspan="4" class="center">Requirements</th>
-            </tr>
-            <tr>
-                <td style="width:18%">Jenis Kelamin</td>
-                <td style="width:32%">: <?php echo htmlspecialchars($data['gender']); ?></td>
-                <td style="width:18%">Usia</td>
-                <td>: <?php echo htmlspecialchars($data['usia']); ?> tahun</td>
-            </tr>
-            <tr>
-                <td>Pendidikan</td>
-                <td>: <?php echo htmlspecialchars($data['pendidikan']); ?></td>
-                <td>Jurusan</td>
-                <td>: <?php echo htmlspecialchars($data['jurusan']); ?></td>
-            </tr>
-            <tr>
-                <td>Pengalaman</td>
-                <td>: <?php echo htmlspecialchars($data['pengalaman']); ?> tahun</td>
-                <td>Tinggi dan Berat</td>
-                <td>: <?php echo htmlspecialchars($data['tinggi']); ?> cm / <?php echo htmlspecialchars($data['berat']); ?> kg</td>
-            </tr>
-            <tr>
-                <td>Rentang Gaji</td>
-                <td>: Rp <?php echo htmlspecialchars($data['rentang_gaji']); ?></td>
-                <td>Keahlian dan Kemampuan</td>
-                <td>:
-                    <?php if (!empty($skills)): ?>
-                        <?php foreach ($skills as $idx => $skill): ?>
-                            <div><?php echo ($idx + 1); ?>. <?php echo htmlspecialchars($skill); ?></div>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <div class="small">-</div>
-                    <?php endif; ?>
-                </td>
-            </tr>
-            <?php if (!empty($data['lain_lain'])): ?>
-            <tr>
-                <td>Lain-lain</td>
-                <td colspan="3">: <?php echo htmlspecialchars($data['lain_lain']); ?></td>
-            </tr>
-            <?php endif; ?>
-        </table>
-
-        <p class="small" style="margin-top:18px">Form ini menampilkan detail permintaan karyawan baru yang telah tersimpan di sistem.</p>
     </div>
-</body>
+</div>
 
-</html>
+<?php include 'layout_bottom.php'; ?>

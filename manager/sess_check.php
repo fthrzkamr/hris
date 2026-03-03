@@ -14,6 +14,7 @@
 	$sess_mngid = $row_sess['npp'];
 	$sess_mngname = $row_sess['nama_emp'];
 	$sess_bagian = $row_sess['nama_bagian'];
+	$sess_jabatan = $row_sess['jabatan'];
 	// mengarahkan ke halaman login.php apabila session belum terdaftar
 	if(! isset($chk_sess)) {
 		header("location: ../login.php?login=false");

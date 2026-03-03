@@ -71,6 +71,19 @@ $id = $sess_mngid;
                         <li>
                             <a href="gaji.php"><i class="fa fa-download fa-fw"></i> Informasi Gaji</a>
                         </li>
+                        <?php if($sess_jabatan == 'Manager' || $sess_jabatan == 'Leader'): ?>
+                        <li>
+                            <a href="#"><i class="fa fa-users fa-fw"></i> Permintaan Karyawan<span class="fa arrow"></span></a>
+                            <ul class="nav nav-second-level">
+                                <li>
+                                    <a href="form_permintaan_karyawan.php"><i class="fa fa-plus-circle"></i> Buat Permintaan Baru</a>
+                                </li>
+                                <li>
+                                    <a href="permintaan_karyawan_list.php"><i class="fa fa-list"></i> Daftar Permintaan Saya</a>
+                                </li>
+                            </ul>
+                        </li>
+                        <?php endif; ?>
                     </ul>
                 </div>
             </div>

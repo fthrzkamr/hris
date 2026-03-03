@@ -225,8 +225,12 @@ $submission = mysqli_fetch_assoc($result_status);
             <tr>
                 <td style="width:20%">Jabatan</td>
                 <td style="width:40%">: <?php echo htmlspecialchars($data['jabatan']); ?></td>
-                <td style="width:20%">Tanggal Mulai Bekerja</td>
-                <td>: <?php echo $data['tgl_mulai'] ? date('d-m-Y', strtotime($data['tgl_mulai'])) : '-'; ?></td>
+                <td style="width:20%">Unit Kerja</td>
+                <td>: <?php echo htmlspecialchars($data['unit_kerja'] ?? '-'); ?></td>
+            </tr>
+            <tr>
+                <td>Tanggal Mulai Bekerja</td>
+                <td colspan="3">: <?php echo $data['tgl_mulai'] ? date('d-m-Y', strtotime($data['tgl_mulai'])) : '-'; ?></td>
             </tr>
             <tr>
                 <td>Jumlah dibutuhkan</td>

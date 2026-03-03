@@ -1,4 +1,31 @@
 <?php
+// Session check - Only Manager and Leader can access
+session_start();
+$chk_sess = $_SESSION['managerhr'];
+include("dist/config/koneksi.php");
+include("dist/config/library.php");
+
+// Get employee data including jabatan
+$sql_sess = "SELECT * FROM employee WHERE npp='". $chk_sess ."'";
+$ress_sess = mysqli_query($conn, $sql_sess);
+$row_sess = mysqli_fetch_array($ress_sess);
+
+$sess_mngid = $row_sess['npp'];
+$sess_mngname = $row_sess['nama_emp'];
+$sess_jabatan = $row_sess['jabatan'];
+
+// Check if not logged in
+if(! isset($chk_sess)) {
+    header("location: ../login.php?login=false");
+    exit();
+}
+
+// Check if jabatan is Manager or Leader
+if($sess_jabatan !== 'Manager' && $sess_jabatan !== 'Leader') {
+    header("location: index.php?error=access_denied");
+    exit();
+}
+
 // Simple printable form for new employee request with saving to database
 
 function generate_doc_no()
@@ -18,8 +45,6 @@ $doc_date_display = date('d-m-Y');
 $doc_date_db = date('Y-m-d');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    include __DIR__ . '/dist/config/koneksi.php';
-
     // ensure main table exists (column names in Bahasa Indonesia)
     $createSql = "CREATE TABLE IF NOT EXISTS permintaan_karyawan (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -27,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             revisi VARCHAR(20),
             tanggal_dokumen DATE,
             jabatan VARCHAR(255),
+            unit_kerja VARCHAR(255),
             tgl_mulai DATE,
             jumlah_dibutuhkan INT,
             untuk VARCHAR(255),
@@ -41,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             berat VARCHAR(20),
             rentang_gaji VARCHAR(100),
             lain_lain TEXT,
+            created_by VARCHAR(20),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
     mysqli_query($conn, $createSql);
@@ -66,9 +93,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // collect inputs
     $jabatan = $_POST['jabatan'] ?? '';
+    $unit_kerja = $_POST['unit_kerja'] ?? '';
     $tgl_mulai = isset($_POST['tgl_mulai']) ? trim($_POST['tgl_mulai']) : '';
     if ($tgl_mulai === '') $tgl_mulai = null;
-    $jumlah_dibutuhkan = $_POST['jumlah_dibutuhkan'] ?? null;
+    // Ensure integer fields are properly converted
+    $jumlah_dibutuhkan = isset($_POST['jumlah_dibutuhkan']) && $_POST['jumlah_dibutuhkan'] !== '' ? (int)$_POST['jumlah_dibutuhkan'] : 0;
     // handle 'Untuk' options: Penambahan, Penggantian, Lain-lain (with free text)
     $untuk_raw = $_POST['untuk'] ?? '';
     $untuk_lain = $_POST['untuk_lain'] ?? '';
@@ -77,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $untuk = $untuk_raw;
     }
-    $jumlah_sekarang = $_POST['jumlah_sekarang'] ?? null;
+    $jumlah_sekarang = isset($_POST['jumlah_sekarang']) && $_POST['jumlah_sekarang'] !== '' ? (int)$_POST['jumlah_sekarang'] : 0;
     $alasan = $_POST['alasan'] ?? '';
 
     $duties = [];
@@ -121,6 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     };
 
     $jabatan = $up($jabatan);
+    $unit_kerja = $up($unit_kerja);
     $untuk = $up($untuk);
     $alasan = $up($alasan);
     // uppercase each duty line
@@ -134,9 +164,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // insert into permintaan_karyawan (main record)
     $stmt = mysqli_prepare($conn, "INSERT INTO permintaan_karyawan
-            (no_dokumen,revisi,tanggal_dokumen,jabatan,tgl_mulai,jumlah_dibutuhkan,untuk,jumlah_sekarang,alasan,gender,usia,pendidikan,jurusan,pengalaman,tinggi,berat,rentang_gaji,lain_lain)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-    $types = 'sssssisissssssssss';
+            (no_dokumen,revisi,tanggal_dokumen,jabatan,unit_kerja,tgl_mulai,jumlah_dibutuhkan,untuk,jumlah_sekarang,alasan,gender,usia,pendidikan,jurusan,pengalaman,tinggi,berat,rentang_gaji,lain_lain,created_by)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+    $types = 'ssssssisisssssssssss';  // added unit_kerja
     mysqli_stmt_bind_param(
         $stmt,
         $types,
@@ -144,6 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $revision,
         $doc_date_db,
         $jabatan,
+        $unit_kerja,
         $tgl_mulai,
         $jumlah_dibutuhkan,
         $untuk,
@@ -157,7 +188,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $height,
         $weight,
         $range_salary,
-        $other
+        $other,
+        $sess_mngid
     );
     $ok = mysqli_stmt_execute($stmt);
     if ($ok) {
@@ -325,6 +357,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <div class="container">
         <div class="print-controls">
+            <button onclick="window.location.href='index.php'" style="margin-right:10px">Kembali</button>
             <button onclick="window.print()">Cetak / Print</button>
         </div>
 
@@ -357,6 +390,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <td style="width:40%">: <input type="text" style="width:95%" name="jabatan"
                             value="<?php echo htmlspecialchars($_POST['jabatan'] ?? '') ?>"><span class="hint">Contoh:
                             Staff Administrasi (maks 255 karakter)</span></td>
+                    <td style="width:20%">Unit Kerja</td>
+                    <td>: <input type="text" style="width:95%" name="unit_kerja"
+                            value="<?php echo htmlspecialchars($_POST['unit_kerja'] ?? '') ?>"><span class="hint">Contoh: IT, HR, Finance, dll.</span></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td></td>
                     <td style="width:20%">Tanggal Mulai Bekerja</td>
                     <td>: <input type="date" name="tgl_mulai"
                             value="<?php echo htmlspecialchars($_POST['tgl_mulai'] ?? '') ?>"><span class="hint">Format:
@@ -568,6 +608,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <td colspan="3">: <input type="text" name="other" style="width:95%"
                             value="<?php echo htmlspecialchars($_POST['other'] ?? '') ?>"></td>
                 </tr>
+                <tr>
                     <td colspan="4" class="center">
                         <button type="submit">Simpan</button>
                         <button type="reset" id="btnReset" style="margin-left:10px">Reset</button>
@@ -575,7 +616,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </tr>
             </table>
         </form>
-        </table>
 
         <script>
             // Sync visible input/select/textarea values into adjacent .print-value spans
