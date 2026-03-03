@@ -9,9 +9,11 @@ include __DIR__ . '/dist/config/koneksi.php';
 
 // Fetch all records (both pending and processed)
 $sql = "SELECT p.id, p.no_dokumen, p.jabatan, p.tanggal_dokumen, p.jumlah_dibutuhkan,
-    pe.id as pengajuan_id, pe.status, pe.status_app_direktur, pe.pengaju, pe.tanggal_pengajuan
+    pe.id as pengajuan_id, pe.status, pe.status_app_direktur, pe.tanggal_pengajuan,
+    e.nama_emp as pengaju
     FROM permintaan_karyawan p
     INNER JOIN permintaan_pengajuan pe ON pe.id_permintaan = p.id
+    LEFT JOIN employee e ON e.npp = p.created_by
     ORDER BY pe.tanggal_pengajuan DESC";
 $res = mysqli_query($conn, $sql);
 
