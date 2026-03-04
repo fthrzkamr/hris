@@ -171,7 +171,7 @@ $tahun = date("Y");
 
                         <!-- Menu Pengajuan Karyawan -->
                         <li>
-                            <a href="permintaan_karyawan_list.php"><i class="fa fa-check-square-o fa-fw"></i> Approval Karyawan Baru</a>
+                            <a href="permintaan_karyawan_list.php"><i class="fa fa-check-square-o fa-fw"></i> Approval Permintaan Karyawan</a>
                         </li>
 
                         <?php if ($sess_jabatan == 'Manager' || $sess_jabatan == 'Leader'): ?>
