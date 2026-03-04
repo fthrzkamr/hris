@@ -115,6 +115,14 @@ $res = mysqli_fetch_array($ress_g);
 						} else {
 							echo '<li><a href="index.php"><i class="fa fa-home fa-fw"></i>&nbsp;Beranda</a></li>';
 						}
+						
+						// Perjalanan Dinas Menu
+						if ($pagedesc == "Form Perjalanan Dinas") {
+							echo '<li><a href="form_perjalanan_dinas.php" class="active"><i class="fa fa-plane fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+						} else {
+							echo '<li><a href="form_perjalanan_dinas.php"><i class="fa fa-plane fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+						}
+						
 						if (isset($menuparent) && $menuparent == "master") {
 							echo '<li class="active">';
 						} else {

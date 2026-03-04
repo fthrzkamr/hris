@@ -60,6 +60,12 @@ $id = $sess_mngid;
                         <li><a href="index.php" class="<?php echo ($pagedesc == 'Beranda') ? 'active' : ''; ?>">
                             <i class="fa fa-home fa-fw"></i> Beranda</a>
                         </li>
+                        
+                        <!-- Perjalanan Dinas Menu -->
+                        <li><a href="form_perjalanan_dinas.php" class="<?php echo ($pagedesc == 'Form Perjalanan Dinas') ? 'active' : ''; ?>">
+                            <i class="fa fa-plane fa-fw"></i> Perjalanan Dinas</a>
+                        </li>
+                        
                         <li class="<?php echo (isset($menuparent) && $menuparent == 'approval') ? 'active' : ''; ?>">
                             <a href="#"><i class="fa fa-download fa-fw"></i> Persetujuan Cuti <span class="fa arrow"></span></a>
                             <ul class="nav nav-second-level">

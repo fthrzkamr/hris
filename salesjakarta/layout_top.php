@@ -54,6 +54,16 @@ $id = $sess_mngid;
                             <h5 class="text-muted"><i class="fa fa-calendar fa-fw"></i> <?php echo "$hari_ini, $tanggal $bulan_ini $tahun"; ?></h5>
                         </li>
                         <li><a href="index.php"><i class="fa fa-home fa-fw"></i> Beranda</a></li>
+                        
+                        <!-- Perjalanan Dinas Menu -->
+                        <?php
+                        if (isset($pagedesc) && $pagedesc == "Form Perjalanan Dinas") {
+                            echo '<li><a href="form_perjalanan_dinas.php" class="active"><i class="fa fa-plane fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+                        } else {
+                            echo '<li><a href="form_perjalanan_dinas.php"><i class="fa fa-plane fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+                        }
+                        ?>
+                        
                         <li>
                             <a href="#"><i class="fa fa-download fa-fw"></i> Persetujuan Cuti<span class="fa arrow"></span></a>
                             <ul class="nav nav-second-level">

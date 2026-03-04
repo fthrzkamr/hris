@@ -82,6 +82,15 @@ $count_training_notif = $row_notif_training['total'];
                             <i class="fa fa-home fa-fw"></i> Beranda</a>
                         </li>
 
+                        <!-- Perjalanan Dinas Menu -->
+                        <?php
+                        if (isset($pagedesc) && $pagedesc == "Form Perjalanan Dinas") {
+                            echo '<li><a href="form_perjalanan_dinas.php" class="active"><i class="fa fa-plane fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+                        } else {
+                            echo '<li><a href="form_perjalanan_dinas.php"><i class="fa fa-plane fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+                        }
+                        ?>
+
                         <!-- Menu Training -->
                         <?php
                         if (isset($menuparent) && $menuparent == "training") {
