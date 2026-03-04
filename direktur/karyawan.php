@@ -41,7 +41,7 @@
 									<tbody>
 										<?php
 											$i = 1;
-											$sql = "SELECT * FROM employee ORDER BY nama_emp ASC";
+											$sql = "SELECT * FROM employee WHERE aktif = 'Aktif' ORDER BY nama_emp ASC";
 								// 			$sql = "SELECT * FROM employee AS A 
         //   LEFT JOIN bagian AS B ON  A.nama_bagian=b.id ORDER BY nama_emp ASC";
 											$ress = mysqli_query($conn, $sql);

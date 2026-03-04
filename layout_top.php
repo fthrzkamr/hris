@@ -19,6 +19,16 @@ if (isset($conn)) {
 		$count_pending_slip = mysqli_fetch_assoc($result_count_slip)['total'];
 	}
 }
+
+// Count calon karyawan menunggu review untuk badge notifikasi
+$count_pending_calon = 0;
+if (isset($conn)) {
+	$sql_calon = "SELECT COUNT(*) as total FROM employee WHERE status_karyawan = 'Calon Karyawan' AND aktif = 'Menunggu Review'";
+	$result_calon = mysqli_query($conn, $sql_calon);
+	if ($result_calon) {
+		$count_pending_calon = mysqli_fetch_assoc($result_calon)['total'];
+	}
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -119,6 +129,22 @@ if (isset($conn)) {
 						} else {
 							echo '<li><a href="index.php"><i class="fa fa-home fa-fw"></i>&nbsp;Beranda</a></li>';
 						}
+						
+						// Menu Calon Karyawan dengan badge notifikasi
+						if ($pagedesc == "Data Calon Karyawan") {
+							echo '<li><a href="calon_karyawan_list.php" class="active"><i class="fa fa-user-plus fa-fw"></i>&nbsp;Calon Karyawan';
+							if($count_pending_calon > 0) {
+								echo ' <span class="badge" style="background-color: #d9534f; margin-left: 5px;">' . $count_pending_calon . '</span>';
+							}
+							echo '</a></li>';
+						} else {
+							echo '<li><a href="calon_karyawan_list.php"><i class="fa fa-user-plus fa-fw"></i>&nbsp;Calon Karyawan';
+							if($count_pending_calon > 0) {
+								echo ' <span class="badge" style="background-color: #d9534f; margin-left: 5px;">' . $count_pending_calon . '</span>';
+							}
+							echo '</a></li>';
+						}
+						
 						if (isset($menuparent) && $menuparent == "master") {
 							echo '<li class="active">';
 						} else {

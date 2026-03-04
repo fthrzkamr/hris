@@ -150,7 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         mysqli_stmt_bind_param(
             $stmt,
-            'ssssssssssssssssssssssssssssissssiisssssssiiiiiiii',
+            'ssssssssssssssssssssssssssssissssisiissssssiiiiiii',
             $temp_npp,
             $nama_emp,
             $jk_emp,
@@ -624,8 +624,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         $query_bagian = mysqli_query($conn, "SELECT id_bagian, nama_bagian FROM bagian ORDER BY nama_bagian ASC");
                                         if ($query_bagian) {
                                             while ($row_bagian = mysqli_fetch_assoc($query_bagian)) {
-                                                $selected = (($_POST['nama_bagian'] ?? '') === $row_bagian['id_bagian']) ? 'selected' : '';
-                                                echo '<option value="' . htmlspecialchars($row_bagian['id_bagian']) . '" ' . $selected . '>' . htmlspecialchars($row_bagian['nama_bagian']) . '</option>';
+                                                $selected = (($_POST['nama_bagian'] ?? '') === $row_bagian['nama_bagian']) ? 'selected' : '';
+                                                echo '<option value="' . htmlspecialchars($row_bagian['nama_bagian']) . '" ' . $selected . '>' . htmlspecialchars($row_bagian['nama_bagian']) . '</option>';
                                             }
                                         }
                                         ?>

@@ -25,6 +25,15 @@ if($res_notif){
     $row_notif = mysqli_fetch_array($res_notif);
     $count_pending_training = $row_notif['total'];
 }
+
+// Notifikasi Calon Karyawan Pending
+$count_pending_calon = 0;
+$sql_calon = "SELECT COUNT(*) as total FROM employee WHERE status_karyawan = 'Calon Karyawan' AND aktif = 'Menunggu Review'";
+$res_calon = mysqli_query($conn, $sql_calon);
+if($res_calon){
+    $row_calon = mysqli_fetch_array($res_calon);
+    $count_pending_calon = $row_calon['total'];
+}
 ?>
 
 <!DOCTYPE html>
@@ -100,6 +109,16 @@ if($res_notif){
                                         class="<?php echo ($pagedesc == 'Data Karyawan') ? 'active' : ''; ?>">Data
                                         Karyawan</a></li>
                             </ul>
+                        </li>
+
+                        <!-- Menu Calon Karyawan -->
+                        <li>
+                            <a href="calon_karyawan_list.php">
+                                <i class="fa fa-user-plus fa-fw"></i> Calon Karyawan
+                                <?php if($count_pending_calon > 0){ ?>
+                                    <span class="badge" style="background-color: #d9534f; margin-left: 5px;"><?php echo $count_pending_calon; ?></span>
+                                <?php } ?>
+                            </a>
                         </li>
 
                         <li>

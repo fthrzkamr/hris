@@ -100,6 +100,8 @@ $tahun = date("Y");
                             <a href="#"><i class="fa fa-group fa-fw"></i> Informasi Karyawan<span
                                     class="fa arrow"></span></a>
                             <ul class="nav nav-second-level">
+                                <li><a href="calon_karyawan_list.php"
+                                        class="<?php echo ($pagedesc == 'Data Karyawan Baru') ? 'active' : ''; ?>">Data Karyawan Baru</a></li>
                                 <li><a href="karyawann.php"
                                         class="<?php echo ($pagedesc == 'Data Karyawan') ? 'active' : ''; ?>">Data
                                         Karyawan</a></li>
