@@ -13,7 +13,7 @@
 	}
 	
 	// Update status to Aktif
-	$sql = "UPDATE employee SET aktif = 'Aktif', status_karyawan = 'Kontrak' WHERE npp = '$npp'";
+	$sql = "UPDATE employee SET aktif = 'Aktif', status_karyawan = 'Kontrak', status_karyawan_baru = 1 WHERE npp = '$npp'";
 	
 	if(mysqli_query($conn, $sql)) {
 		echo '<script>alert("Calon karyawan berhasil diapprove. Akun sudah aktif."); window.location="calon_karyawan_edit.php?npp=' . $npp . '";</script>';
