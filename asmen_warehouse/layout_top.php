@@ -113,12 +113,27 @@
 							}
 							
 							// Perjalanan Dinas Menu
-							if($pagedesc == "Form Perjalanan Dinas") {
-								echo '<li><a href="form_perjalanan_dinas.php" class="active"><i class="fa fa-plane fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+							if(isset($menuparent) && $menuparent == "perjalanan_dinas") {
+								echo '<li class="active">';
 							}
 							else {
-								echo '<li><a href="form_perjalanan_dinas.php"><i class="fa fa-plane fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+								echo '<li>';
 							}
+							?>
+								<a href="#"><i class="fa fa-plane fa-fw"></i> Perjalanan Dinas<span class="fa arrow"></span></a>
+								<ul class="nav nav-second-level">
+									<li>
+										<a href="form_perjalanan_dinas.php">
+											<i class="fa fa-plus fa-fw"></i> Buat Pengajuan Baru
+										</a>
+									</li>
+									<li>
+										<a href="perjalanan_dinas_list.php">
+											<i class="fa fa-list fa-fw"></i> Daftar Pengajuan Saya
+										</a>
+									</li>
+								</ul>
+							<?php echo '</li>'; ?>
 							
 							if(isset($menuparent) && $menuparent == "master") {
 								echo '<li class="active">';
@@ -290,6 +305,30 @@
                         <!-- open <li> tag generated with php, see line 155-160 -->
 							
 						</li>
+						
+						<!-- Menu Request Slip Gaji -->
+						<?php
+						if (isset($menuparent) && $menuparent == "gaji") {
+							echo '<li class="active">';
+						} else {
+							echo '<li>';
+						}
+						?>
+							<a href="#"><i class="fa fa-download fa-fw"></i> Slip Gaji<span class="fa arrow"></span></a>
+							<ul class="nav nav-second-level">
+								<li>
+									<a href="request_slip_gaji.php">
+										<i class="fa fa-file-text-o fa-fw"></i> Request Slip Gaji
+									</a>
+								</li>
+								<li>
+									<a href="request_slip_gaji_list.php">
+										<i class="fa fa-list fa-fw"></i> Daftar Request Saya
+									</a>
+								</li>
+							</ul>
+						</li>
+						
 						<?php if ($sess_jabatan == 'Manager' || $sess_jabatan == 'Leader'): ?>
 						<li>
 							<a href="#"><i class="fa fa-users fa-fw"></i> Permintaan Karyawan<span class="fa arrow"></span></a>

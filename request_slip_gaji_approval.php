@@ -7,8 +7,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     // Ambil informasi user yang melakukan approval (dari session)
     // Sesuaikan dengan struktur session di sistem Anda
-    $approved_by = isset($_SESSION['nip']) ? $_SESSION['nip'] : 
-                   (isset($_SESSION['username']) ? $_SESSION['username'] : 'ADMIN');
+    $approved_by = isset($sess_admname) ? $sess_admname : (isset($sess_mngname) ? $sess_mngname : 'SYSTEM');
     
     $tanggal_approval = date('Y-m-d H:i:s');
     
@@ -39,22 +38,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         // Ambil data input gaji
         $gaji_pokok = floatval($_POST['gaji_pokok']);
+        $tunj_transport = floatval($_POST['tunj_transport']);
         $tunj_jabatan = floatval($_POST['tunj_jabatan']);
         $tunj_kinerja = floatval($_POST['tunj_kinerja']);
-        $tunj_transport = floatval($_POST['tunj_transport']);
-        $lembur = floatval($_POST['lembur']);
+        $tunj_bpjs_kesehatan = floatval($_POST['tunj_bpjs_kesehatan']);
+        $tunj_bpjs_tk = floatval($_POST['tunj_bpjs_tk']);
+        $tunj_pajak_pph21 = floatval($_POST['tunj_pajak_pph21']);
         
+        $p_bpjs_kesehatan = floatval($_POST['p_bpjs_kesehatan']);
+        $p_bpjs_tk = floatval($_POST['p_bpjs_tk']);
+        $p_pajak_pph21 = floatval($_POST['p_pajak_pph21']);
         $p_keterlambatan = floatval($_POST['p_keterlambatan']);
         $p_pinjaman = floatval($_POST['p_pinjaman']);
-        $p_lain = floatval($_POST['p_lain']);
-        $p_kesehatan = floatval($_POST['p_kesehatan']);
-        $p_absensi = floatval($_POST['p_absensi']);
         
         $catatan = isset($_POST['catatan']) ? mysqli_real_escape_string($conn, $_POST['catatan']) : '';
         
         // Hitung total
-        $total_pendapatan = $gaji_pokok + $tunj_jabatan + $tunj_kinerja + $tunj_transport + $lembur;
-        $total_potongan = $p_keterlambatan + $p_pinjaman + $p_lain + $p_kesehatan + $p_absensi;
+        $total_pendapatan = $gaji_pokok + $tunj_transport + $tunj_jabatan + $tunj_kinerja + $tunj_bpjs_kesehatan + $tunj_bpjs_tk + $tunj_pajak_pph21;
+        $total_potongan = $p_bpjs_kesehatan + $p_bpjs_tk + $p_pajak_pph21 + $p_keterlambatan + $p_pinjaman;
         $gaji_bersih = $total_pendapatan - $total_potongan;
         
         // Validasi gaji pokok
@@ -68,10 +69,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // Buat tanggal untuk laporan_potongan (hari terakhir bulan tersebut)
         $tanggal_laporan = date('Y-m-t', strtotime("$tahun-$bulan-01"));
         
-        // Gabungkan catatan dengan info potongan kesehatan, absensi, dan lembur
-        $desc_lain = "Lembur: Rp " . number_format($lembur, 0, ',', '.') . 
-                     " | P.Kesehatan: Rp " . number_format($p_kesehatan, 0, ',', '.') . 
-                     " | P.Absensi: Rp " . number_format($p_absensi, 0, ',', '.');
+        // Gabungkan catatan dengan info tunjangan dan potongan
+        $desc_lain = "Tunj.BPJS Kes: Rp " . number_format($tunj_bpjs_kesehatan, 0, ',', '.') . 
+                     " | Tunj.BPJS TK: Rp " . number_format($tunj_bpjs_tk, 0, ',', '.') . 
+                     " | Tunj.Pajak: Rp " . number_format($tunj_pajak_pph21, 0, ',', '.') .
+                     " | P.BPJS Kes: Rp " . number_format($p_bpjs_kesehatan, 0, ',', '.') . 
+                     " | P.BPJS TK: Rp " . number_format($p_bpjs_tk, 0, ',', '.') . 
+                     " | P.Pajak: Rp " . number_format($p_pajak_pph21, 0, ',', '.');
         if (!empty($catatan)) {
             $desc_lain .= " | Catatan: " . $catatan;
         }
@@ -86,6 +90,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $data_check = mysqli_fetch_assoc($result_check);
         
         $success = false;
+        
+        // Hitung p_lain untuk kompatibilitas dengan struktur lama (BPJS + Pajak potongan)
+        $p_lain = $p_bpjs_kesehatan + $p_bpjs_tk + $p_pajak_pph21;
         
         if ($data_check['total'] > 0) {
             // Data sudah ada, lakukan UPDATE
@@ -116,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         
         if ($success) {
-            // Update data gaji di tabel employee juga (gaji pokok, tunjangan)
+            // Update data gaji di tabel employee juga (gaji pokok, tunjangan dasar tanpa BPJS & Pajak)
             $sql_update_emp = "UPDATE employee 
                               SET gaji_pokok = ?, 
                                   tunj_jabatan = ?, 
@@ -124,6 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                   tunj_transport = ?,
                                   total_gaji = ?
                               WHERE npp = ?";
+            // Total gaji dasar (tanpa tunjangan BPJS & Pajak karena itu kompensasi perusahaan)
             $total_gaji = $gaji_pokok + $tunj_jabatan + $tunj_kinerja + $tunj_transport;
             $stmt_update_emp = mysqli_prepare($conn, $sql_update_emp);
             mysqli_stmt_bind_param($stmt_update_emp, "ddddds", 
@@ -143,6 +151,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if (mysqli_stmt_execute($stmt_update)) {
                 $_SESSION['message'] = "Data slip gaji berhasil $action_type dan request telah disetujui!";
                 $_SESSION['status'] = 'success';
+                
+                // TODO: Kirim notifikasi WhatsApp ke karyawan (NPP: $npp) bahwa slip gaji periode $bulan/$tahun sudah disetujui
+                // Implementasi notifikasi WA dapat menggunakan WhatsApp Business API atau layanan pihak ketiga
+                
             } else {
                 $_SESSION['message'] = "Data slip gaji $action_type tetapi gagal update status request. Error: " . mysqli_error($conn);
                 $_SESSION['status'] = 'warning';

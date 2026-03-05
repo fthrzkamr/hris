@@ -62,8 +62,26 @@ $id = $sess_mngid;
                         </li>
                         
                         <!-- Perjalanan Dinas Menu -->
-                        <li><a href="form_perjalanan_dinas.php" class="<?php echo ($pagedesc == 'Form Perjalanan Dinas') ? 'active' : ''; ?>">
-                            <i class="fa fa-plane fa-fw"></i> Perjalanan Dinas</a>
+                        <?php
+                        if (isset($menuparent) && $menuparent == "perjalanan_dinas") {
+                            echo '<li class="active">';
+                        } else {
+                            echo '<li>';
+                        }
+                        ?>
+                            <a href="#"><i class="fa fa-plane fa-fw"></i> Perjalanan Dinas<span class="fa arrow"></span></a>
+                            <ul class="nav nav-second-level">
+                                <li>
+                                    <a href="form_perjalanan_dinas.php">
+                                        <i class="fa fa-plus fa-fw"></i> Buat Pengajuan Baru
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="perjalanan_dinas_list.php">
+                                        <i class="fa fa-list fa-fw"></i> Daftar Pengajuan Saya
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
                         
                         <li class="<?php echo (isset($menuparent) && $menuparent == 'approval') ? 'active' : ''; ?>">

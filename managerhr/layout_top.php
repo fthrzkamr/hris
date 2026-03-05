@@ -21,7 +21,7 @@ $tahun = date("Y");
 $count_pending_training = 0;
 $sql_notif = "SELECT COUNT(*) as total FROM pengajuan_training WHERE status IS NULL OR status = 'Pending'";
 $res_notif = mysqli_query($conn, $sql_notif);
-if($res_notif){
+if ($res_notif) {
     $row_notif = mysqli_fetch_array($res_notif);
     $count_pending_training = $row_notif['total'];
 }
@@ -30,7 +30,7 @@ if($res_notif){
 $count_pending_calon = 0;
 $sql_calon = "SELECT COUNT(*) as total FROM employee WHERE status_karyawan = 'Calon Karyawan' AND aktif = 'Menunggu Review'";
 $res_calon = mysqli_query($conn, $sql_calon);
-if($res_calon){
+if ($res_calon) {
     $row_calon = mysqli_fetch_array($res_calon);
     $count_pending_calon = $row_calon['total'];
 }
@@ -39,9 +39,28 @@ if($res_calon){
 $count_pending_perjalanan = 0;
 $sql_perjalanan = "SELECT COUNT(*) as total FROM perjalanan_pengajuan WHERE status IN ('DIAJUKAN', 'APPROVED_HR')";
 $res_perjalanan = mysqli_query($conn, $sql_perjalanan);
-if($res_perjalanan){
+if ($res_perjalanan) {
     $row_perjalanan = mysqli_fetch_array($res_perjalanan);
     $count_pending_perjalanan = $row_perjalanan['total'];
+}
+
+// Count pending request slip gaji (untuk badge notifikasi pada menu Approval)
+$count_pending_slip = 0;
+if (isset($conn)) {
+    $sql_count_slip = "SELECT COUNT(*) as total FROM request_slip_gaji WHERE status = 'pending'";
+    $result_count_slip = mysqli_query($conn, $sql_count_slip);
+    if ($result_count_slip) {
+        $count_pending_slip = mysqli_fetch_assoc($result_count_slip)['total'];
+    }
+}
+
+// Notifikasi Slip Gaji Approved (untuk ManagerHR)
+$count_approved_slip = 0;
+$sql_slip = "SELECT COUNT(*) as total FROM request_slip_gaji WHERE status = 'approved'";
+$res_slip = mysqli_query($conn, $sql_slip);
+if ($res_slip) {
+    $row_slip = mysqli_fetch_array($res_slip);
+    $count_approved_slip = $row_slip['total'];
 }
 ?>
 
@@ -124,8 +143,9 @@ if($res_perjalanan){
                         <li>
                             <a href="calon_karyawan_list.php">
                                 <i class="fa fa-user-plus fa-fw"></i> Calon Karyawan
-                                <?php if($count_pending_calon > 0){ ?>
-                                    <span class="badge" style="background-color: #d9534f; margin-left: 5px;"><?php echo $count_pending_calon; ?></span>
+                                <?php if ($count_pending_calon > 0) { ?>
+                                    <span class="badge"
+                                        style="background-color: #d9534f; margin-left: 5px;"><?php echo $count_pending_calon; ?></span>
                                 <?php } ?>
                             </a>
                         </li>
@@ -188,24 +208,27 @@ if($res_perjalanan){
                             echo '<li>';
                         }
                         ?>
-                            <a href="#"><i class="fa fa-download fa-fw"></i> Pengajuan Training
-                            <?php if($count_pending_training > 0){ ?>
-                                <span class="badge" style="background-color: #d9534f; margin-left: 5px;"><?php echo $count_pending_training; ?></span>
+                        <a href="#"><i class="fa fa-download fa-fw"></i> Pengajuan Training
+                            <?php if ($count_pending_training > 0) { ?>
+                                <span class="badge"
+                                    style="background-color: #d9534f; margin-left: 5px;"><?php echo $count_pending_training; ?></span>
                             <?php } ?>
                             <span class="fa arrow"></span></a>
-                            <ul class="nav nav-second-level">
-                                <li><a href="training_wait.php">Menunggu Approval
-                                <?php if($count_pending_training > 0){ ?>
-                                    <span class="badge" style="background-color: #d9534f;"><?php echo $count_pending_training; ?></span>
-                                <?php } ?>
+                        <ul class="nav nav-second-level">
+                            <li><a href="training_wait.php">Menunggu Approval
+                                    <?php if ($count_pending_training > 0) { ?>
+                                        <span class="badge"
+                                            style="background-color: #d9534f;"><?php echo $count_pending_training; ?></span>
+                                    <?php } ?>
                                 </a></li>
-                                <li><a href="training_list.php">Semua Pengajuan</a></li>
-                            </ul>
+                            <li><a href="training_list.php">Semua Pengajuan</a></li>
+                        </ul>
                         </li>
 
                         <!-- Permintaan Karyawan Menu -->
                         <li>
-                            <a href="permintaan_karyawan_list.php"><i class="fa fa-check-square-o fa-fw"></i>Approval Permintaan Karyawan</a>
+                            <a href="permintaan_karyawan_list.php"><i class="fa fa-check-square-o fa-fw"></i>Approval
+                                Permintaan Karyawan</a>
                         </li>
 
                         <li>
@@ -255,16 +278,29 @@ if($res_perjalanan){
                         }
                         $badge_perjalanan = ($count_pending_perjalanan > 0) ? ' <span class="badge" style="background-color: #d9534f; margin-left: 5px;">' . $count_pending_perjalanan . '</span>' : '';
                         ?>
-                            <a href="#"><i class="fa fa-plane fa-fw"></i> Perjalanan Dinas<?php echo $badge_perjalanan; ?><span class="fa arrow"></span></a>
-                            <ul class="nav nav-second-level">
-                                <li>
-                                    <a href="perjalanan_dinas_list.php" class="<?php echo ($pagedesc == 'Daftar Perjalanan Dinas') ? 'active' : ''; ?>">
-                                        <i class="fa fa-list"></i> Daftar Perjalanan Dinas
-                                        <?php echo $badge_perjalanan; ?>
-                                    </a>
-                                </li>
-                            </ul>
+                        <a href="#"><i class="fa fa-plane fa-fw"></i> Perjalanan
+                            Dinas<?php echo $badge_perjalanan; ?><span class="fa arrow"></span></a>
+                        <ul class="nav nav-second-level">
+                            <li>
+                                <a href="perjalanan_dinas_list.php"
+                                    class="<?php echo ($pagedesc == 'Daftar Perjalanan Dinas') ? 'active' : ''; ?>">
+                                    <i class="fa fa-list"></i> Daftar Perjalanan Dinas
+                                    <?php echo $badge_perjalanan; ?>
+                                </a>
+                            </li>
+                        </ul>
                         </li>
+
+                        <!-- Menu Daftar Slip Gaji untuk ManagerHR -->
+                        <!-- Menu Approval Request Slip Gaji untuk HR/Admin -->
+                        <?php
+                        $badge_slip = ($count_pending_slip > 0) ? ' <span class="badge" style="background-color: #d9534f;">' . $count_pending_slip . '</span>' : '';
+                        if (isset($pagedesc) && $pagedesc == "Approval Request Slip Gaji") {
+                            echo '<li><a href="request_slip_gaji_approval_list.php" class="active"><i class="fa fa-download fa-fw"></i>&nbsp;Approval Slip Gaji' . $badge_slip . '</a></li>';
+                        } else {
+                            echo '<li><a href="request_slip_gaji_approval_list.php"><i class="fa fa-download fa-fw"></i>&nbsp;Approval Slip Gaji' . $badge_slip . '</a></li>';
+                        }
+                        ?>
 
                         <!-- Insentif menu -->
                         <?php
