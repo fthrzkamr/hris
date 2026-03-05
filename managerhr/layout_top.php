@@ -34,6 +34,15 @@ if($res_calon){
     $row_calon = mysqli_fetch_array($res_calon);
     $count_pending_calon = $row_calon['total'];
 }
+
+// Notifikasi Perjalanan Dinas Pending Approval
+$count_pending_perjalanan = 0;
+$sql_perjalanan = "SELECT COUNT(*) as total FROM perjalanan_pengajuan WHERE status IN ('DIAJUKAN', 'APPROVED_HR')";
+$res_perjalanan = mysqli_query($conn, $sql_perjalanan);
+if($res_perjalanan){
+    $row_perjalanan = mysqli_fetch_array($res_perjalanan);
+    $count_pending_perjalanan = $row_perjalanan['total'];
+}
 ?>
 
 <!DOCTYPE html>
@@ -239,12 +248,23 @@ if($res_calon){
 
                         <!-- Perjalanan Dinas Menu -->
                         <?php
-                        if (isset($pagedesc) && $pagedesc == "Daftar Perjalanan Dinas") {
-                            echo '<li><a href="perjalanan_dinas_list.php" class="active"><i class="fa fa-download fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+                        if (isset($menuparent) && $menuparent == "perjalanan_dinas") {
+                            echo '<li class="active">';
                         } else {
-                            echo '<li><a href="perjalanan_dinas_list.php"><i class="fa fa-download fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+                            echo '<li>';
                         }
+                        $badge_perjalanan = ($count_pending_perjalanan > 0) ? ' <span class="badge" style="background-color: #d9534f; margin-left: 5px;">' . $count_pending_perjalanan . '</span>' : '';
                         ?>
+                            <a href="#"><i class="fa fa-plane fa-fw"></i> Perjalanan Dinas<?php echo $badge_perjalanan; ?><span class="fa arrow"></span></a>
+                            <ul class="nav nav-second-level">
+                                <li>
+                                    <a href="perjalanan_dinas_list.php" class="<?php echo ($pagedesc == 'Daftar Perjalanan Dinas') ? 'active' : ''; ?>">
+                                        <i class="fa fa-list"></i> Daftar Perjalanan Dinas
+                                        <?php echo $badge_perjalanan; ?>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
 
                         <!-- Insentif menu -->
                         <?php

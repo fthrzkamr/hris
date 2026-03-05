@@ -192,12 +192,31 @@ $tahun = date("Y");
 
                         <!-- Perjalanan Dinas Menu -->
                         <?php
-                        if (isset($pagedesc) && $pagedesc == "Daftar Perjalanan Dinas") {
-                            echo '<li><a href="perjalanan_dinas_list.php" class="active"><i class="fa fa-download fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+                        // Hitung notifikasi perjalanan dinas yang menunggu approval direktur
+                        $sql_notif_perjalanan = "SELECT COUNT(*) as total FROM perjalanan_pengajuan 
+                                               WHERE status = 'APPROVED_HR' 
+                                               AND (approval_direktur IS NULL OR approval_direktur = '')";
+                        $res_notif_perjalanan = mysqli_query($conn, $sql_notif_perjalanan);
+                        $row_notif_perjalanan = mysqli_fetch_array($res_notif_perjalanan);
+                        $count_perjalanan_notif = $row_notif_perjalanan['total'];
+                        
+                        if (isset($menuparent) && $menuparent == "perjalanan_dinas") {
+                            echo '<li class="active">';
                         } else {
-                            echo '<li><a href="perjalanan_dinas_list.php"><i class="fa fa-download fa-fw"></i>&nbsp;Perjalanan Dinas</a></li>';
+                            echo '<li>';
                         }
+                        $badge_perjalanan = ($count_perjalanan_notif > 0) ? ' <span class="badge" style="background-color: #f0ad4e;">' . $count_perjalanan_notif . '</span>' : '';
                         ?>
+                            <a href="#"><i class="fa fa-plane fa-fw"></i> Perjalanan Dinas<?php echo $badge_perjalanan; ?><span class="fa arrow"></span></a>
+                            <ul class="nav nav-second-level">
+                                <li>
+                                    <a href="perjalanan_dinas_list.php" class="<?php echo ($pagedesc == 'Daftar Perjalanan Dinas') ? 'active' : ''; ?>">
+                                        <i class="fa fa-list fa-fw"></i> Approval Direktur
+                                        <?php echo $badge_perjalanan; ?>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
 
                         <!-- Menu Training -->
                         <?php

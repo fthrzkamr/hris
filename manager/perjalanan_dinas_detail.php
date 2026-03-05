@@ -5,27 +5,31 @@ $menuparent = 'perjalanan_dinas';
 include("layout_top.php");
 
 // DB connection
-include __DIR__ . '/dist/config/koneksi.php';
+include __DIR__ . '/../dist/config/koneksi.php';
+
+// Get NPP from session for security check
+$npp_user = isset($sess_mngid) ? $sess_mngid : '';
 
 // Get ID from URL
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
 if ($id <= 0) {
     echo '<div class="alert alert-danger">ID tidak valid.</div>';
-    include 'layout_bottom.php';
+    include("layout_bottom.php");
     exit;
 }
 
-// Fetch main record
-$stmt = mysqli_prepare($conn, "SELECT * FROM perjalanan_dinas WHERE id = ?");
-mysqli_stmt_bind_param($stmt, 'i', $id);
+// Fetch main record - with security check to ensure user can only view their own submissions
+$npp_esc = mysqli_real_escape_string($conn, $npp_user);
+$stmt = mysqli_prepare($conn, "SELECT * FROM perjalanan_dinas WHERE id = ? AND npp = ?");
+mysqli_stmt_bind_param($stmt, 'is', $id, $npp_esc);
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
 $data = mysqli_fetch_assoc($result);
 
 if (!$data) {
-    echo '<div class="alert alert-danger">Data tidak ditemukan.</div>';
-    include 'layout_bottom.php';
+    echo '<div class="alert alert-danger">Data tidak ditemukan atau Anda tidak memiliki akses untuk melihat data ini.</div>';
+    include("layout_bottom.php");
     exit;
 }
 
@@ -244,12 +248,15 @@ $submission = mysqli_fetch_assoc($result_status);
         <?php if ($submission): ?>
             <div class="status-info">
                 <strong>Status Pengajuan:</strong>
-                <?php 
+                <?php
                 $status = $submission['status'];
                 $status_class = 'status-belum';
-                if ($status == 'DIAJUKAN') $status_class = 'status-diajukan';
-                elseif ($status == 'DISETUJUI') $status_class = 'status-disetujui';
-                elseif ($status == 'DITOLAK') $status_class = 'status-ditolak';
+                if ($status == 'DIAJUKAN')
+                    $status_class = 'status-diajukan';
+                elseif ($status == 'DISETUJUI')
+                    $status_class = 'status-disetujui';
+                elseif ($status == 'DITOLAK')
+                    $status_class = 'status-ditolak';
                 ?>
                 <span class="status-badge <?php echo $status_class; ?>">
                     <?php echo htmlspecialchars($status); ?>
@@ -259,7 +266,11 @@ $submission = mysqli_fetch_assoc($result_status);
                     Diajukan oleh: <strong><?php echo htmlspecialchars($submission['pengaju']); ?></strong>
                     pada <?php echo date('d-m-Y H:i', strtotime($submission['tanggal_pengajuan'])); ?>
                     <?php if (!empty($submission['catatan'])): ?>
-                        <br>Catatan: <?php echo htmlspecialchars($submission['catatan']); ?>
+                        <br>Catatan: <?php echo nl2br(htmlspecialchars($submission['catatan'])); ?>
+                    <?php endif; ?>
+                    <?php if (!empty($submission['approver'])): ?>
+                        <br>Disetujui/Ditolak oleh: <strong><?php echo htmlspecialchars($submission['approver']); ?></strong>
+                        pada <?php echo date('d-m-Y H:i', strtotime($submission['tanggal_approval'])); ?>
                     <?php endif; ?>
                 </small>
             </div>
@@ -267,7 +278,7 @@ $submission = mysqli_fetch_assoc($result_status);
 
         <div class="header">
             <div class="logo">
-                <img src="../foto/logo-dua.webp" alt="Logo">
+                <img src="../foto/logo-dua.webp" alt="Logo" onerror="this.style.display='none'">
             </div>
             <div class="title">
                 FORM ANGGARAN<br>
@@ -282,46 +293,42 @@ $submission = mysqli_fetch_assoc($result_status);
 
         <table class="form">
             <tr>
-                <td style="width:160px">Nama</td>
-                <td style="width:10px">:</td>
-                <td><?php echo htmlspecialchars($data['nama']); ?></td>
-                <td style="width:160px">Departemen</td>
-                <td style="width:10px">:</td>
-                <td><?php echo htmlspecialchars($data['departemen']); ?></td>
+                <td style="width:20%">Nama</td>
+                <td style="width:30%">: <?php echo htmlspecialchars($data['nama']); ?></td>
+                <td style="width:20%">Departemen</td>
+                <td>: <?php echo htmlspecialchars($data['departemen']); ?></td>
             </tr>
             <tr>
                 <td>Tanggal Perjalanan</td>
-                <td>:</td>
-                <td><?php echo htmlspecialchars($data['tanggal_perjalanan']); ?></td>
+                <td>: <?php echo $data['tanggal_perjalanan'] ? htmlspecialchars($data['tanggal_perjalanan']) : '<em>Fleksibel</em>'; ?></td>
                 <td>Jumlah Hari</td>
-                <td>:</td>
-                <td><?php echo htmlspecialchars($data['jumlah_hari']); ?></td>
+                <td>: <?php echo htmlspecialchars($data['jumlah_hari']); ?> hari</td>
             </tr>
             <tr>
                 <td>Kota Asal</td>
-                <td>:</td>
-                <td><?php echo htmlspecialchars($data['kota_asal']); ?></td>
+                <td>: <?php echo htmlspecialchars($data['kota_asal']); ?></td>
                 <td>Kota Tujuan</td>
-                <td>:</td>
-                <td><?php echo htmlspecialchars($data['kota_tujuan']); ?></td>
+                <td>: <?php echo htmlspecialchars($data['kota_tujuan']); ?></td>
             </tr>
             <tr>
-                <td>Tujuan Perjalanan Bisnis</td>
-                <td>:</td>
-                <td colspan="4"><?php echo htmlspecialchars($data['tujuan']); ?></td>
+                <td>Tujuan</td>
+                <td colspan="3">: <?php echo nl2br(htmlspecialchars($data['tujuan'])); ?></td>
             </tr>
         </table>
 
         <table class="rincian-table">
             <thead>
-                <tr style="background:#f0f0f0;">
-                    <th style="width:40px">NO</th>
-                    <th>KETERANGAN</th>
-                    <th style="width:100px">Nominal</th>
-                    <th style="width:60px">Qty</th>
-                    <th style="width:100px">Perkiraan</th>
-                    <th style="width:100px">TOTAL</th>
-                    <th style="width:140px">KETERANGAN</th>
+                <tr>
+                    <th rowspan="2" style="width:8%;text-align:center">NO</th>
+                    <th rowspan="2" style="width:22%;text-align:center">KETERANGAN</th>
+                    <th colspan="4" style="text-align:center">ANGGARAN</th>
+                    <th rowspan="2" style="width:15%;text-align:center">KETERANGAN</th>
+                </tr>
+                <tr>
+                    <th style="width:12%;text-align:center">NOMINAL</th>
+                    <th style="width:8%;text-align:center">QTY</th>
+                    <th style="width:12%;text-align:center">PERKIRAAN</th>
+                    <th style="width:12%;text-align:center">TOTAL</th>
                 </tr>
             </thead>
             <tbody>
@@ -341,7 +348,9 @@ $submission = mysqli_fetch_assoc($result_status);
                                 ?>
                             </td>
                             <td style="text-align:center"><?php echo htmlspecialchars($item['qty']); ?></td>
-                            <td style="text-align:right"><?php echo number_format((float)$item['perkiraan'], 0, ',', '.'); ?></td>
+                            <td style="text-align:right">
+                                <?php echo number_format((float)$item['perkiraan'], 0, ',', '.'); ?>
+                            </td>
                             <td style="text-align:right">
                                 <?php
                                 // Calculate total from nominal (if set) or perkiraan
@@ -355,12 +364,15 @@ $submission = mysqli_fetch_assoc($result_status);
                     <?php endforeach; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="7" style="text-align:center;color:#999">Tidak ada rincian</td>
+                        <td colspan="7" style="text-align:center">Tidak ada rincian anggaran</td>
                     </tr>
                 <?php endif; ?>
                 <tr>
-                    <td colspan="5" style="text-align:right;font-weight:bold;">BUDGET TOTAL</td>
-                    <td colspan="2" style="font-weight:bold;text-align:right;"><?php echo number_format((float)$data['budget_total'], 0, ',', '.'); ?></td>
+                    <td colspan="5" style="text-align:right;font-weight:bold">BUDGET TOTAL:</td>
+                    <td style="text-align:right;font-weight:bold">
+                        <?php echo number_format((float)$data['budget_total'], 0, ',', '.'); ?>
+                    </td>
+                    <td></td>
                 </tr>
             </tbody>
         </table>
@@ -373,9 +385,10 @@ $submission = mysqli_fetch_assoc($result_status);
         <div style="margin-top:15px; font-size:12px">
             <strong>Note:</strong>
             <ol style="margin:5px 0 0 20px; padding:0">
-                <li>Lampirkan dokumen - dokumen yang di perlukan.</li>
-                <li>Biaya - biaya yang mungkin akan terjadi dapat di tambahkan.</li>
-                <li>Rencana anggaran "sementara" 3 hari kerja sebelum perjalanan.</li>
+                <li>Jika sudah selesai harap diserahkan maksimal H+3 hari dari keberangkatan untuk check poin sebelum
+                    pembayaran</li>
+                <li>Jika sudah selesai harap membawa struk dan nota yang ada</li>
+                <li>Jika diperlukan penambahan biaya tolong diinfokan dahulu ke Manager HRD dan Finance</li>
             </ol>
         </div>
 
@@ -391,14 +404,16 @@ $submission = mysqli_fetch_assoc($result_status);
                 <td class="signature" style="border:0; height:80px"></td>
             </tr>
             <tr>
-                <td style="text-align:center; border:0; font-size:11px">Nama : <?php echo htmlspecialchars($data['nama']); ?></td>
+                <td style="text-align:center; border:0; font-size:11px">Nama :
+                    <?php echo htmlspecialchars($data['nama']); ?></td>
                 <td style="text-align:center; border:0; font-size:11px">Nama : Auliya Nurul Haqim</td>
                 <td style="text-align:center; border:0; font-size:11px">Nama : A. Arief Ananto</td>
             </tr>
             <tr>
-                <td style="text-align:center; border:0; font-size:11px">Tanggal : <?php echo date('d-m-Y', strtotime($data['tanggal_dokumen'])); ?></td>
-                <td style="text-align:center; border:0; font-size:11px">Tanggal : </td>
-                <td style="text-align:center; border:0; font-size:11px">Tanggal : </td>
+                <td style="text-align:center; border:0; font-size:11px">Tanggal :
+                    <?php echo date('d-m-Y', strtotime($data['tanggal_dokumen'])); ?></td>
+                <td style="text-align:center; border:0; font-size:11px">Tanggal :</td>
+                <td style="text-align:center; border:0; font-size:11px">Tanggal :</td>
             </tr>
         </table>
 
@@ -408,11 +423,8 @@ $submission = mysqli_fetch_assoc($result_status);
             <div style="margin-top:6px; font-size:11px">Nama : Lucky Hafiansyah</div>
             <div style="font-size:11px">Tanggal : </div>
         </div>
-
-        <div class="info-bottom" style="margin-top:20px; text-align:center">
-            <p style="font-size:11px;color:#666">Detail perjalanan dinas yang tersimpan di sistem.</p>
-        </div>
     </div>
 </body>
 
 </html>
+<?php include("layout_bottom.php"); ?>

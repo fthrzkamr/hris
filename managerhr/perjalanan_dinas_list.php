@@ -1,13 +1,13 @@
 <?php
 include("sess_check.php");
 $pagedesc = 'Daftar Perjalanan Dinas';
-$menuparent = 'approval';
+$menuparent = 'perjalanan_dinas';
 include("layout_top.php");
 
 // DB connection
 include __DIR__ . '/dist/config/koneksi.php';
 
-// ensure pengajuan table exists
+// ensure pengajuan table exists with approval columns
 $createPengajuan = "CREATE TABLE IF NOT EXISTS perjalanan_pengajuan (
     id INT AUTO_INCREMENT PRIMARY KEY,
     id_perjalanan INT NOT NULL,
@@ -16,9 +16,37 @@ $createPengajuan = "CREATE TABLE IF NOT EXISTS perjalanan_pengajuan (
     tanggal_pengajuan DATETIME,
     status VARCHAR(50),
     catatan TEXT,
+    approval_hr VARCHAR(50),
+    approver_hr VARCHAR(100),
+    tanggal_approval_hr DATETIME,
+    catatan_hr TEXT,
+    approval_direktur VARCHAR(50),
+    approver_direktur VARCHAR(100),
+    tanggal_approval_direktur DATETIME,
+    catatan_direktur TEXT,
     FOREIGN KEY (id_perjalanan) REFERENCES perjalanan_dinas(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
 mysqli_query($conn, $createPengajuan);
+
+// Add approval columns if not exist - check first to avoid errors
+$checkColumns = mysqli_query($conn, "SHOW COLUMNS FROM perjalanan_pengajuan LIKE 'approval_hr'");
+if (mysqli_num_rows($checkColumns) == 0) {
+    // Columns don't exist, add them
+    $alterQueries = [
+        "ALTER TABLE perjalanan_pengajuan ADD COLUMN approval_hr VARCHAR(50)",
+        "ALTER TABLE perjalanan_pengajuan ADD COLUMN approver_hr VARCHAR(100)",
+        "ALTER TABLE perjalanan_pengajuan ADD COLUMN tanggal_approval_hr DATETIME",
+        "ALTER TABLE perjalanan_pengajuan ADD COLUMN catatan_hr TEXT",
+        "ALTER TABLE perjalanan_pengajuan ADD COLUMN approval_direktur VARCHAR(50)",
+        "ALTER TABLE perjalanan_pengajuan ADD COLUMN approver_direktur VARCHAR(100)",
+        "ALTER TABLE perjalanan_pengajuan ADD COLUMN tanggal_approval_direktur DATETIME",
+        "ALTER TABLE perjalanan_pengajuan ADD COLUMN catatan_direktur TEXT"
+    ];
+    
+    foreach ($alterQueries as $query) {
+        @mysqli_query($conn, $query); // Suppress errors if column already exists
+    }
+}
 
 $message = '';
 // Handle delete action (hapus perjalanan dinas)
@@ -53,10 +81,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-// Fetch list with latest status
-$sql = "SELECT p.id, p.no_dokumen, p.nama, p.departemen, p.tanggal_perjalanan, p.kota_tujuan, p.tanggal_dokumen,
-    (SELECT status FROM perjalanan_pengajuan WHERE id_perjalanan = p.id ORDER BY id DESC LIMIT 1) AS status
+// Fetch list with latest status and approval info
+$sql = "SELECT p.id, p.no_dokumen, p.nama, p.departemen, p.tanggal_perjalanan, p.kota_tujuan, p.tanggal_dokumen, p.budget_total,
+    pg.status,
+    pg.approval_hr,
+    pg.approval_direktur,
+    pg.tanggal_pengajuan
     FROM perjalanan_dinas p
+    LEFT JOIN perjalanan_pengajuan pg ON pg.id_perjalanan = p.id
     ORDER BY p.id DESC";
 $res = mysqli_query($conn, $sql);
 ?>
@@ -115,6 +147,35 @@ $res = mysqli_query($conn, $sql);
     }
 
     .status-ditolak {
+        background-color: #f2dede;
+        color: #a94442;
+    }
+
+    .status-approved-hr {
+        background-color: #d9edf7;
+        color: #31708f;
+    }
+
+    .approval-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 2px;
+        font-size: 10px;
+        font-weight: bold;
+        margin: 2px;
+    }
+
+    .approval-ok {
+        background-color: #dff0d8;
+        color: #3c763d;
+    }
+
+    .approval-pending {
+        background-color: #fcf8e3;
+        color: #8a6d3b;
+    }
+
+    .approval-reject {
         background-color: #f2dede;
         color: #a94442;
     }
@@ -206,7 +267,7 @@ $res = mysqli_query($conn, $sql);
     <div class="row">
         <div class="col-lg-12">
             <!-- Action Panel -->
-            <div class="panel panel-default">
+            <!-- <div class="panel panel-default">
                 <div class="panel-heading">
                     <i class="fa fa-cog"></i> Aksi
                 </div>
@@ -215,7 +276,7 @@ $res = mysqli_query($conn, $sql);
                         <i class="fa fa-plus"></i> Buat Perjalanan Dinas Baru
                     </a>
                 </div>
-            </div>
+            </div> -->
 
             <!-- Data Table Panel -->
             <div class="panel panel-primary">
@@ -231,10 +292,12 @@ $res = mysqli_query($conn, $sql);
                                     <th>No. Dokumen</th>
                                     <th>Nama</th>
                                     <th>Departemen</th>
-                                    <th>Tanggal Perjalanan</th>
                                     <th>Kota Tujuan</th>
-                                    <th>Tanggal Dokumen</th>
-                                    <th>Status Pengajuan</th>
+                                    <th>Budget</th>
+                                    <th>Tanggal Pengajuan</th>
+                                    <th>Status</th>
+                                    <th>Approval HR</th>
+                                    <th>Approval Direktur</th>
                                     <th>Aksi</th>
                                 </tr>
                             </thead>
@@ -245,47 +308,57 @@ $res = mysqli_query($conn, $sql);
                                     $status = $row['status'] ?? 'BELUM DIAJUKAN';
                                     $status_class = 'status-belum';
                                     if ($status == 'DIAJUKAN') $status_class = 'status-diajukan';
+                                    elseif ($status == 'APPROVED_HR') $status_class = 'status-approved-hr';
                                     elseif ($status == 'DISETUJUI') $status_class = 'status-disetujui';
                                     elseif ($status == 'DITOLAK') $status_class = 'status-ditolak';
+                                    
+                                    $approval_hr = $row['approval_hr'] ?? null;
+                                    $approval_direktur = $row['approval_direktur'] ?? null;
+                                    
+                                    // Can approve if status is DIAJUKAN or APPROVED_HR
+                                    $can_approve = in_array($status, ['DIAJUKAN', 'APPROVED_HR']);
                                 ?>
                                     <tr>
-                                        <td><?php echo $no++; ?></td>
-                                        <td><?php echo htmlspecialchars($row['no_dokumen']); ?></td>
+                                        <td class="text-center"><?php echo $no++; ?></td>
+                                        <td><strong><?php echo htmlspecialchars($row['no_dokumen']); ?></strong></td>
                                         <td><?php echo htmlspecialchars($row['nama']); ?></td>
                                         <td><?php echo htmlspecialchars($row['departemen']); ?></td>
-                                        <td><?php echo htmlspecialchars($row['tanggal_perjalanan']); ?></td>
                                         <td><?php echo htmlspecialchars($row['kota_tujuan']); ?></td>
-                                        <td><?php echo date('d-m-Y', strtotime($row['tanggal_dokumen'])); ?></td>
-                                        <td>
+                                        <td class="text-right">Rp <?php echo number_format((float)$row['budget_total'], 0, ',', '.'); ?></td>
+                                        <td><?php echo $row['tanggal_pengajuan'] ? date('d-m-Y H:i', strtotime($row['tanggal_pengajuan'])) : '-'; ?></td>
+                                        <td class="text-center">
                                             <span class="status-badge <?php echo $status_class; ?>">
                                                 <?php echo htmlspecialchars($status); ?>
                                             </span>
                                         </td>
-                                        <td class="btn-group-action">
-                                            <?php if (empty($row['status'])): ?>
-                                                <form method="post" class="form-ajukan" style="display:inline">
-                                                    <input type="hidden" name="perjalanan_id" value="<?php echo $row['id']; ?>">
-                                                    <input type="hidden" name="action" value="ajukan">
-                                                    <button type="button" class="btn btn-primary btn-sm btn-ajukan">
-                                                        <i class="fa fa-paper-plane"></i> Ajukan
-                                                    </button>
-                                                </form>
+                                        <td class="text-center">
+                                            <?php if ($approval_hr == 'APPROVED'): ?>
+                                                <span class="approval-badge approval-ok"><i class="fa fa-check"></i> Approved</span>
+                                            <?php elseif ($approval_hr == 'REJECTED'): ?>
+                                                <span class="approval-badge approval-reject"><i class="fa fa-times"></i> Rejected</span>
                                             <?php else: ?>
-                                                <button class="btn btn-default btn-sm" disabled>
-                                                    <i class="fa fa-check"></i> Sudah Diajukan
-                                                </button>
+                                                <span class="approval-badge approval-pending"><i class="fa fa-clock-o"></i> Pending</span>
                                             <?php endif; ?>
-
-                                            <!-- Delete form (submit via JS confirm) -->
-                                            <form method="post" class="form-delete" style="display:inline">
-                                                <input type="hidden" name="perjalanan_id" value="<?php echo $row['id']; ?>">
-                                                <input type="hidden" name="action" value="delete">
-                                                <button type="button" class="btn btn-danger btn-sm btn-delete">
-                                                    <i class="fa fa-trash"></i> Hapus
-                                                </button>
-                                            </form>
-
-                                            <a class="btn btn-info btn-sm" href="perjalanan_dinas_detail.php?id=<?php echo $row['id']; ?>">
+                                        </td>
+                                        <td class="text-center">
+                                            <?php if ($approval_direktur == 'APPROVED'): ?>
+                                                <span class="approval-badge approval-ok"><i class="fa fa-check"></i> Approved</span>
+                                            <?php elseif ($approval_direktur == 'REJECTED'): ?>
+                                                <span class="approval-badge approval-reject"><i class="fa fa-times"></i> Rejected</span>
+                                            <?php else: ?>
+                                                <span class="approval-badge approval-pending"><i class="fa fa-clock-o"></i> Pending</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="btn-group-action text-center">
+                                            <?php if ($can_approve): ?>
+                                                <a class="btn btn-success btn-sm" href="perjalanan_dinas_approve.php?id=<?php echo $row['id']; ?>" 
+                                                   title="Approve & Input Nominal">
+                                                    <i class="fa fa-check-square-o"></i> Approve
+                                                </a>
+                                            <?php endif; ?>
+                                            
+                                            <a class="btn btn-info btn-sm" href="perjalanan_dinas_detail.php?id=<?php echo $row['id']; ?>" 
+                                               title="Lihat Detail">
                                                 <i class="fa fa-eye"></i> Lihat
                                             </a>
                                         </td>
@@ -321,10 +394,10 @@ $res = mysqli_query($conn, $sql);
                     previous: "Sebelumnya"
                 }
             },
-            order: [[6, 'desc']], // Sort by Tanggal Dokumen column (descending)
+            order: [[6, 'desc']], // Sort by Tanggal Pengajuan column (descending)
             columnDefs: [
-                { orderable: false, targets: [0, 8] }, // Disable sorting on No and Aksi
-                { className: "text-center", targets: [0, 7, 8] } // Center align specific columns
+                { orderable: false, targets: [0, 10] }, // Disable sorting on No and Aksi
+                { className: "text-center", targets: [0, 7, 8, 9, 10] } // Center align specific columns
             ],
             dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>' +
                 '<"row"<"col-sm-12"tr>>' +

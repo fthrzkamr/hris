@@ -1,4 +1,5 @@
-	</div><!-- /#wrapper -->
+	        </div><!-- /#page-wrapper -->
+    </div><!-- /#wrapper -->
 	
 	<!-- footer-bottom -->
 	<div class="navbar navbar-inverse navbar-fixed-bottom footer-bottom">

@@ -1,7 +1,7 @@
 <?php
 include("sess_check.php");
 $pagedesc = 'Detail Perjalanan Dinas';
-$menuparent = 'approval';
+$menuparent = 'perjalanan_dinas';
 include("layout_top.php");
 
 // DB connection
@@ -330,10 +330,26 @@ $submission = mysqli_fetch_assoc($result_status);
                         <tr>
                             <td style="text-align:center"><?php echo htmlspecialchars($item['nomor']); ?></td>
                             <td><?php echo htmlspecialchars($item['ket']); ?></td>
-                            <td><?php echo htmlspecialchars($item['nominal']); ?></td>
+                            <td style="text-align:right">
+                                <?php 
+                                // Show nominal if set, otherwise show dash
+                                if (!empty($item['nominal']) && $item['nominal'] != '0') {
+                                    echo number_format((float)$item['nominal'], 0, ',', '.');
+                                } else {
+                                    echo '-';
+                                }
+                                ?>
+                            </td>
                             <td style="text-align:center"><?php echo htmlspecialchars($item['qty']); ?></td>
-                            <td><?php echo htmlspecialchars($item['perkiraan']); ?></td>
-                            <td><?php echo htmlspecialchars($item['total']); ?></td>
+                            <td style="text-align:right"><?php echo number_format((float)$item['perkiraan'], 0, ',', '.'); ?></td>
+                            <td style="text-align:right">
+                                <?php
+                                // Calculate total from nominal (if set) or perkiraan
+                                $nilai = !empty($item['nominal']) && $item['nominal'] != '0' ? 
+                                    (float)$item['nominal'] : (float)$item['perkiraan'];
+                                echo number_format($nilai * (float)$item['qty'], 0, ',', '.');
+                                ?>
+                            </td>
                             <td><?php echo htmlspecialchars($item['keterangan']); ?></td>
                         </tr>
                     <?php endforeach; ?>
@@ -344,7 +360,7 @@ $submission = mysqli_fetch_assoc($result_status);
                 <?php endif; ?>
                 <tr>
                     <td colspan="5" style="text-align:right;font-weight:bold;">BUDGET TOTAL</td>
-                    <td colspan="2" style="font-weight:bold;"><?php echo htmlspecialchars($data['budget_total']); ?></td>
+                    <td colspan="2" style="font-weight:bold;text-align:right;"><?php echo number_format((float)$data['budget_total'], 0, ',', '.'); ?></td>
                 </tr>
             </tbody>
         </table>
