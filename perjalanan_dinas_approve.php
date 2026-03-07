@@ -136,28 +136,53 @@ $res_p = mysqli_stmt_get_result($stmt_p);
 $pengajuan = mysqli_fetch_assoc($res_p);
 ?>
 <style>
-    .info-header { display:flex; align-items:center; gap:18px; margin-bottom:14px; background:#fff; padding:15px; border-radius:4px; }
+    /* Header: logo | title | meta */
+    .info-header {
+        display: grid;
+        grid-template-columns: 90px 1fr 260px;
+        gap: 18px;
+        align-items: center;
+        margin-bottom: 14px;
+        background: #fff;
+        padding: 15px;
+        border-radius: 4px;
+    }
     .logo { width:90px; height:60px; display:flex; align-items:center; justify-content:center; }
     .logo img { max-height:50px; width:auto; }
-    .doc-title { flex:1; font-weight:700; color:#2b7ae4; font-size:18px; }
+    .doc-title { font-weight:700; color:#2b7ae4; font-size:18px; }
     .doc-meta { text-align:right; font-size:13px; color:#666; }
-    .info-row { display:flex; gap:12px; margin-bottom:12px; }
-    .info-left { flex:1; }
-    .info-right { width:260px; }
-    .kv { font-weight:600; color:#333; width:150px; display:inline-block; }
+
+    /* Two-column info row: details + budget card */
+    .info-row { display: grid; grid-template-columns: 1fr 260px; gap: 12px; margin-bottom: 12px; align-items: start; }
+    .info-left { }
+    .info-right { }
+
+    /* Label/value grid for consistent alignment */
+    .kv-grid { display: grid; grid-template-columns: 150px 1fr 150px 1fr; gap:6px 24px; align-items:center; }
+    .kv-label { font-weight:600; color:#333; white-space:nowrap; }
+    .kv-value { color:#222; }
+    .kv-full { grid-column: 1 / -1; margin-top:8px; color:#555; font-size:13px; }
+
     .budget-card { background:linear-gradient(180deg,#fff,#fbfdff); padding:12px; border-radius:8px; border:1px solid #e3f2fd; text-align:center; }
     .budget-amount { font-size:20px; font-weight:700; color:#2b7ae4; }
     .nominal-field { width:100%; padding:6px 8px; text-align:right; border-radius:4px; border:1px solid #ddd; }
     .actions { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; align-items:center; }
     .note { margin-top:10px; color:#666; font-size:13px; }
     .select-action { width:260px; }
+
     @media (max-width:768px) {
-        .info-header { flex-direction:column; align-items:flex-start; gap:8px; }
-        .info-row { flex-direction:column; }
-        .info-right { width:100%; text-align:left; }
+        .info-header { grid-template-columns: 1fr; align-items: start; }
+        .doc-meta { text-align: left; }
+        .info-row { grid-template-columns: 1fr; }
+        .info-right { order: 2; }
         .actions { flex-direction:column; }
         .actions .btn, .select-action { width:100%; }
+        .kv-grid { grid-template-columns: 120px 1fr; gap:6px 12px; }
+        .kv-full { grid-column: 1 / -1; }
     }
+
+    /* Small table tweaks */
+    .rincian-table td, .rincian-table th { vertical-align: middle; }
 </style>
 
 <div id="page-wrapper">
@@ -183,26 +208,20 @@ $pengajuan = mysqli_fetch_assoc($res_p);
 
                     <div class="info-row">
                         <div class="info-left">
-                            <div style="margin-bottom:6px">
-                                <span class="kv">Nama</span>: <?php echo htmlspecialchars($data['nama']); ?> &nbsp;&nbsp;
-                                <span class="kv">Departemen</span>: <?php echo htmlspecialchars($data['departemen']); ?>
-                            </div>
-                            <div style="margin-bottom:6px">
-                                <span class="kv">Tanggal Perjalanan</span>: <?php echo htmlspecialchars($data['tanggal_perjalanan']); ?> &nbsp;&nbsp;
-                                <span class="kv">Jumlah Hari</span>: <?php echo (int) $data['jumlah_hari']; ?> hari
-                            </div>
-                            <div>
-                                <span class="kv">Kota Asal</span>: <?php echo htmlspecialchars($data['kota_asal']); ?> &nbsp;&nbsp;
-                                <span class="kv">Kota Tujuan</span>: <?php echo htmlspecialchars($data['kota_tujuan']); ?>
+                            <div class="kv-grid">
+                                <div class="kv-label">Nama</div><div class="kv-value">: <?php echo htmlspecialchars($data['nama']); ?></div>
+                                <div class="kv-label">Departemen</div><div class="kv-value">: <?php echo htmlspecialchars($data['departemen']); ?></div>
+                                <div class="kv-label">Tanggal Perjalanan</div><div class="kv-value">: <?php echo htmlspecialchars($data['tanggal_perjalanan']); ?></div>
+                                <div class="kv-label">Jumlah Hari</div><div class="kv-value">: <?php echo (int) $data['jumlah_hari']; ?> hari</div>
+                                <div class="kv-label">Kota Asal</div><div class="kv-value">: <?php echo htmlspecialchars($data['kota_asal']); ?></div>
+                                <div class="kv-label">Kota Tujuan</div><div class="kv-value">: <?php echo htmlspecialchars($data['kota_tujuan']); ?></div>
                             </div>
                             <?php if ($pengajuan): ?>
-                            <div style="margin-top:10px; font-size:13px; color:#555">
+                            <div class="kv-full">
                                 Terakhir diajukan oleh <strong><?php echo htmlspecialchars($pengajuan['pengaju']); ?></strong>
                                 pada <?php echo date('d-m-Y H:i', strtotime($pengajuan['tanggal_pengajuan'])); ?>
                                 <?php if (!empty($pengajuan['catatan_manager_hr'])): ?>
-                                <div style="margin-top:6px">
-                                    <em>Catatan sebelumnya: <?php echo htmlspecialchars($pengajuan['catatan_manager_hr']); ?></em>
-                                </div>
+                                <div style="margin-top:6px"><em>Catatan sebelumnya: <?php echo htmlspecialchars($pengajuan['catatan_manager_hr']); ?></em></div>
                                 <?php endif; ?>
                             </div>
                             <?php endif; ?>
