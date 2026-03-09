@@ -2,104 +2,15 @@
 include("sess_check.php");
 include('dist/config/koneksi.php');
 
-// Check if this is the new simple approval POST (from detail page)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['keputusan'])) {
-    // NEW SIMPLE APPROVAL FLOW (like permintaan_karyawan)
-    $id_perjalanan = isset($_POST['id_perjalanan']) ? intval($_POST['id_perjalanan']) : 0;
-    $pengajuan_id = isset($_POST['pengajuan_id']) ? intval($_POST['pengajuan_id']) : 0;
-    $keputusan = isset($_POST['keputusan']) ? $_POST['keputusan'] : '';
-    $catatan = isset($_POST['catatan']) ? trim($_POST['catatan']) : '';
+// Get ID early for POST processing
+$id = isset($_GET['id']) ? intval($_GET['id']) : (isset($_POST['id']) ? intval($_POST['id']) : 0);
 
-    // Validate input
-    if ($id_perjalanan <= 0 || $pengajuan_id <= 0 || empty($keputusan)) {
-        $_SESSION['pesan'] = 'Data tidak lengkap';
-        $_SESSION['type_pesan'] = 'danger';
-        header('Location: perjalanan_dinas_list.php');
-        exit;
-    }
-
-    // Validate keputusan
-    if (!in_array($keputusan, ['DISETUJUI', 'DITOLAK'])) {
-        $_SESSION['pesan'] = 'Keputusan tidak valid';
-        $_SESSION['type_pesan'] = 'danger';
-        header('Location: perjalanan_dinas_list.php');
-        exit;
-    }
-
-    // Get current user info
-    $approved_by = isset($sess_mngname) ? $sess_mngname : 'Manager HR';
-    $npp = isset($sess_mngid) ? $sess_mngid : '';
-
-    // Determine approval_manager_hr value
-    $approval_manager = ($keputusan === 'DISETUJUI') ? 'APPROVED' : 'REJECTED';
-
-    // Determine status - if approved, set to APPROVED_MANAGER_HR so it goes to Director
-    $new_status = ($keputusan === 'DISETUJUI') ? 'APPROVED_MANAGER_HR' : 'DITOLAK';
-
-    // Start transaction
-    mysqli_begin_transaction($conn);
-
-    try {
-        // Update perjalanan_pengajuan - set approval_manager_hr and status
-        $stmt = mysqli_prepare($conn, "UPDATE perjalanan_pengajuan 
-            SET approval_manager_hr = ?, 
-                approver_manager_hr = ?,
-                tanggal_approval_manager_hr = NOW(),
-                catatan_manager_hr = ?,
-                status = ?
-            WHERE id = ? AND id_perjalanan = ?");
-        mysqli_stmt_bind_param($stmt, 'ssssii', $approval_manager, $approved_by, $catatan, $new_status, $pengajuan_id, $id_perjalanan);
-        $update_result = mysqli_stmt_execute($stmt);
-        
-        if (!$update_result) {
-            throw new Exception('Gagal update approval: ' . mysqli_error($conn));
-        }
-
-        // Commit transaction
-        mysqli_commit($conn);
-
-        // Set success message
-        if ($keputusan === 'DISETUJUI') {
-            $_SESSION['pesan'] = 'Perjalanan dinas berhasil disetujui. Akan diteruskan ke Direktur.';
-            $_SESSION['type_pesan'] = 'success';
-        } else {
-            $_SESSION['pesan'] = 'Perjalanan dinas ditolak.';
-            $_SESSION['type_pesan'] = 'warning';
-        }
-
-    } catch (Exception $e) {
-        // Rollback on error
-        mysqli_rollback($conn);
-        $_SESSION['pesan'] = 'Terjadi kesalahan: ' . $e->getMessage();
-        $_SESSION['type_pesan'] = 'danger';
-    }
-
-    // Redirect back to list
-    header('Location: perjalanan_dinas_list.php');
-    exit;
-}
-
-// OLD COMPLEX APPROVAL FLOW (with nominal input) - kept for reference but not used
-$pagedesc = 'Review & Approve Perjalanan Dinas';
-$menuparent = 'perjalanan_dinas';
-include('layout_top.php');
-
-$allowed_roles = ['managerhr', 'admin']; // sesuaikan pemeriksaan role jika perlu
-
-$id = isset($_GET['id']) ? intval($_GET['id']) : 0;
-if ($id <= 0) {
-    echo "<div class='alert alert-danger'>ID perjalanan tidak valid.</div>";
-    include 'layout_bottom.php';
-
-    exit;
-}
-
-// Proses POST (handle approve / revisi / reject)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aksi'])) {
+// Proses POST (handle approve / revisi / reject) - BEFORE any output
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aksi']) && $id > 0) {
     $aksi = $_POST['aksi'];
     $catatan = trim($_POST['catatan'] ?? '');
-    $user_nama = $sess_admname ?? 'Manager HR';
-    $user_npp = $sess_admuser ?? null;
+    $user_nama = $sess_mngname ?? 'Manager HR';
+    $user_npp = $sess_mngid ?? null;
 
     // Ambil data pengajuan terakhir (opsional)
     $stmt_last = mysqli_prepare($conn, "SELECT id, status FROM perjalanan_pengajuan WHERE id_perjalanan = ? ORDER BY id DESC LIMIT 1");
@@ -108,8 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aksi'])) {
     $res_last = mysqli_stmt_get_result($stmt_last);
     $last = mysqli_fetch_assoc($res_last);
 
-    // Jika aksi revisi atau approve_with_changes, update rincian sesuai input nominal[]
-    if (in_array($aksi, ['revisi', 'approve_with_changes'])) {
+    // Jika approve_with_changes, update rincian sesuai input nominal[] dan catat perubahan
+    if ($aksi === 'approve_with_changes' || $aksi === 'approve') {
         $nominals = $_POST['nominal'] ?? [];
         foreach ($nominals as $rid => $val) {
             $rid = intval($rid);
@@ -129,9 +40,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aksi'])) {
             $old_total = $old['total'] ?? '0';
             $qty = (float) ($old['qty'] ?? 1);
 
-            // simpan log perubahan jika ada perubahan nominal
+            // simpan log perubahan jika ada perubahan nominal (untuk audit trail)
             if ($old_nominal !== $nominal_new) {
-                $note_log = "Revisi nominal oleh $user_nama. " . ($catatan ? "Catatan: $catatan" : "");
+                $note_log = "Perubahan nominal oleh Manager HR ($user_nama). Nominal lama: Rp " . number_format((float)$old_nominal, 0, ',', '.') . " → Nominal baru: Rp " . number_format((float)$nominal_new, 0, ',', '.') . ". " . ($catatan ? "Catatan: $catatan" : "");
                 $ins_log = mysqli_prepare($conn, "INSERT INTO perjalanan_rincian_log (rincian_id, perjalanan_id, old_nominal, old_total, old_keterangan, changed_by, note) VALUES (?,?,?,?,?,?,?)");
                 mysqli_stmt_bind_param($ins_log, 'iisssss', $rid, $id, $old_nominal, $old_total, $old['keterangan'], $user_nama, $note_log);
                 @mysqli_stmt_execute($ins_log);
@@ -156,17 +67,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aksi'])) {
         mysqli_stmt_execute($upd_budget);
     }
 
-    // Tentukan status dan approval_manager_hr
+    // Tentukan status dan approval_manager_hr (hanya Approve atau Reject)
     if ($aksi === 'approve' || $aksi === 'approve_with_changes') {
         $status = 'APPROVED_MANAGER_HR'; // diteruskan ke Direktur
         $approval_manager = 'APPROVED';
-    } elseif ($aksi === 'revisi') {
-        $status = 'APPROVED_MANAGER_HR'; // tetap diteruskan ke Direktur dengan log revisi
-        $approval_manager = 'REVISI';
     } elseif ($aksi === 'reject') {
         $status = 'DITOLAK';
         $approval_manager = 'REJECTED';
     } else {
+        // Default: reject jika aksi tidak dikenali
         $status = 'DITOLAK';
         $approval_manager = 'REJECTED';
     }
@@ -192,6 +101,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aksi'])) {
     }
 }
 
+// Now safe to include layout (after redirect handling)
+$pagedesc = 'Review & Approve Perjalanan Dinas';
+$menuparent = 'perjalanan_dinas';
+include('layout_top.php');
+
+$allowed_roles = ['managerhr', 'admin']; // sesuaikan pemeriksaan role jika perlu
+
+// Validate ID after layout
+if ($id <= 0) {
+    echo "<div class='alert alert-danger'>ID perjalanan tidak valid.</div>";
+    include 'layout_bottom.php';
+    exit;
+}
+
 // Ambil data perjalanan & rincian untuk ditampilkan
 $stmt = mysqli_prepare($conn, "SELECT * FROM perjalanan_dinas WHERE id = ?");
 mysqli_stmt_bind_param($stmt, 'i', $id);
@@ -200,6 +123,7 @@ $res = mysqli_stmt_get_result($stmt);
 $data = mysqli_fetch_assoc($res);
 if (!$data) {
     echo "<div class='alert alert-danger'>Data perjalanan tidak ditemukan.</div>";
+    include 'layout_bottom.php';
     exit;
 }
 
@@ -320,7 +244,6 @@ $pengajuan = mysqli_fetch_assoc($res_p);
                     </div>
 
                     <form method="post" id="frmApprove" autocomplete="off">
-                        <input type="hidden" name="aksi" id="aksi" value="approve_with_changes">
                         <input type="hidden" name="id" value="<?php echo (int) $id; ?>">
 
                         <div class="table-responsive">
@@ -360,21 +283,21 @@ $pengajuan = mysqli_fetch_assoc($res_p);
 
                         <div class="form-group" style="margin-top:12px">
                             <label>Catatan Manager HR (opsional)</label>
-                            <textarea name="catatan" class="form-control" rows="3"><?php echo htmlspecialchars($pengajuan['catatan_manager_hr'] ?? ''); ?></textarea>
+                            <textarea name="catatan" class="form-control" rows="3" placeholder="Tambahkan catatan jika ada perubahan nominal atau catatan lainnya..."><?php echo htmlspecialchars($pengajuan['catatan_manager_hr'] ?? ''); ?></textarea>
                         </div>
 
                         <div class="actions">
-                            <select id="tindakan_select" class="form-control select-action" title="Pilih tindakan yang diinginkan">
-                                <option value="approve_with_changes" selected>Setujui & Teruskan ke Direktur</option>
-                                <option value="revisi">Minta Revisi ke HR</option>
-                                <option value="reject">Tolak</option>
-                            </select>
-                            <button type="submit" id="btnSubmit" class="btn btn-primary"><i class="fa fa-paper-plane"></i> Kirim</button>
-                            <a href="perjalanan_dinas_list.php" class="btn btn-default">Batal / Kembali</a>
+                            <button type="submit" name="aksi" value="approve_with_changes" class="btn btn-success btn-lg">
+                                <i class="fa fa-check"></i> Approve & Teruskan ke Direktur
+                            </button>
+                            <button type="submit" name="aksi" value="reject" class="btn btn-danger btn-lg" onclick="return confirm('Yakin ingin menolak pengajuan ini?');">
+                                <i class="fa fa-times"></i> Reject
+                            </button>
+                            <a href="perjalanan_dinas_list.php" class="btn btn-default btn-lg">Batal / Kembali</a>
                         </div>
 
                         <div class="note">
-                            <strong>Catatan:</strong> Pilih tindakan yang diinginkan lalu klik "Kirim". Jika memilih "Minta Revisi", data akan dikembalikan ke HR untuk diperbaiki.
+                            <strong>Catatan:</strong> Anda dapat mengubah nominal langsung di tabel di atas. Perubahan akan tercatat dalam log sistem untuk audit. Klik "Approve" untuk menyetujui dan meneruskan ke Direktur, atau "Reject" untuk menolak pengajuan.
                         </div>
                     </form>
                 </div>
@@ -413,31 +336,6 @@ $pengajuan = mysqli_fetch_assoc($res_p);
             });
 
             recalcAll();
-
-            // Satu tombol submit - tampilkan dialog sesuai pilihan
-            $('#frmApprove').on('submit', function (e) {
-                e.preventDefault();
-                var tindakan = $('#tindakan_select').val();
-                var pesan = '';
-                var icon = 'question';
-                if (tindakan === 'approve_with_changes') { pesan = 'Setujui dan teruskan ke Direktur?'; icon = 'question'; }
-                else if (tindakan === 'revisi') { pesan = 'Kembalikan pengajuan untuk revisi ke HR?'; icon = 'warning'; }
-                else if (tindakan === 'reject') { pesan = 'Tolak pengajuan ini?'; icon = 'error'; }
-
-                Swal.fire({
-                    title: pesan,
-                    icon: icon,
-                    showCancelButton: true,
-                    confirmButtonText: 'Ya, kirim',
-                    cancelButtonText: 'Batal'
-                }).then(function (res) {
-                    if (res.isConfirmed) {
-                        $('#aksi').val(tindakan);
-                        // submit native
-                        $('#frmApprove')[0].submit();
-                    }
-                });
-            });
         });
 </script>
 <?php include('layout_bottom.php'); ?>

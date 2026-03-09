@@ -169,8 +169,8 @@ if (empty($departemen_user) || is_numeric($departemen_user)) {
                                                     placeholder="Contoh: HOTEL" required></td>
                                             <td><input type="number" name="qty[]" class="form-control input-sm" min="1"
                                                     value="1" required></td>
-                                            <td><input type="number" name="perkiraan[]" class="form-control input-sm"
-                                                    min="0" value="0" required></td>
+                                            <td><input type="text" name="perkiraan[]" class="form-control input-sm currency-input"
+                                                    value="0" placeholder="0" required></td>
                                             <td class="text-center"><button type="button"
                                                     class="btn btn-xs btn-danger remove-row"><i
                                                         class="fa fa-trash"></i></button></td>
@@ -313,7 +313,7 @@ if (empty($departemen_user) || is_numeric($departemen_user)) {
                 <td class="nomor text-center">${rowCount}</td>
                 <td><input type="text" name="ket[]" class="form-control input-sm" placeholder="Contoh: TRANSPORTASI" required></td>
                 <td><input type="number" name="qty[]" class="form-control input-sm" min="1" value="1" required></td>
-                <td><input type="number" name="perkiraan[]" class="form-control input-sm" min="0" value="0" required></td>
+                <td><input type="text" name="perkiraan[]" class="form-control input-sm currency-input" value="0" placeholder="0" required></td>
                 <td class="text-center"><button type="button" class="btn btn-xs btn-danger remove-row"><i class="fa fa-trash"></i></button></td>
             </tr>
         `;
@@ -339,6 +339,25 @@ if (empty($departemen_user) || is_numeric($departemen_user)) {
             });
         }
 
+        // Currency formatting functions
+        function formatCurrency(num) {
+            num = num.toString().replace(/\D/g, '');
+            return num.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+
+        $(document).on('keyup', '.currency-input', function () {
+            var val = $(this).val();
+            var formatted = formatCurrency(val);
+            $(this).val(formatted);
+        });
+
+        $('.currency-input').each(function() {
+            var val = $(this).val();
+            if (val && val !== '0') {
+                $(this).val(formatCurrency(val));
+            }
+        });
+
         // Form validation and confirmation
         $('#perjalananForm').on('submit', function (e) {
             var rowCount = $('#rincianTable tbody tr').length;
@@ -352,7 +371,7 @@ if (empty($departemen_user) || is_numeric($departemen_user)) {
             var total = 0;
             $('#rincianTable tbody tr').each(function () {
                 var qty = parseInt($(this).find('input[name="qty[]"]').val()) || 0;
-                var harga = parseInt($(this).find('input[name="perkiraan[]"]').val()) || 0;
+                var harga = parseInt($(this).find('input[name="perkiraan[]"]').val().replace(/\./g, '')) || 0;
                 total += (qty * harga);
             });
 

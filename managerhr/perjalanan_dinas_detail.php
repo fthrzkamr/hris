@@ -432,34 +432,18 @@ $can_approve = ($submission && $submission['status'] === 'DIAJUKAN');
         </div>
 
         <?php if ($can_approve): ?>
-        <!-- Approval Form for Manager HR -->
+        <!-- Link to Approval Page for Manager HR -->
         <div class="action-buttons no-print">
-            <h4><strong>Approval Manager HR</strong></h4>
-            <form method="POST" action="perjalanan_dinas_approve.php" class="approval-form">
-                <input type="hidden" name="id_perjalanan" value="<?php echo $id; ?>">
-                <input type="hidden" name="pengajuan_id" value="<?php echo $submission['id']; ?>">
-                
-                <div class="form-group">
-                    <label>Keputusan:</label>
-                    <select name="keputusan" class="form-control" required style="max-width: 300px;">
-                        <option value="">-- Pilih Keputusan --</option>
-                        <option value="DISETUJUI">Setujui</option>
-                        <option value="DITOLAK">Tolak</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label>Catatan (Opsional):</label>
-                    <textarea name="catatan" class="form-control" rows="3" placeholder="Masukkan catatan jika perlu..."></textarea>
-                </div>
-                
-                <button type="submit" class="btn btn-primary">
-                    <i class="fa fa-check"></i> Kirim Keputusan
-                </button>
-                <a href="perjalanan_dinas_list.php" class="btn btn-default">
-                    <i class="fa fa-times"></i> Batal
+            <div class="alert alert-info" style="margin: 20px 0;">
+                <h4><strong>Approval Manager HR</strong></h4>
+                <p><i class="fa fa-info-circle"></i> Perjalanan dinas ini menunggu approval dari Manager HR.</p>
+                <a href="perjalanan_dinas_approve.php?id=<?php echo $id; ?>" class="btn btn-primary btn-lg" style="margin-top:10px">
+                    <i class="fa fa-check-square-o"></i> Review & Approve
                 </a>
-            </form>
+                <a href="perjalanan_dinas_list.php" class="btn btn-default btn-lg" style="margin-top:10px">
+                    <i class="fa fa-arrow-left"></i> Kembali ke List
+                </a>
+            </div>
         </div>
         <?php else: ?>
         <div class="alert alert-info no-print" style="margin: 20px 0;">

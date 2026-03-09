@@ -171,6 +171,8 @@ else {
             $status = $result['status'] ?: 'Pending';
             if($status == 'Approved'){
                 echo '<span class="label label-success">Disetujui</span>';
+            }elseif($status == 'Completed'){
+                echo '<span class="label label-primary">Completed</span>';
             }elseif($status == 'Rejected'){
                 echo '<span class="label label-danger">Ditolak</span>';
             }else{

@@ -24,6 +24,17 @@
         <div class="row">
             <div class="col-lg-12">
                 <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <div class="pull-right">
+                            <a href="training_batch_add.php" class="btn btn-success btn-sm">
+                                <i class="fa fa-plus-circle"></i> Tambah Training Batch
+                            </a>
+                        </div>
+                        <div style="padding-top:5px;">
+                            <i class="fa fa-graduation-cap"></i> Daftar Training
+                        </div>
+                        <div class="clearfix"></div>
+                    </div>
                     <div class="panel-body">
                     <?php
                         $Sql = "SELECT pt.*, e.nama_emp, e.npp, b.nama_bagian 
@@ -56,6 +67,7 @@
                                         $status = $data['status'] ?: 'Pending';
                                         $badge = 'default';
                                         if($status == 'Approved') $badge = 'success';
+                                        elseif($status == 'Completed') $badge = 'primary';
                                         elseif($status == 'Rejected') $badge = 'danger';
                                         elseif($status == 'Pending') $badge = 'warning';
                                         

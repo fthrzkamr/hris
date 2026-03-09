@@ -58,7 +58,7 @@ if (mysqli_num_rows($checkColumns) == 0) {
 
 $message = '';
 
-// Fetch list with latest status and approval info - filter for items pending director approval
+// Fetch list with latest status and approval info - show all including approved (as history)
 $sql = "SELECT p.id, p.no_dokumen, p.nama, p.departemen, p.tanggal_perjalanan, p.kota_tujuan, p.tanggal_dokumen, p.budget_total,
     pg.status,
     pg.approval_manager_hr,
@@ -72,8 +72,14 @@ $sql = "SELECT p.id, p.no_dokumen, p.nama, p.departemen, p.tanggal_perjalanan, p
             SELECT id_perjalanan, MAX(id) AS mid FROM perjalanan_pengajuan GROUP BY id_perjalanan
         ) m ON p2.id_perjalanan = m.id_perjalanan AND p2.id = m.mid
     ) pg ON pg.id_perjalanan = p.id
-    WHERE pg.status IN ('APPROVED_MANAGER_HR', 'DISETUJUI', 'DITOLAK')
-    ORDER BY p.id DESC";
+    ORDER BY 
+        CASE 
+            WHEN pg.status = 'APPROVED_MANAGER_HR' THEN 1
+            WHEN pg.status = 'DIAJUKAN' THEN 2
+            WHEN pg.status = 'DITOLAK' THEN 3
+            ELSE 4
+        END,
+        pg.tanggal_pengajuan DESC";
 $res = mysqli_query($conn, $sql);
 ?>
 <style>

@@ -2,122 +2,89 @@
 include("sess_check.php");
 include('dist/config/koneksi.php');
 
-// Redirect to detail - Approvals are now handled in managerhr folder
-// This file is kept for backward compatibility only
-$id = isset($_GET['id']) ? intval($_GET['id']) : 0;
-if ($id > 0) {
-    header("Location: perjalanan_dinas_detail.php?id=" . $id . "&msg=" . urlencode("Gunakan halaman detail untuk melihat dokumen"));
-    exit;
-} else {
-    header("Location: perjalanan_dinas_list.php?msg=" . urlencode("Approval dilakukan oleh Manager HR"));
+// Get ID early for POST processing
+$id = isset($_GET['id']) ? intval($_GET['id']) : (isset($_POST['id']) ? intval($_POST['id']) : 0);
+
+// Proses POST (HR mengisi nominal dan ajukan ke Manager HR) - BEFORE any output
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aksi']) && $id > 0) {
+    $nominals = $_POST['nominal'] ?? [];
+    $user_nama = $sess_admname ?? 'HR Admin';
+    $user_npp = $sess_admid ?? $_SESSION['admin'] ?? null;
+
+    // Update nominal di tabel perjalanan_rincian
+    foreach ($nominals as $rid => $val) {
+        $rid = intval($rid);
+        $val_clean = preg_replace('/[^0-9]/', '', $val);
+        $nominal_new = $val_clean === '' ? '0' : $val_clean;
+
+        // Ambil data rincian lama
+        $stmt_r = mysqli_prepare($conn, "SELECT qty FROM perjalanan_rincian WHERE id = ?");
+        mysqli_stmt_bind_param($stmt_r, 'i', $rid);
+        mysqli_stmt_execute($stmt_r);
+        $res_r = mysqli_stmt_get_result($stmt_r);
+        $old = mysqli_fetch_assoc($res_r);
+        if (!$old) continue;
+
+        $qty = (float) ($old['qty'] ?? 1);
+        $total_new = (string) ((float) $nominal_new * $qty);
+
+        // Update rincian
+        $upd = mysqli_prepare($conn, "UPDATE perjalanan_rincian SET nominal = ?, total = ? WHERE id = ?");
+        mysqli_stmt_bind_param($upd, 'ssi', $nominal_new, $total_new, $rid);
+        mysqli_stmt_execute($upd);
+    }
+
+    // Recalculate budget_total
+    $stmt_sum = mysqli_prepare($conn, "SELECT SUM(CAST(REPLACE(total,',','') AS DECIMAL(20,2))) AS s FROM perjalanan_rincian WHERE perjalanan_id = ?");
+    mysqli_stmt_bind_param($stmt_sum, 'i', $id);
+    mysqli_stmt_execute($stmt_sum);
+    $res_sum = mysqli_stmt_get_result($stmt_sum);
+    $sum = mysqli_fetch_assoc($res_sum);
+    $budget_total = (float) ($sum['s'] ?? 0);
+    
+    $upd_budget = mysqli_prepare($conn, "UPDATE perjalanan_dinas SET budget_total = ? WHERE id = ?");
+    mysqli_stmt_bind_param($upd_budget, 'di', $budget_total, $id);
+    mysqli_stmt_execute($upd_budget);
+
+    // Check if pengajuan exists
+    $stmt_check = mysqli_prepare($conn, "SELECT id FROM perjalanan_pengajuan WHERE id_perjalanan = ? ORDER BY id DESC LIMIT 1");
+    mysqli_stmt_bind_param($stmt_check, 'i', $id);
+    mysqli_stmt_execute($stmt_check);
+    $res_check = mysqli_stmt_get_result($stmt_check);
+    $existing = mysqli_fetch_assoc($res_check);
+
+    if ($existing) {
+        // UPDATE existing record
+        $pengajuan_id = $existing['id'];
+        $stmt_upd = mysqli_prepare($conn, "UPDATE perjalanan_pengajuan 
+            SET npp = ?, pengaju = ?, tanggal_pengajuan = NOW(), status = ?
+            WHERE id = ?");
+        $status = 'DIAJUKAN';
+        mysqli_stmt_bind_param($stmt_upd, 'sssi', $user_npp, $user_nama, $status, $pengajuan_id);
+        mysqli_stmt_execute($stmt_upd);
+    } else {
+        // INSERT new record
+        $stmt_ins = mysqli_prepare($conn, "INSERT INTO perjalanan_pengajuan 
+            (id_perjalanan, npp, pengaju, tanggal_pengajuan, status) 
+            VALUES (?, ?, ?, NOW(), 'DIAJUKAN')");
+        mysqli_stmt_bind_param($stmt_ins, 'iss', $id, $user_npp, $user_nama);
+        mysqli_stmt_execute($stmt_ins);
+    }
+
+    header("Location: perjalanan_dinas_list.php?msg=" . urlencode("Berhasil diajukan ke Manager HR"));
     exit;
 }
-?>
 
-$id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+// Now safe to include layout (after redirect handling)
+$pagedesc = 'Pengisian Nominal - Pengajuan Perjalanan Dinas';
+$menuparent = 'perjalanan_dinas';
+include("layout_top.php");
+
+// Validate ID after layout
 if ($id <= 0) {
     echo "<div class='alert alert-danger'>ID perjalanan tidak valid.</div>";
     include 'layout_bottom.php';
-
     exit;
-}
-
-// Proses POST (handle approve / revisi / reject)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aksi'])) {
-    $aksi = $_POST['aksi'];
-    $catatan = trim($_POST['catatan'] ?? '');
-    $user_nama = $sess_admname ?? 'Manager HR';
-    $user_npp = $sess_admuser ?? null;
-
-    // Ambil data pengajuan terakhir (opsional)
-    $stmt_last = mysqli_prepare($conn, "SELECT id, status FROM perjalanan_pengajuan WHERE id_perjalanan = ? ORDER BY id DESC LIMIT 1");
-    mysqli_stmt_bind_param($stmt_last, 'i', $id);
-    mysqli_stmt_execute($stmt_last);
-    $res_last = mysqli_stmt_get_result($stmt_last);
-    $last = mysqli_fetch_assoc($res_last);
-
-    // Jika aksi revisi atau approve_with_changes, update rincian sesuai input nominal[]
-    if (in_array($aksi, ['revisi', 'approve_with_changes'])) {
-        $nominals = $_POST['nominal'] ?? [];
-        foreach ($nominals as $rid => $val) {
-            $rid = intval($rid);
-            $val_clean = preg_replace('/[^0-9]/', '', $val);
-            $nominal_new = $val_clean === '' ? '0' : $val_clean;
-
-            // ambil rincian lama
-            $stmt_r = mysqli_prepare($conn, "SELECT nominal, qty, total, keterangan FROM perjalanan_rincian WHERE id = ?");
-            mysqli_stmt_bind_param($stmt_r, 'i', $rid);
-            mysqli_stmt_execute($stmt_r);
-            $res_r = mysqli_stmt_get_result($stmt_r);
-            $old = mysqli_fetch_assoc($res_r);
-            if (!$old)
-                continue;
-
-            $old_nominal = $old['nominal'] ?? '0';
-            $old_total = $old['total'] ?? '0';
-            $qty = (float) ($old['qty'] ?? 1);
-
-            // simpan log perubahan jika ada perubahan nominal
-            if ($old_nominal !== $nominal_new) {
-                $note_log = "Revisi nominal oleh $user_nama. " . ($catatan ? "Catatan: $catatan" : "");
-                $ins_log = mysqli_prepare($conn, "INSERT INTO perjalanan_rincian_log (rincian_id, perjalanan_id, old_nominal, old_total, old_keterangan, changed_by, note) VALUES (?,?,?,?,?,?,?)");
-                mysqli_stmt_bind_param($ins_log, 'iisssss', $rid, $id, $old_nominal, $old_total, $old['keterangan'], $user_nama, $note_log);
-                @mysqli_stmt_execute($ins_log);
-            }
-
-            // hitung total baru dan update rincian
-            $total_new = (string) ((float) $nominal_new * $qty);
-            $upd = mysqli_prepare($conn, "UPDATE perjalanan_rincian SET nominal = ?, total = ?, last_revised_by = ?, last_revised_at = NOW(), revision_count = revision_count + 1 WHERE id = ?");
-            mysqli_stmt_bind_param($upd, 'sssi', $nominal_new, $total_new, $user_nama, $rid);
-            mysqli_stmt_execute($upd);
-        }
-
-        // recalc budget_total di tabel perjalanan_dinas
-        $stmt_sum = mysqli_prepare($conn, "SELECT SUM(CAST(REPLACE(total,',','') AS DECIMAL(20,2))) AS s FROM perjalanan_rincian WHERE perjalanan_id = ?");
-        mysqli_stmt_bind_param($stmt_sum, 'i', $id);
-        mysqli_stmt_execute($stmt_sum);
-        $res_sum = mysqli_stmt_get_result($stmt_sum);
-        $sum = mysqli_fetch_assoc($res_sum);
-        $budget_total = (float) ($sum['s'] ?? 0);
-        $upd_budget = mysqli_prepare($conn, "UPDATE perjalanan_dinas SET budget_total = ? WHERE id = ?");
-        mysqli_stmt_bind_param($upd_budget, 'di', $budget_total, $id);
-        mysqli_stmt_execute($upd_budget);
-    }
-
-    // Tentukan status dan approval_manager_hr
-    if ($aksi === 'approve' || $aksi === 'approve_with_changes') {
-        $status = 'APPROVED_MANAGER_HR'; // diteruskan ke Direktur
-        $approval_manager = 'APPROVED';
-    } elseif ($aksi === 'revisi') {
-        $status = 'APPROVED_MANAGER_HR'; // diteruskan ke Direktur dengan log REVISI
-        $approval_manager = 'REVISI';
-    } elseif ($aksi === 'reject') {
-        $status = 'DITOLAK';
-        $approval_manager = 'REJECTED';
-    } else {
-        $status = 'DITOLAK';
-        $approval_manager = 'REJECTED';
-    }
-
-    // UPDATE record pengajuan yang sudah ada (jangan insert baru)
-    if (!$last || empty($last['id'])) {
-        header("Location: perjalanan_dinas_list.php?err=" . urlencode("Data pengajuan tidak ditemukan."));
-        exit;
-    }
-
-    $pengajuan_id = (int)$last['id'];
-    $upd = mysqli_prepare($conn, "UPDATE perjalanan_pengajuan SET approval_manager_hr = ?, approver_manager_hr = ?, tanggal_approval_manager_hr = NOW(), catatan_manager_hr = ?, status = ? WHERE id = ?");
-    mysqli_stmt_bind_param($upd, 'ssssi', $approval_manager, $user_nama, $catatan, $status, $pengajuan_id);
-    $ok = mysqli_stmt_execute($upd);
-
-    if ($ok) {
-        header("Location: perjalanan_dinas_list.php?msg=" . urlencode("Proses approval berhasil: $status"));
-        exit;
-    } else {
-        $err = mysqli_error($conn);
-        header("Location: perjalanan_dinas_list.php?err=" . urlencode("Gagal menyimpan approval: $err"));
-        exit;
-    }
 }
 
 // Ambil data perjalanan & rincian untuk ditampilkan
@@ -206,7 +173,7 @@ $pengajuan = mysqli_fetch_assoc($res_p);
     <div class="row">
         <div class="col-lg-12">
             <div class="panel panel-primary">
-                <div class="panel-heading">Review & Approve Anggaran</div>
+                <div class="panel-heading">Pengisian Nominal Anggaran</div>
                 <div class="panel-body">
                     <div class="info-header">
                         <div class="logo"><img src="foto/logo-dua.webp" alt="logo"></div>
@@ -227,28 +194,19 @@ $pengajuan = mysqli_fetch_assoc($res_p);
                                 <div class="kv-label">Kota Asal</div><div class="kv-value">: <?php echo htmlspecialchars($data['kota_asal']); ?></div>
                                 <div class="kv-label">Kota Tujuan</div><div class="kv-value">: <?php echo htmlspecialchars($data['kota_tujuan']); ?></div>
                             </div>
-                            <?php if ($pengajuan): ?>
-                            <div class="kv-full">
-                                Terakhir diajukan oleh <strong><?php echo htmlspecialchars($pengajuan['pengaju']); ?></strong>
-                                pada <?php echo date('d-m-Y H:i', strtotime($pengajuan['tanggal_pengajuan'])); ?>
-                                <?php if (!empty($pengajuan['catatan_manager_hr'])): ?>
-                                <div style="margin-top:6px"><em>Catatan sebelumnya: <?php echo htmlspecialchars($pengajuan['catatan_manager_hr']); ?></em></div>
-                                <?php endif; ?>
-                            </div>
-                            <?php endif; ?>
                         </div>
 
                         <div class="info-right">
                             <div class="budget-card">
-                                <div style="font-size:13px;color:#666">Budget Saat Ini</div>
+                                <div style="font-size:13px;color:#666">Budget Total</div>
                                 <div id="budgetDisplay" class="budget-amount">Rp <?php echo number_format((float) $data['budget_total'], 0, ',', '.'); ?></div>
-                                <div style="font-size:12px;color:#777;margin-top:6px">Total dihitung otomatis saat nominal diubah</div>
+                                <div style="font-size:12px;color:#777;margin-top:6px">Akan dihitung otomatis saat nominal diisi</div>
                             </div>
                         </div>
                     </div>
 
-                    <form method="post" id="frmApprove" autocomplete="off" action="submit_approve_hr.php">
-                        <input type="hidden" name="aksi" id="aksi" value="approve_with_changes">
+                    <form method="post" id="frmApprove" autocomplete="off">
+                        <input type="hidden" name="aksi" value="ajukan">
                         <input type="hidden" name="id" value="<?php echo (int) $id; ?>">
 
                         <div class="table-responsive">
@@ -257,7 +215,7 @@ $pengajuan = mysqli_fetch_assoc($res_p);
                                     <tr>
                                         <th style="width:6%; text-align:center">No</th>
                                         <th>Keterangan</th>
-                                        <th style="width:18%; text-align:right">Nominal (input)</th>
+                                        <th style="width:18%; text-align:right">Nominal (Rp)</th>
                                         <th style="width:8%; text-align:center">Qty</th>
                                         <th style="width:18%; text-align:right">Perkiraan</th>
                                         <th style="width:18%; text-align:right">Total</th>
@@ -275,7 +233,7 @@ $pengajuan = mysqli_fetch_assoc($res_p);
                                         <td style="text-align:right">
                                             <input type="text" name="nominal[<?php echo (int) $it['id']; ?>]"
                                                 value="<?php echo $nominal ? number_format($nominal, 0, ',', '.') : ''; ?>"
-                                                class="nominal-field" data-qty="<?php echo $qty; ?>">
+                                                class="nominal-field" data-qty="<?php echo $qty; ?>" placeholder="Masukkan nominal">
                                         </td>
                                         <td class="text-center"><?php echo $qty; ?></td>
                                         <td style="text-align:right">Rp <?php echo number_format((float) $it['perkiraan'], 0, ',', '.'); ?></td>
@@ -286,23 +244,17 @@ $pengajuan = mysqli_fetch_assoc($res_p);
                             </table>
                         </div>
 
-                        <div class="form-group" style="margin-top:12px">
-                            <label>Catatan Manager HR (opsional)</label>
-                            <textarea name="catatan" class="form-control" rows="3"><?php echo htmlspecialchars($pengajuan['catatan_manager_hr'] ?? ''); ?></textarea>
-                        </div>
-
                         <div class="actions">
-                            <select id="tindakan_select" class="form-control select-action" title="Pilih tindakan yang diinginkan">
-                                <option value="approve_with_changes" selected>Setujui & Teruskan ke Direktur</option>
-                                <option value="revisi">Minta Revisi ke HR</option>
-                                <option value="reject">Tolak</option>
-                            </select>
-                            <button type="submit" id="btnSubmit" class="btn btn-primary"><i class="fa fa-paper-plane"></i> Kirim</button>
-                            <a href="perjalanan_dinas_list.php" class="btn btn-default">Batal / Kembali</a>
+                            <button type="submit" id="btnSubmit" class="btn btn-primary btn-lg">
+                                <i class="fa fa-paper-plane"></i> Ajukan ke Manager HR
+                            </button>
+                            <a href="perjalanan_dinas_list.php" class="btn btn-default btn-lg">
+                                <i class="fa fa-arrow-left"></i> Kembali
+                            </a>
                         </div>
 
                         <div class="note">
-                            <strong>Catatan:</strong> Pilih tindakan yang diinginkan lalu klik "Kirim". Jika memilih "Minta Revisi", data akan dikembalikan ke HR untuk diperbaiki.
+                            <strong>Instruksi:</strong> Isi nominal untuk setiap item rincian, lalu klik "Ajukan ke Manager HR" untuk mengirim ke proses approval.
                         </div>
                     </form>
                 </div>
@@ -342,26 +294,19 @@ $pengajuan = mysqli_fetch_assoc($res_p);
 
             recalcAll();
 
-            // Satu tombol submit - tampilkan dialog sesuai pilihan
             $('#frmApprove').on('submit', function (e) {
                 e.preventDefault();
-                var tindakan = $('#tindakan_select').val();
-                var pesan = '';
-                var icon = 'question';
-                if (tindakan === 'approve_with_changes') { pesan = 'Setujui dan teruskan ke Direktur?'; icon = 'question'; }
-                else if (tindakan === 'revisi') { pesan = 'Kembalikan pengajuan untuk revisi ke HR?'; icon = 'warning'; }
-                else if (tindakan === 'reject') { pesan = 'Tolak pengajuan ini?'; icon = 'error'; }
-
+                
                 Swal.fire({
-                    title: pesan,
-                    icon: icon,
+                    title: 'Ajukan ke Manager HR?',
+                    text: 'Data nominal akan dikirim untuk proses approval Manager HR',
+                    icon: 'question',
                     showCancelButton: true,
-                    confirmButtonText: 'Ya, kirim',
-                    cancelButtonText: 'Batal'
+                    confirmButtonText: 'Ya, ajukan',
+                    cancelButtonText: 'Batal',
+                    confirmButtonColor: '#3085d6'
                 }).then(function (res) {
                     if (res.isConfirmed) {
-                        $('#aksi').val(tindakan);
-                        // submit native
                         $('#frmApprove')[0].submit();
                     }
                 });

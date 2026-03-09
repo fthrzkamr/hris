@@ -73,6 +73,7 @@ if (!$submission) {
 }
 
 $status = $submission['status'];
+$approval_hr = $submission['approval_hr'] ?? null;
 $approval_manager_hr = $submission['approval_manager_hr'] ?? null;
 $approval_direktur = $submission['approval_direktur'] ?? null;
 

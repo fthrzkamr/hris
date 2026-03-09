@@ -367,6 +367,7 @@ $res = mysqli_query($conn, $sql);
                                     elseif ($status == 'APPROVED_MANAGER_HR') $status_class = 'status-approved-hr';
                                     elseif ($status == 'DISETUJUI') $status_class = 'status-disetujui';
                                     elseif ($status == 'DITOLAK') $status_class = 'status-ditolak';
+                                    elseif ($status == 'REVISI') $status_class = 'status-revisi';
                                     
                                     $approval_manager_hr = $row['approval_manager_hr'] ?? null;
                                     $approval_direktur = $row['approval_direktur'] ?? null;
@@ -409,15 +410,13 @@ $res = mysqli_query($conn, $sql);
                                         </td>
                                         <td class="btn-group-action text-center">
                                             <?php 
-                                            // Tampilkan tombol Ajukan untuk HR ketika belum diajukan atau terakhir ditolak
-                                            if (in_array($status, ['BELUM DIAJUKAN','DITOLAK'])): ?>
-                                                <form method="post" style="display:inline">
-                                                    <input type="hidden" name="perjalanan_id" value="<?php echo (int)$row['id']; ?>">
-                                                    <input type="hidden" name="action" value="ajukan">
-                                                    <button type="submit" class="btn btn-primary btn-sm btn-ajukan" title="Ajukan ke Manager HR">
-                                                        <i class="fa fa-send"></i> Ajukan
-                                                    </button>
-                                                </form>
+                                            // Tampilkan tombol Ajukan hanya untuk status yang belum diajukan
+                                            if (in_array($status, ['BELUM DIAJUKAN'])): ?>
+                                                <a class="btn btn-primary btn-sm" 
+                                                   href="perjalanan_dinas_approve.php?id=<?php echo (int)$row['id']; ?>" 
+                                                   title="Isi nominal & ajukan ke Manager HR">
+                                                    <i class="fa fa-send"></i> Ajukan
+                                                </a>
                                             <?php endif; ?>
 
                                             <?php if ($can_approve && $is_managerhr): ?>

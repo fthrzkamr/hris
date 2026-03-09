@@ -135,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-// Fetch list with latest status - Filter for items pending Manager HR approval
+// Fetch list with latest status - Show all including approved (as history)
 $sql = "SELECT p.id, p.no_dokumen, p.nama, p.departemen, p.tanggal_perjalanan, p.kota_tujuan, p.tanggal_dokumen, p.budget_total,
     pg.id as pengajuan_id, pg.status,
     pg.approval_manager_hr,
@@ -149,8 +149,14 @@ $sql = "SELECT p.id, p.no_dokumen, p.nama, p.departemen, p.tanggal_perjalanan, p
             SELECT id_perjalanan, MAX(id) AS mid FROM perjalanan_pengajuan GROUP BY id_perjalanan
         ) m ON p2.id_perjalanan = m.id_perjalanan AND p2.id = m.mid
     ) pg ON pg.id_perjalanan = p.id
-    WHERE pg.status IN ('DIAJUKAN', 'APPROVED_MANAGER_HR', 'DITOLAK')
-    ORDER BY pg.tanggal_pengajuan DESC";
+    ORDER BY 
+        CASE 
+            WHEN pg.status = 'DIAJUKAN' THEN 1
+            WHEN pg.status = 'APPROVED_MANAGER_HR' THEN 2
+            WHEN pg.status = 'DITOLAK' THEN 3
+            ELSE 4
+        END,
+        pg.tanggal_pengajuan DESC";
 $res = mysqli_query($conn, $sql);
 ?>
 <style>
