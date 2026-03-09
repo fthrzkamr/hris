@@ -45,6 +45,9 @@ mysqli_stmt_bind_param($stmt_status, 'i', $id);
 mysqli_stmt_execute($stmt_status);
 $result_status = mysqli_stmt_get_result($stmt_status);
 $submission = mysqli_fetch_assoc($result_status);
+
+// Check if can approve (status = DIAJUKAN)
+$can_approve = ($submission && $submission['status'] === 'DIAJUKAN');
 ?>
 <!doctype html>
 <html lang="id">
@@ -168,6 +171,17 @@ $submission = mysqli_fetch_assoc($result_status);
             color: #a94442;
         }
 
+        .action-buttons {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .approval-form {
+            margin-top: 15px;
+        }
+
         @page {
             size: A4 portrait;
             margin: 10mm;
@@ -223,6 +237,7 @@ $submission = mysqli_fetch_assoc($result_status);
                 height: 100px;
             }
 
+            .action-buttons,
             .info-bottom {
                 display: none !important;
             }
@@ -415,6 +430,42 @@ $submission = mysqli_fetch_assoc($result_status);
             <div style="margin-top:6px; font-size:11px">Nama : Lucky Hafiansyah</div>
             <div style="font-size:11px">Tanggal : </div>
         </div>
+
+        <?php if ($can_approve): ?>
+        <!-- Approval Form for Manager HR -->
+        <div class="action-buttons no-print">
+            <h4><strong>Approval Manager HR</strong></h4>
+            <form method="POST" action="perjalanan_dinas_approve.php" class="approval-form">
+                <input type="hidden" name="id_perjalanan" value="<?php echo $id; ?>">
+                <input type="hidden" name="pengajuan_id" value="<?php echo $submission['id']; ?>">
+                
+                <div class="form-group">
+                    <label>Keputusan:</label>
+                    <select name="keputusan" class="form-control" required style="max-width: 300px;">
+                        <option value="">-- Pilih Keputusan --</option>
+                        <option value="DISETUJUI">Setujui</option>
+                        <option value="DITOLAK">Tolak</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Catatan (Opsional):</label>
+                    <textarea name="catatan" class="form-control" rows="3" placeholder="Masukkan catatan jika perlu..."></textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa fa-check"></i> Kirim Keputusan
+                </button>
+                <a href="perjalanan_dinas_list.php" class="btn btn-default">
+                    <i class="fa fa-times"></i> Batal
+                </a>
+            </form>
+        </div>
+        <?php else: ?>
+        <div class="alert alert-info no-print" style="margin: 20px 0;">
+            <i class="fa fa-info-circle"></i> Perjalanan dinas ini sudah diproses atau tidak memerlukan approval.
+        </div>
+        <?php endif; ?>
 
         <!-- <div style="margin-top:20px; text-align:center">
         <div class="info-bottom" style="margin-top:20px; text-align:center">

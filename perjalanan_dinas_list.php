@@ -1,8 +1,13 @@
 <?php
 include("sess_check.php");
+include __DIR__ . '/dist/config/koneksi.php';
+
 $pagedesc = 'Daftar Perjalanan Dinas';
 $menuparent = 'perjalanan_dinas';
 include("layout_top.php");
+
+// pastikan apakah user current adalah Manager HR
+$is_managerhr = isset($sess_mngid) && !empty($sess_mngid);
 
 // DB connection
 include __DIR__ . '/dist/config/koneksi.php';
@@ -20,6 +25,10 @@ $createPengajuan = "CREATE TABLE IF NOT EXISTS perjalanan_pengajuan (
     approver_hr VARCHAR(100),
     tanggal_approval_hr DATETIME,
     catatan_hr TEXT,
+    approval_manager_hr VARCHAR(50),
+    approver_manager_hr VARCHAR(100),
+    tanggal_approval_manager_hr DATETIME,
+    catatan_manager_hr TEXT,
     approval_direktur VARCHAR(50),
     approver_direktur VARCHAR(100),
     tanggal_approval_direktur DATETIME,
@@ -37,6 +46,10 @@ if (mysqli_num_rows($checkColumns) == 0) {
         "ALTER TABLE perjalanan_pengajuan ADD COLUMN approver_hr VARCHAR(100)",
         "ALTER TABLE perjalanan_pengajuan ADD COLUMN tanggal_approval_hr DATETIME",
         "ALTER TABLE perjalanan_pengajuan ADD COLUMN catatan_hr TEXT",
+        "ALTER TABLE perjalanan_pengajuan ADD COLUMN approval_manager_hr VARCHAR(50)",
+        "ALTER TABLE perjalanan_pengajuan ADD COLUMN approver_manager_hr VARCHAR(100)",
+        "ALTER TABLE perjalanan_pengajuan ADD COLUMN tanggal_approval_manager_hr DATETIME",
+        "ALTER TABLE perjalanan_pengajuan ADD COLUMN catatan_manager_hr TEXT",
         "ALTER TABLE perjalanan_pengajuan ADD COLUMN approval_direktur VARCHAR(50)",
         "ALTER TABLE perjalanan_pengajuan ADD COLUMN approver_direktur VARCHAR(100)",
         "ALTER TABLE perjalanan_pengajuan ADD COLUMN tanggal_approval_direktur DATETIME",
@@ -51,43 +64,84 @@ if (mysqli_num_rows($checkColumns) == 0) {
 $message = '';
 // Handle ajukan action (HR mengajukan ke Manager HR)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'ajukan') {
-    $pid = intval($_POST['perjalanan_id'] ?? 0);
-    $user = isset($sess_admname) ? $sess_admname : 'SYSTEM';
-    $npp = isset($sess_admuser) ? $sess_admuser : null;
+    $perjalanan_id = intval($_POST['id'] ?? 0);
+    $nominals = $_POST['nominal'] ?? []; // expect array [rincian_id => nominal]
+    $pengaju_npp = $sess_admid ?? $sess_mngid ?? $_SESSION['admin'] ?? null;
+    $pengaju_name = $sess_admname ?? $sess_mngname ?? ($_SESSION['admin'] ?? 'HR');
 
-    if ($pid <= 0) {
-        $message = 'ID perjalanan tidak valid.';
-    } else {
-        // Cek status pengajuan terakhir untuk perjalanan ini
-        $stmt_check = mysqli_prepare($conn, "SELECT status FROM perjalanan_pengajuan WHERE id_perjalanan = ? ORDER BY id DESC LIMIT 1");
-        mysqli_stmt_bind_param($stmt_check, 'i', $pid);
-        mysqli_stmt_execute($stmt_check);
-        $res_check = mysqli_stmt_get_result($stmt_check);
-        $last = mysqli_fetch_assoc($res_check);
-        $last_status = $last['status'] ?? null;
+    if ($perjalanan_id > 0) {
+        mysqli_begin_transaction($conn);
+        try {
+            // update rincian jika dikirim nominal oleh HR
+            if (!empty($nominals) && is_array($nominals)) {
+                foreach ($nominals as $rid => $val) {
+                    $rid = intval($rid);
+                    $val_clean = preg_replace('/[^0-9\.]/','',$val);
+                    $nominal_new = $val_clean === '' ? '0' : $val_clean;
 
-        // Jika sudah dalam proses (DIAJUKAN / APPROVED / DISETUJUI) jangan duplikat
-        $blocked_status = ['DIAJUKAN','APPROVED_HR','DISETUJUI'];
-        if (in_array($last_status, $blocked_status)) {
-            $message = 'Pengajuan sudah dalam proses atau telah disetujui. Tidak dapat diajukan ulang sekarang.';
-        } else {
-            $status = 'DIAJUKAN';
-            $stmt = mysqli_prepare($conn, "INSERT INTO perjalanan_pengajuan (id_perjalanan, npp, pengaju, tanggal_pengajuan, status) VALUES (?,?,?,NOW(),?)");
-            mysqli_stmt_bind_param($stmt, 'isss', $pid, $npp, $user, $status);
-            $ok = mysqli_stmt_execute($stmt);
-            if ($ok) {
-                $message = 'Pengajuan berhasil dikirim ke Manager HR.';
-            } else {
-                $message = 'Gagal mengirim pengajuan: ' . mysqli_error($conn);
+                    // ambil qty lama
+                    $stmtOld = mysqli_prepare($conn, "SELECT qty FROM perjalanan_rincian WHERE id = ?");
+                    mysqli_stmt_bind_param($stmtOld, 'i', $rid);
+                    mysqli_stmt_execute($stmtOld);
+                    $resOld = mysqli_stmt_get_result($stmtOld);
+                    $rowOld = mysqli_fetch_assoc($resOld);
+                    $qty = (float)($rowOld['qty'] ?? 1);
+
+                    $total_new = number_format((float)$nominal_new * $qty, 2, '.', '');
+                    $upd = mysqli_prepare($conn, "UPDATE perjalanan_rincian SET nominal = ?, total = ? WHERE id = ?");
+                    mysqli_stmt_bind_param($upd, 'ssi', $nominal_new, $total_new, $rid);
+                    mysqli_stmt_execute($upd);
+                }
+
+                // rekalkulasi budget_total
+                $stmtSum = mysqli_prepare($conn, "SELECT SUM(CAST(REPLACE(total,',','') AS DECIMAL(20,2))) AS s FROM perjalanan_rincian WHERE perjalanan_id = ?");
+                mysqli_stmt_bind_param($stmtSum, 'i', $perjalanan_id);
+                mysqli_stmt_execute($stmtSum);
+                $resSum = mysqli_stmt_get_result($stmtSum);
+                $sumRow = mysqli_fetch_assoc($resSum);
+                $budget_total = (float)($sumRow['s'] ?? 0);
+
+                $updBudget = mysqli_prepare($conn, "UPDATE perjalanan_dinas SET budget_total = ? WHERE id = ?");
+                mysqli_stmt_bind_param($updBudget, 'di', $budget_total, $perjalanan_id);
+                mysqli_stmt_execute($updBudget);
             }
+
+            // cari pengajuan terakhir untuk perjalanan ini
+            $stmtSel = mysqli_prepare($conn, "SELECT id FROM perjalanan_pengajuan WHERE id_perjalanan = ? ORDER BY id DESC LIMIT 1 FOR UPDATE");
+            mysqli_stmt_bind_param($stmtSel, 'i', $perjalanan_id);
+            mysqli_stmt_execute($stmtSel);
+            $resSel = mysqli_stmt_get_result($stmtSel);
+            $last = mysqli_fetch_assoc($resSel);
+
+            $tgl_now = date('Y-m-d H:i:s');
+            $status = 'DIAJUKAN';
+
+            if ($last && !empty($last['id'])) {
+                $pid = (int)$last['id'];
+                $updPeng = mysqli_prepare($conn, "UPDATE perjalanan_pengajuan SET npp = ?, pengaju = ?, tanggal_pengajuan = ?, status = ?, approval_manager_hr = NULL, approver_manager_hr = NULL, tanggal_approval_manager_hr = NULL, catatan_manager_hr = NULL WHERE id = ?");
+                mysqli_stmt_bind_param($updPeng, 'ssssi', $pengaju_npp, $pengaju_name, $tgl_now, $status, $pid);
+                mysqli_stmt_execute($updPeng);
+            } else {
+                $ins = mysqli_prepare($conn, "INSERT INTO perjalanan_pengajuan (id_perjalanan, npp, pengaju, tanggal_pengajuan, status) VALUES (?,?,?,?,?)");
+                mysqli_stmt_bind_param($ins, 'issss', $perjalanan_id, $pengaju_npp, $pengaju_name, $tgl_now, $status);
+                mysqli_stmt_execute($ins);
+            }
+
+            mysqli_commit($conn);
+            $message = "Pengajuan berhasil dikirim.";
+        } catch (Exception $e) {
+            mysqli_rollback($conn);
+            $message = "Gagal mengajukan: " . $e->getMessage();
         }
+    } else {
+        $message = "ID perjalanan tidak valid.";
     }
 }
 
 // Fetch list with latest status and approval info (gunakan latest pengajuan per perjalanan)
 $sql = "SELECT p.id, p.no_dokumen, p.nama, p.departemen, p.tanggal_perjalanan, p.kota_tujuan, p.tanggal_dokumen, p.budget_total,
     pg.status,
-    pg.approval_hr,
+    pg.approval_manager_hr,
     pg.approval_direktur,
     pg.tanggal_pengajuan
     FROM perjalanan_dinas p
@@ -187,6 +241,11 @@ $res = mysqli_query($conn, $sql);
     .approval-reject {
         background-color: #f2dede;
         color: #a94442;
+    }
+
+    .approval-revisi {
+        background-color: #d9edf7;
+        color: #31708f;
     }
 
     /* DataTables custom styling */
@@ -305,15 +364,15 @@ $res = mysqli_query($conn, $sql);
                                     $status = $row['status'] ?? 'BELUM DIAJUKAN';
                                     $status_class = 'status-belum';
                                     if ($status == 'DIAJUKAN') $status_class = 'status-diajukan';
-                                    elseif ($status == 'APPROVED_HR') $status_class = 'status-approved-hr';
+                                    elseif ($status == 'APPROVED_MANAGER_HR') $status_class = 'status-approved-hr';
                                     elseif ($status == 'DISETUJUI') $status_class = 'status-disetujui';
                                     elseif ($status == 'DITOLAK') $status_class = 'status-ditolak';
                                     
-                                    $approval_hr = $row['approval_hr'] ?? null;
+                                    $approval_manager_hr = $row['approval_manager_hr'] ?? null;
                                     $approval_direktur = $row['approval_direktur'] ?? null;
                                     
-                                    // Can approve (oleh Manager HR / Direktur) jika status adalah DIAJUKAN atau APPROVED_HR
-                                    $can_approve = in_array($status, ['DIAJUKAN', 'APPROVED_HR']);
+                                    // Can approve (oleh Manager HR / Direktur) jika status adalah DIAJUKAN atau APPROVED_MANAGER_HR
+                                    $can_approve = in_array($status, ['DIAJUKAN', 'APPROVED_MANAGER_HR']);
                                 ?>
                                     <tr>
                                         <td class="text-center"><?php echo $no++; ?></td>
@@ -329,9 +388,11 @@ $res = mysqli_query($conn, $sql);
                                             </span>
                                         </td>
                                         <td class="text-center">
-                                            <?php if ($approval_hr == 'APPROVED'): ?>
+                                            <?php if ($approval_manager_hr == 'APPROVED'): ?>
                                                 <span class="approval-badge approval-ok"><i class="fa fa-check"></i> Approved</span>
-                                            <?php elseif ($approval_hr == 'REJECTED'): ?>
+                                            <?php elseif ($approval_manager_hr == 'REVISI'): ?>
+                                                <span class="approval-badge approval-revisi"><i class="fa fa-edit"></i> Revisi</span>
+                                            <?php elseif ($approval_manager_hr == 'REJECTED'): ?>
                                                 <span class="approval-badge approval-reject"><i class="fa fa-times"></i> Rejected</span>
                                             <?php else: ?>
                                                 <span class="approval-badge approval-pending"><i class="fa fa-clock-o"></i> Pending</span>
@@ -359,7 +420,7 @@ $res = mysqli_query($conn, $sql);
                                                 </form>
                                             <?php endif; ?>
 
-                                            <?php if ($can_approve): ?>
+                                            <?php if ($can_approve && $is_managerhr): ?>
                                                 <a class="btn btn-success btn-sm" href="perjalanan_dinas_approve.php?id=<?php echo $row['id']; ?>" 
                                                    title="Approve & Input Nominal">
                                                     <i class="fa fa-check-square-o"></i> Approve

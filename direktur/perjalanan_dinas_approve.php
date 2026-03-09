@@ -73,11 +73,11 @@ if (!$submission) {
 }
 
 $status = $submission['status'];
-$approval_hr = $submission['approval_hr'] ?? null;
+$approval_manager_hr = $submission['approval_manager_hr'] ?? null;
 $approval_direktur = $submission['approval_direktur'] ?? null;
 
-// Direktur can only approve if status is APPROVED_HR
-$can_approve_direktur = ($status == 'APPROVED_HR' && $approval_hr == 'APPROVED' && empty($approval_direktur));
+// Direktur can only approve if status is APPROVED_MANAGER_HR and Manager HR has approved
+$can_approve_direktur = ($status == 'APPROVED_MANAGER_HR' && $approval_manager_hr == 'APPROVED' && empty($approval_direktur));
 ?>
 
 <style>

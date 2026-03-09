@@ -2,11 +2,17 @@
 include("sess_check.php");
 include('dist/config/koneksi.php');
 
-$pagedesc = 'Review & Approve Perjalanan Dinas';
-$menuparent = 'perjalanan_dinas';
-include('layout_top.php');
-
-$allowed_roles = ['managerhr', 'admin']; // sesuaikan pemeriksaan role jika perlu
+// Redirect to detail - Approvals are now handled in managerhr folder
+// This file is kept for backward compatibility only
+$id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+if ($id > 0) {
+    header("Location: perjalanan_dinas_detail.php?id=" . $id . "&msg=" . urlencode("Gunakan halaman detail untuk melihat dokumen"));
+    exit;
+} else {
+    header("Location: perjalanan_dinas_list.php?msg=" . urlencode("Approval dilakukan oleh Manager HR"));
+    exit;
+}
+?>
 
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 if ($id <= 0) {
@@ -80,10 +86,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aksi'])) {
 
     // Tentukan status dan approval_manager_hr
     if ($aksi === 'approve' || $aksi === 'approve_with_changes') {
-        $status = 'APPROVED_HR'; // diteruskan ke Direktur
+        $status = 'APPROVED_MANAGER_HR'; // diteruskan ke Direktur
         $approval_manager = 'APPROVED';
     } elseif ($aksi === 'revisi') {
-        $status = 'DITOLAK'; // dikembalikan ke HR untuk revisi
+        $status = 'APPROVED_MANAGER_HR'; // diteruskan ke Direktur dengan log REVISI
         $approval_manager = 'REVISI';
     } elseif ($aksi === 'reject') {
         $status = 'DITOLAK';
@@ -93,11 +99,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aksi'])) {
         $approval_manager = 'REJECTED';
     }
 
-    // Simpan record pengajuan baru (rekam approval manager)
-    $ins = mysqli_prepare($conn, "INSERT INTO perjalanan_pengajuan (id_perjalanan, npp, pengaju, tanggal_pengajuan, status, approval_manager_hr, approver_manager_hr, tanggal_approval_manager_hr, catatan_manager_hr) VALUES (?,?,?,?,?,?,?, NOW(), ?)");
-    $tanggal_pengajuan = date('Y-m-d H:i:s');
-    mysqli_stmt_bind_param($ins, 'isssssss', $id, $user_npp, $user_nama, $tanggal_pengajuan, $status, $approval_manager, $user_nama, $catatan);
-    $ok = mysqli_stmt_execute($ins);
+    // UPDATE record pengajuan yang sudah ada (jangan insert baru)
+    if (!$last || empty($last['id'])) {
+        header("Location: perjalanan_dinas_list.php?err=" . urlencode("Data pengajuan tidak ditemukan."));
+        exit;
+    }
+
+    $pengajuan_id = (int)$last['id'];
+    $upd = mysqli_prepare($conn, "UPDATE perjalanan_pengajuan SET approval_manager_hr = ?, approver_manager_hr = ?, tanggal_approval_manager_hr = NOW(), catatan_manager_hr = ?, status = ? WHERE id = ?");
+    mysqli_stmt_bind_param($upd, 'ssssi', $approval_manager, $user_nama, $catatan, $status, $pengajuan_id);
+    $ok = mysqli_stmt_execute($upd);
 
     if ($ok) {
         header("Location: perjalanan_dinas_list.php?msg=" . urlencode("Proses approval berhasil: $status"));

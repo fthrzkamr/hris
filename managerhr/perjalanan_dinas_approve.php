@@ -2,6 +2,84 @@
 include("sess_check.php");
 include('dist/config/koneksi.php');
 
+// Check if this is the new simple approval POST (from detail page)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['keputusan'])) {
+    // NEW SIMPLE APPROVAL FLOW (like permintaan_karyawan)
+    $id_perjalanan = isset($_POST['id_perjalanan']) ? intval($_POST['id_perjalanan']) : 0;
+    $pengajuan_id = isset($_POST['pengajuan_id']) ? intval($_POST['pengajuan_id']) : 0;
+    $keputusan = isset($_POST['keputusan']) ? $_POST['keputusan'] : '';
+    $catatan = isset($_POST['catatan']) ? trim($_POST['catatan']) : '';
+
+    // Validate input
+    if ($id_perjalanan <= 0 || $pengajuan_id <= 0 || empty($keputusan)) {
+        $_SESSION['pesan'] = 'Data tidak lengkap';
+        $_SESSION['type_pesan'] = 'danger';
+        header('Location: perjalanan_dinas_list.php');
+        exit;
+    }
+
+    // Validate keputusan
+    if (!in_array($keputusan, ['DISETUJUI', 'DITOLAK'])) {
+        $_SESSION['pesan'] = 'Keputusan tidak valid';
+        $_SESSION['type_pesan'] = 'danger';
+        header('Location: perjalanan_dinas_list.php');
+        exit;
+    }
+
+    // Get current user info
+    $approved_by = isset($sess_mngname) ? $sess_mngname : 'Manager HR';
+    $npp = isset($sess_mngid) ? $sess_mngid : '';
+
+    // Determine approval_manager_hr value
+    $approval_manager = ($keputusan === 'DISETUJUI') ? 'APPROVED' : 'REJECTED';
+
+    // Determine status - if approved, set to APPROVED_MANAGER_HR so it goes to Director
+    $new_status = ($keputusan === 'DISETUJUI') ? 'APPROVED_MANAGER_HR' : 'DITOLAK';
+
+    // Start transaction
+    mysqli_begin_transaction($conn);
+
+    try {
+        // Update perjalanan_pengajuan - set approval_manager_hr and status
+        $stmt = mysqli_prepare($conn, "UPDATE perjalanan_pengajuan 
+            SET approval_manager_hr = ?, 
+                approver_manager_hr = ?,
+                tanggal_approval_manager_hr = NOW(),
+                catatan_manager_hr = ?,
+                status = ?
+            WHERE id = ? AND id_perjalanan = ?");
+        mysqli_stmt_bind_param($stmt, 'ssssii', $approval_manager, $approved_by, $catatan, $new_status, $pengajuan_id, $id_perjalanan);
+        $update_result = mysqli_stmt_execute($stmt);
+        
+        if (!$update_result) {
+            throw new Exception('Gagal update approval: ' . mysqli_error($conn));
+        }
+
+        // Commit transaction
+        mysqli_commit($conn);
+
+        // Set success message
+        if ($keputusan === 'DISETUJUI') {
+            $_SESSION['pesan'] = 'Perjalanan dinas berhasil disetujui. Akan diteruskan ke Direktur.';
+            $_SESSION['type_pesan'] = 'success';
+        } else {
+            $_SESSION['pesan'] = 'Perjalanan dinas ditolak.';
+            $_SESSION['type_pesan'] = 'warning';
+        }
+
+    } catch (Exception $e) {
+        // Rollback on error
+        mysqli_rollback($conn);
+        $_SESSION['pesan'] = 'Terjadi kesalahan: ' . $e->getMessage();
+        $_SESSION['type_pesan'] = 'danger';
+    }
+
+    // Redirect back to list
+    header('Location: perjalanan_dinas_list.php');
+    exit;
+}
+
+// OLD COMPLEX APPROVAL FLOW (with nominal input) - kept for reference but not used
 $pagedesc = 'Review & Approve Perjalanan Dinas';
 $menuparent = 'perjalanan_dinas';
 include('layout_top.php');
@@ -80,10 +158,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aksi'])) {
 
     // Tentukan status dan approval_manager_hr
     if ($aksi === 'approve' || $aksi === 'approve_with_changes') {
-        $status = 'APPROVED_HR'; // diteruskan ke Direktur
+        $status = 'APPROVED_MANAGER_HR'; // diteruskan ke Direktur
         $approval_manager = 'APPROVED';
     } elseif ($aksi === 'revisi') {
-        $status = 'DITOLAK'; // dikembalikan ke HR untuk revisi
+        $status = 'APPROVED_MANAGER_HR'; // tetap diteruskan ke Direktur dengan log revisi
         $approval_manager = 'REVISI';
     } elseif ($aksi === 'reject') {
         $status = 'DITOLAK';
@@ -93,11 +171,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aksi'])) {
         $approval_manager = 'REJECTED';
     }
 
-    // Simpan record pengajuan baru (rekam approval manager)
-    $ins = mysqli_prepare($conn, "INSERT INTO perjalanan_pengajuan (id_perjalanan, npp, pengaju, tanggal_pengajuan, status, approval_manager_hr, approver_manager_hr, tanggal_approval_manager_hr, catatan_manager_hr) VALUES (?,?,?,?,?,?,?, NOW(), ?)");
-    $tanggal_pengajuan = date('Y-m-d H:i:s');
-    mysqli_stmt_bind_param($ins, 'isssssss', $id, $user_npp, $user_nama, $tanggal_pengajuan, $status, $approval_manager, $user_nama, $catatan);
-    $ok = mysqli_stmt_execute($ins);
+    // UPDATE record pengajuan yang sudah ada (jangan insert baru)
+    if (!$last || empty($last['id'])) {
+        header("Location: perjalanan_dinas_list.php?err=" . urlencode("Data pengajuan tidak ditemukan"));
+        exit;
+    }
+
+    $pengajuan_id = (int)$last['id'];
+    $upd = mysqli_prepare($conn, "UPDATE perjalanan_pengajuan SET approval_manager_hr = ?, approver_manager_hr = ?, tanggal_approval_manager_hr = NOW(), catatan_manager_hr = ?, status = ? WHERE id = ?");
+    mysqli_stmt_bind_param($upd, 'ssssi', $approval_manager, $user_nama, $catatan, $status, $pengajuan_id);
+    $ok = mysqli_stmt_execute($upd);
 
     if ($ok) {
         header("Location: perjalanan_dinas_list.php?msg=" . urlencode("Proses approval berhasil: $status"));
@@ -236,7 +319,7 @@ $pengajuan = mysqli_fetch_assoc($res_p);
                         </div>
                     </div>
 
-                    <form method="post" id="frmApprove" autocomplete="off" action="submit_approve_hr.php">
+                    <form method="post" id="frmApprove" autocomplete="off">
                         <input type="hidden" name="aksi" id="aksi" value="approve_with_changes">
                         <input type="hidden" name="id" value="<?php echo (int) $id; ?>">
 

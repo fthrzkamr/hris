@@ -40,7 +40,7 @@ try {
     
     if ($approval_type == 'direktur') {
         // Director Approval - only director can approve here
-        if ($current_status != 'APPROVED_HR') {
+        if ($current_status != 'APPROVED_MANAGER_HR') {
             throw new Exception('Status pengajuan tidak valid untuk approval direktur.');
         }
         

@@ -20,6 +20,10 @@ $createPengajuan = "CREATE TABLE IF NOT EXISTS perjalanan_pengajuan (
     approver_hr VARCHAR(100),
     tanggal_approval_hr DATETIME,
     catatan_hr TEXT,
+    approval_manager_hr VARCHAR(50),
+    approver_manager_hr VARCHAR(100),
+    tanggal_approval_manager_hr DATETIME,
+    catatan_manager_hr TEXT,
     approval_direktur VARCHAR(50),
     approver_direktur VARCHAR(100),
     tanggal_approval_direktur DATETIME,
@@ -37,6 +41,10 @@ if (mysqli_num_rows($checkColumns) == 0) {
         "ALTER TABLE perjalanan_pengajuan ADD COLUMN approver_hr VARCHAR(100)",
         "ALTER TABLE perjalanan_pengajuan ADD COLUMN tanggal_approval_hr DATETIME",
         "ALTER TABLE perjalanan_pengajuan ADD COLUMN catatan_hr TEXT",
+        "ALTER TABLE perjalanan_pengajuan ADD COLUMN approval_manager_hr VARCHAR(50)",
+        "ALTER TABLE perjalanan_pengajuan ADD COLUMN approver_manager_hr VARCHAR(100)",
+        "ALTER TABLE perjalanan_pengajuan ADD COLUMN tanggal_approval_manager_hr DATETIME",
+        "ALTER TABLE perjalanan_pengajuan ADD COLUMN catatan_manager_hr TEXT",
         "ALTER TABLE perjalanan_pengajuan ADD COLUMN approval_direktur VARCHAR(50)",
         "ALTER TABLE perjalanan_pengajuan ADD COLUMN approver_direktur VARCHAR(100)",
         "ALTER TABLE perjalanan_pengajuan ADD COLUMN tanggal_approval_direktur DATETIME",
@@ -53,12 +61,18 @@ $message = '';
 // Fetch list with latest status and approval info - filter for items pending director approval
 $sql = "SELECT p.id, p.no_dokumen, p.nama, p.departemen, p.tanggal_perjalanan, p.kota_tujuan, p.tanggal_dokumen, p.budget_total,
     pg.status,
-    pg.approval_hr,
+    pg.approval_manager_hr,
     pg.approval_direktur,
     pg.tanggal_pengajuan
     FROM perjalanan_dinas p
-    LEFT JOIN perjalanan_pengajuan pg ON pg.id_perjalanan = p.id
-    WHERE pg.status IN ('APPROVED_HR', 'DISETUJUI', 'DITOLAK')
+    LEFT JOIN (
+        SELECT p2.*
+        FROM perjalanan_pengajuan p2
+        INNER JOIN (
+            SELECT id_perjalanan, MAX(id) AS mid FROM perjalanan_pengajuan GROUP BY id_perjalanan
+        ) m ON p2.id_perjalanan = m.id_perjalanan AND p2.id = m.mid
+    ) pg ON pg.id_perjalanan = p.id
+    WHERE pg.status IN ('APPROVED_MANAGER_HR', 'DISETUJUI', 'DITOLAK')
     ORDER BY p.id DESC";
 $res = mysqli_query($conn, $sql);
 ?>
@@ -143,6 +157,11 @@ $res = mysqli_query($conn, $sql);
     .approval-reject {
         background-color: #f8d7da;
         color: #721c24;
+    }
+
+    .approval-revisi {
+        background-color: #d9edf7;
+        color: #31708f;
     }
 
     .approval-pending {
@@ -266,15 +285,15 @@ $res = mysqli_query($conn, $sql);
                                     $status = $row['status'] ?? 'BELUM DIAJUKAN';
                                     $status_class = 'status-belum';
                                     if ($status == 'DIAJUKAN') $status_class = 'status-diajukan';
-                                    elseif ($status == 'APPROVED_HR') $status_class = 'status-approved-hr';
+                                    elseif ($status == 'APPROVED_MANAGER_HR') $status_class = 'status-approved-hr';
                                     elseif ($status == 'DISETUJUI') $status_class = 'status-disetujui';
                                     elseif ($status == 'DITOLAK') $status_class = 'status-ditolak';
                                     
-                                    $approval_hr = $row['approval_hr'] ?? null;
+                                    $approval_manager_hr = $row['approval_manager_hr'] ?? null;
                                     $approval_direktur = $row['approval_direktur'] ?? null;
                                     
-                                    // Can approve if status is APPROVED_HR (pending director approval)
-                                    $can_approve = ($status == 'APPROVED_HR');
+                                    // Can approve if status is APPROVED_MANAGER_HR (pending director approval)
+                                    $can_approve = ($status == 'APPROVED_MANAGER_HR');
                                 ?>
                                     <tr>
                                         <td class="text-center"><?php echo $no++; ?></td>
@@ -290,9 +309,11 @@ $res = mysqli_query($conn, $sql);
                                             </span>
                                         </td>
                                         <td class="text-center">
-                                            <?php if ($approval_hr == 'APPROVED'): ?>
+                                            <?php if ($approval_manager_hr == 'APPROVED'): ?>
                                                 <span class="approval-badge approval-ok"><i class="fa fa-check"></i> Approved</span>
-                                            <?php elseif ($approval_hr == 'REJECTED'): ?>
+                                            <?php elseif ($approval_manager_hr == 'REVISI'): ?>
+                                                <span class="approval-badge approval-revisi"><i class="fa fa-edit"></i> Revisi</span>
+                                            <?php elseif ($approval_manager_hr == 'REJECTED'): ?>
                                                 <span class="approval-badge approval-reject"><i class="fa fa-times"></i> Rejected</span>
                                             <?php else: ?>
                                                 <span class="approval-badge approval-pending"><i class="fa fa-clock-o"></i> Pending</span>
@@ -300,8 +321,8 @@ $res = mysqli_query($conn, $sql);
                                         </td>
                                         <td class="text-center">
                                             <?php if ($approval_direktur == 'APPROVED'): ?>
-                                                <span class="approval-badge approval-ok"><i class="fa fa-check"></i> Approved</span>
-                                            <?php elseif ($approval_direktur == 'REJECTED'): ?>
+                                                <span class="approval-badge approval-ok"><i class="fa fa-check"></i> Approved</span>                                            <?php elseif ($approval_manager_hr == 'REVISI'): ?>
+                                                <span class="approval-badge approval-revisi"><i class="fa fa-edit"></i> Revisi</span>                                            <?php elseif ($approval_direktur == 'REJECTED'): ?>
                                                 <span class="approval-badge approval-reject"><i class="fa fa-times"></i> Rejected</span>
                                             <?php else: ?>
                                                 <span class="approval-badge approval-pending"><i class="fa fa-clock-o"></i> Pending</span>
