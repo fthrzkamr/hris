@@ -1,4 +1,4 @@
-	</div><!-- /#wrapper -->
+</div><!-- /#wrapper -->
 	
 	<!-- footer-bottom -->
 	<div class="navbar navbar-inverse navbar-fixed-bottom footer-bottom">
@@ -18,6 +18,8 @@
 	<script src="libs/jTerbilang/jTerbilang.js"></script>
 	<!-- Custom Theme JavaScript -->
 	<script src="dist/js/sb-admin-2.js"></script>
+	<!-- load SweetAlert2 -->
+	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 </body>
 </html>

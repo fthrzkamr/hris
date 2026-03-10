@@ -39,109 +39,121 @@ $added_by = $sess_mngname ?? 'Manager HR';
 $tanggal_pengajuan = date('Y-m-d H:i:s');
 $approved_date = date('Y-m-d H:i:s');
 
-// Escape strings for SQL
+// Escape strings for SQL (still escape for any unprepared usage)
 $judul_training = mysqli_real_escape_string($conn, $judul_training);
 $tujuan_training = mysqli_real_escape_string($conn, $tujuan_training);
 $penyelenggara = mysqli_real_escape_string($conn, $penyelenggara);
 $lokasi_training = mysqli_real_escape_string($conn, $lokasi_training);
 
 $success_count = 0;
-$error_count = 0;
-$errors = [];
 
 // Start transaction
 mysqli_begin_transaction($conn);
 
 try {
-    // Loop through each selected employee
+    // prepare insert for pengajuan_training (include generated id_pengajuan, nama_karyawan, id_bagian)
+    $sql_insert = "INSERT INTO pengajuan_training (
+        id_pengajuan, npp, nama_karyawan, id_bagian, judul_training, tujuan_training, penyelenggara, lokasi_training,
+        tanggal_mulai, tanggal_selesai, budget_total, tanggal_pengajuan, status, approved_by, approved_date
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    $stmt_insert = mysqli_prepare($conn, $sql_insert);
+    if (!$stmt_insert) {
+        throw new Exception("Prepare failed (pengajuan): " . mysqli_error($conn));
+    }
+
+    // prepare insert for training_rincian
+    $sql_rincian = "INSERT INTO training_rincian (id_pengajuan, nama_item, nilai) VALUES (?, ?, ?)";
+    $stmt_rincian = mysqli_prepare($conn, $sql_rincian);
+    if (!$stmt_rincian) {
+        throw new Exception("Prepare failed (rincian): " . mysqli_error($conn));
+    }
+
     foreach ($npp_arr as $npp) {
         $npp_escaped = mysqli_real_escape_string($conn, $npp);
-        
-        // Insert into pengajuan_training
-        $sql_insert = "INSERT INTO pengajuan_training (
-            npp, 
-            judul_training, 
-            tujuan_training, 
-            penyelenggara, 
-            lokasi_training, 
-            tanggal_mulai, 
-            tanggal_selesai, 
-            budget_total, 
-            tanggal_pengajuan,
-            status,
-            approved_by,
-            approved_date
-        ) VALUES (
-            '$npp_escaped',
-            '$judul_training',
-            '$tujuan_training',
-            '$penyelenggara',
-            '$lokasi_training',
-            '$tanggal_mulai',
-            '$tanggal_selesai',
-            '$budget_total',
-            '$tanggal_pengajuan',
-            'Completed',
-            '$added_by',
-            '$approved_date'
-        )";
-        
-        if (mysqli_query($conn, $sql_insert)) {
-            $last_id = mysqli_insert_id($conn);
-            
-            // Insert rincian budget if exists (same rincian for all employees)
-            if ($has_budget && !empty($rincian_items) && is_array($rincian_items)) {
-                for ($j = 0; $j < count($rincian_items); $j++) {
-                    if (!empty($rincian_items[$j])) {
-                        $item_name = mysqli_real_escape_string($conn, $rincian_items[$j]);
-                        $item_nilai = floatval($rincian_nilai[$j] ?? 0);
-                        
-                        $sql_rincian = "INSERT INTO training_rincian (
-                            id_pengajuan,
-                            nama_item,
-                            nilai
-                        ) VALUES (
-                            '$last_id',
-                            '$item_name',
-                            '$item_nilai'
-                        )";
-                        
-                        if (!mysqli_query($conn, $sql_rincian)) {
-                            $errors[] = "NPP $npp - Rincian item: " . mysqli_error($conn);
-                        }
-                    }
+
+        // ambil nama karyawan dan id_bagian dari tabel employee
+        $sql_emp = "SELECT nama_emp, nama_bagian FROM employee WHERE npp = '". $npp_escaped ."' LIMIT 1";
+        $res_emp = mysqli_query($conn, $sql_emp);
+        $row_emp = mysqli_fetch_assoc($res_emp);
+        $nama_karyawan = $row_emp['nama_emp'] ?? '';
+        $id_bagian = $row_emp['nama_bagian'] ?? null;
+
+        // escape
+        $nama_karyawan = mysqli_real_escape_string($conn, $nama_karyawan);
+        $id_bagian_val = is_null($id_bagian) ? '' : (string)$id_bagian;
+
+        // generate unique id_pengajuan (format: TRNYYYYmmddHHMMSS + random)
+        $id_pengajuan = 'TRN' . date('YmdHis') . sprintf("%04d", rand(0, 9999));
+
+        // bind and execute pengajuan insert
+        $status = 'Completed';
+        $bind = mysqli_stmt_bind_param(
+            $stmt_insert,
+            "ssssssssssdssss",
+            $id_pengajuan,
+            $npp_escaped,
+            $nama_karyawan,
+            $id_bagian_val,
+            $judul_training,
+            $tujuan_training,
+            $penyelenggara,
+            $lokasi_training,
+            $tanggal_mulai,
+            $tanggal_selesai,
+            $budget_total,
+            $tanggal_pengajuan,
+            $status,
+            $added_by,
+            $approved_date
+        );
+
+        if (!$bind) {
+            throw new Exception("Bind failed (pengajuan): " . mysqli_error($conn));
+        }
+        if (!mysqli_stmt_execute($stmt_insert)) {
+            throw new Exception("Execute failed (pengajuan) for NPP $npp: " . mysqli_stmt_error($stmt_insert));
+        }
+
+        // if budget details provided, insert rincian using the same id_pengajuan
+        if ($has_budget && !empty($rincian_items) && is_array($rincian_items)) {
+            for ($j = 0; $j < count($rincian_items); $j++) {
+                $item = trim($rincian_items[$j]);
+                if ($item === '') continue;
+                $item_name = mysqli_real_escape_string($conn, $item);
+                $item_nilai = floatval($rincian_nilai[$j] ?? 0);
+
+                $bind2 = mysqli_stmt_bind_param($stmt_rincian, "ssd", $id_pengajuan, $item_name, $item_nilai);
+                if (!$bind2) {
+                    throw new Exception("Bind failed (rincian): " . mysqli_error($conn));
+                }
+                if (!mysqli_stmt_execute($stmt_rincian)) {
+                    throw new Exception("Execute failed (rincian) for NPP $npp: " . mysqli_stmt_error($stmt_rincian));
                 }
             }
-            
-            $success_count++;
-        } else {
-            $error_count++;
-            $errors[] = "NPP $npp: " . mysqli_error($conn);
         }
+
+        $success_count++;
+        // small sleep to reduce chance of id collision
+        usleep(10000);
     }
-    
-    // Commit transaction
+
     mysqli_commit($conn);
-    
-    // Set success message
+
     if ($success_count > 0) {
         $_SESSION['pesan'] = "Berhasil menambahkan training untuk $success_count karyawan dengan status Completed!";
         $_SESSION['type_pesan'] = 'success';
-    }
-    
-    if ($error_count > 0) {
-        $_SESSION['pesan'] = ($success_count > 0 ? $_SESSION['pesan'] . " " : "") . "Namun ada $error_count karyawan yang gagal. Detail: " . implode(' | ', $errors);
+    } else {
+        $_SESSION['pesan'] = "Tidak ada data yang ditambahkan.";
         $_SESSION['type_pesan'] = 'warning';
     }
-    
+
 } catch (Exception $e) {
-    // Rollback on error
     mysqli_rollback($conn);
-    $_SESSION['pesan'] = 'Terjadi kesalahan saat menyimpan data: ' . $e->getMessage() . '. Data telah di-rollback.';
+    // jangan tampilkan atau echo detail error ke browser; berikan pesan umum
+    $_SESSION['pesan'] = 'Terjadi kesalahan saat menyimpan data. Silakan coba lagi atau hubungi admin.';
     $_SESSION['type_pesan'] = 'danger';
 }
 
-// Redirect to list
 header('Location: training_list.php');
 exit;
 ?>

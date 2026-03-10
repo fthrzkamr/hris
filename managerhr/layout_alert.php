@@ -87,3 +87,39 @@
 		echo '</div>';
 	}
 ?>
+
+<?php
+// Jika file sudah menampilkan bootstrap alerts, ganti/atau tambahkan SweetAlert popup berikut.
+// Menampilkan SweetAlert berdasarkan session pesan (dan menghapus session setelahnya)
+if(isset($_SESSION['pesan']) && $_SESSION['pesan'] !== "") {
+    $msg = $_SESSION['pesan'];
+    $type = $_SESSION['type_pesan'] ?? 'info';
+
+    // map type ke icon sweetalert
+    $icon = 'info';
+    if($type === 'success') $icon = 'success';
+    elseif($type === 'danger' || $type === 'error') $icon = 'error';
+    elseif($type === 'warning') $icon = 'warning';
+    elseif($type === 'info') $icon = 'info';
+
+    // output JS menggunakan json_encode agar aman terhadap karakter
+    echo "<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if(typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: " . json_encode($icon) . ",
+                title: " . json_encode($msg) . ",
+                confirmButtonText: 'OK'
+            });
+        } else {
+            // fallback ke alert bila SweetAlert belum terload
+            alert(" . json_encode($msg) . ");
+        }
+    });
+    </script>";
+
+    // hapus session setelah ditampilkan
+    unset($_SESSION['pesan']);
+    unset($_SESSION['type_pesan']);
+}
+?>

@@ -71,11 +71,19 @@ $(document).ready(function() {
         calculateTotal();
     });
     
-    // Form validation
+    // Form validation - using SweetAlert for validation message
     $('#form-batch-training').on('submit', function(e) {
         let selectedKaryawan = $('#select_karyawan').val();
         if (!selectedKaryawan || selectedKaryawan.length === 0) {
-            alert('Pilih minimal 1 karyawan!');
+            if(typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Pilih minimal 1 karyawan!',
+                    confirmButtonText: 'OK'
+                });
+            } else {
+                alert('Pilih minimal 1 karyawan!');
+            }
             e.preventDefault();
             return false;
         }
