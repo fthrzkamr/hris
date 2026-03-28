@@ -2,24 +2,36 @@
 include("sess_check.php");
 
 $id = $sess_mngid;
-$id_esc = mysqli_real_escape_string($conn, $sess_mngid);
+
+$id_esc = mysqli_real_escape_string($conn, $id);
+
+$sisa_cuti = 0;
+$dalam_pengajuan = 0;
+$total_pengajuan = 0;
+
 $q = mysqli_query($conn, "SELECT jml_cuti FROM employee WHERE npp='$id_esc'");
-$r = mysqli_fetch_assoc($q);
-$sisa_cuti = $r['jml_cuti'] ?? 0;
+if ($q) {
+	$r = mysqli_fetch_assoc($q);
+	$sisa_cuti = $r['jml_cuti'] ?? 0;
+}
 
 $q_pending = mysqli_query($conn, "SELECT COUNT(*) AS cnt FROM cuti WHERE npp='$id_esc' AND (stt_cuti LIKE 'Menunggu%' OR stt_cuti IN ('Diajukan','Pending'))");
-$rowp = mysqli_fetch_assoc($q_pending);
-$dalam_pengajuan = $rowp['cnt'] ?? 0;
+if ($q_pending) {
+	$rowp = mysqli_fetch_assoc($q_pending);
+	$dalam_pengajuan = $rowp['cnt'] ?? 0;
+}
 
 $q_total = mysqli_query($conn, "SELECT COUNT(*) AS cnt FROM cuti WHERE npp='$id_esc'");
-$rowt = mysqli_fetch_assoc($q_total);
-$total_pengajuan = $rowt['cnt'] ?? 0;
+if ($q_total) {
+	$rowt = mysqli_fetch_assoc($q_total);
+	$total_pengajuan = $rowt['cnt'] ?? 0;
+}
 
-$sql_g = "SELECT B.nama_bagian,B.id_bagian,A.npp,A.nama_emp,A.cabang,A.foto_emp FROM employee AS A LEFT JOIN bagian AS B ON A.nama_bagian = B.id_bagian  WHERE npp='$id'";
+$sql_g = "SELECT B.nama_bagian,B.id_bagian,A.npp,A.nama_emp,A.cabang,A.foto_emp FROM employee AS A LEFT JOIN bagian AS B ON A.nama_bagian = B.id_bagian  WHERE npp='$id_esc'";
 $ress_g = mysqli_query($conn, $sql_g);
 $res = mysqli_fetch_array($ress_g);
 
-$sql_g = "SELECT B.nama_bagian,B.id_bagian,A.npp,A.nama_emp,A.cabang,A.foto_emp FROM employee AS A LEFT JOIN bagian AS B ON A.nama_bagian = B.id_bagian  WHERE npp='$id'";
+$sql_g = "SELECT B.nama_bagian,B.id_bagian,A.npp,A.nama_emp,A.cabang,A.foto_emp FROM employee AS A LEFT JOIN bagian AS B ON A.nama_bagian = B.id_bagian  WHERE npp='$id_esc'";
 $ress_g = mysqli_query($conn, $sql_g);
 $res = mysqli_fetch_array($ress_g);
 
@@ -134,8 +146,9 @@ include("dist/function/format_rupiah.php");
 						<div class="row">
 							<div class="col-xs-3"></div>
 							<div class="col-xs-9 text-right">
-								<div class="huge" style="font-size:18px;">
-									<?php echo "{$sisa_cuti} |  {$dalam_pengajuan} |  {$total_pengajuan}"; ?>
+								<div class="huge" style="font-size:20px;">
+									<?php echo $sisa_cuti; ?> &nbsp;|&nbsp; <?php echo $dalam_pengajuan; ?>
+									&nbsp;|&nbsp; <?php echo $total_pengajuan; ?>
 								</div>
 								<div>
 									<h4>Data Cuti</h4>
