@@ -20,7 +20,7 @@ $tahun = date("Y");
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>HRIS Dua farma Group- <?php echo $pagedesc ?></title>
+    <title>HRIS DF Group - <?php echo $pagedesc ?></title>
 
     <link href="libs/images/dua.png" rel="icon" type="images/x-icon">
 
@@ -88,7 +88,7 @@ $tahun = date("Y");
                 <div class="sidebar-nav navbar-collapse">
                     <ul class="nav" id="side-menu">
                         <li class="sidebar-search">
-                            <h4>HRIS<br> <b>Dua Farma Group </b></h4>
+                            <h4>HRIS<br> <b>DF Group</b></h4>
                             <h5 class="text-muted"><i
                                     class="fa fa-calendar fa-fw"></i>&nbsp;<?php echo $hari_ini . ", " . $tanggal . " " . $bulan_ini . " " . $tahun ?>
                             </h5>

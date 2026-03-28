@@ -24,7 +24,7 @@
 	<meta name="description" content="">
 	<meta name="author" content="">
 
-	<title>HRIS PT. Dua Farma Group- <?php echo $pagedesc ?></title>
+	<title>HRIS DF Group- <?php echo $pagedesc ?></title>
 
 	<link href="libs/images/dua.png" rel="icon" type="images/x-icon">
 
@@ -135,12 +135,12 @@
 								</ul>
 							<?php echo '</li>'; ?>
 							
-							if(isset($menuparent) && $menuparent == "master") {
+							<!-- if(isset($menuparent) && $menuparent == "master") {
 								echo '<li class="active">';
 							}
 							else {
 								echo '<li>';
-							}
+							} -->
 						?>
                         <!-- open <li> tag generated with php, see line 134-139 -->
 						

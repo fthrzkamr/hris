@@ -50,7 +50,7 @@ if (isset($conn)) {
 	<meta name="description" content="">
 	<meta name="author" content="">
 
-	<title>HRIS PT. Dua Farma Group <?php echo $pagedesc ?></title>
+	<title>HRIS DF Group <?php echo $pagedesc ?></title>
 
 	<link href="libs/images/dua.png" rel="icon" type="images/x-icon">
 
@@ -100,12 +100,12 @@ if (isset($conn)) {
 				</button>
 				<a class="navbar-brand hidden-xs" href="index.php">
 					<img src="libs/images/dua.png" alt="brand" width="32" class="float-left image-brand">
-					<div class="float-right">&nbsp;<strong>PT. Dua Farma Group </strong></div>
+					<div class="float-right">&nbsp;<strong>DF Group </strong></div>
 					<div class="clear-both"></div>
 				</a>
 				<a class="navbar-brand visible-xs" href="index.php">
 					<img src="libs/images/dua.png" alt="brand" width="32" class="float-left image-brand">
-					<div class="float-right">&nbsp;<strong>PT. Dua Farma Group</strong></div>
+					<div class="float-right">&nbsp;<strong>DF Group</strong></div>
 					<div class="clear-both"></div>
 				</a>
 			</div><!-- /.navbar-header -->
@@ -128,7 +128,7 @@ if (isset($conn)) {
 				<div class="sidebar-nav navbar-collapse">
 					<ul class="nav" id="side-menu">
 						<li class="sidebar-search">
-							<h4>HRIS<br> <b>PT. Dua Farma Group </b></h4>
+							<h4>HRIS<br> <b>DF Group </b></h4>
 							<h5 class="text-muted"><i
 									class="fa fa-calendar fa-fw"></i>&nbsp;<?php echo $hari_ini . ", " . $tanggal . " " . $bulan_ini . " " . $tahun ?>
 							</h5>

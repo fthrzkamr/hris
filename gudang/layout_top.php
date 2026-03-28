@@ -20,7 +20,7 @@ $id = $sess_mngid;
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>HRIS PT. Dua Farma Group - <?php echo $pagedesc; ?></title>
+    <title>HRIS DF Group - <?php echo $pagedesc; ?></title>
     <link href="libs/images/dua.png" rel="icon" type="images/x-icon">
     <link href="libs/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="libs/metisMenu/dist/metisMenu.min.css" rel="stylesheet">

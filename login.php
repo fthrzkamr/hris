@@ -8,7 +8,7 @@
 	<meta name="description" content="">
 	<meta name="author" content="">
 
-	<title>DUA FARMA GROUP - <?php echo $pagedesc ?></title>
+	<title>DF GROUP - <?php echo $pagedesc ?></title>
 
 	<link href="" rel="icon" type="images/x-icon">
 
@@ -45,7 +45,7 @@
 						<div class="col-lg-12">
 							<br/>
 							<!-- <center><img src="libs/images/dua.png" width="120" height="120"></center> -->
-							<h2 class="text-center">DUA FARMA GROUP<br/> <b></b></h2>
+							<h2 class="text-center">DF GROUP<br/> <b></b></h2>
 						</div>
 					</div><!-- /.row -->
 					<div class="row">

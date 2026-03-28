@@ -25,7 +25,7 @@ $res = mysqli_fetch_array($ress_g);
 	<meta name="description" content="">
 	<meta name="author" content="">
 
-	<title>HRIS PT. Dua Farma Group- <?php echo $pagedesc ?></title>
+	<title>HRIS DF Group- <?php echo $pagedesc ?></title>
 
 	<link href="libs/images/dua.png" rel="icon" type="images/x-icon">
 
@@ -104,7 +104,7 @@ $res = mysqli_fetch_array($ress_g);
 				<div class="sidebar-nav navbar-collapse">
 					<ul class="nav" id="side-menu">
 						<li class="sidebar-search">
-							<h4>HRIS<br> <b>PT. Dua Farma Group </b></h4>
+							<h4>HRIS<br> <b>DF Group</b></h4>
 							<h5 class="text-muted"><i
 									class="fa fa-calendar fa-fw"></i>&nbsp;<?php echo $hari_ini . ", " . $tanggal . " " . $bulan_ini . " " . $tahun ?>
 							</h5>
@@ -115,37 +115,28 @@ $res = mysqli_fetch_array($ress_g);
 						} else {
 							echo '<li><a href="index.php"><i class="fa fa-home fa-fw"></i>&nbsp;Beranda</a></li>';
 						}
-						
+
 						// Perjalanan Dinas Menu
-						if(isset($menuparent) && $menuparent == "perjalanan_dinas") {
-							echo '<li class="active">';
-						}
-						else {
-							echo '<li>';
-						}
-						?>
-							<a href="#"><i class="fa fa-plane fa-fw"></i> Perjalanan Dinas<span class="fa arrow"></span></a>
-							<ul class="nav nav-second-level">
-								<li>
-									<a href="form_perjalanan_dinas.php">
-										<i class="fa fa-plus fa-fw"></i> Buat Pengajuan Baru
-									</a>
-								</li>
-								<li>
-									<a href="perjalanan_dinas_list.php">
-										<i class="fa fa-list fa-fw"></i> Daftar Pengajuan Saya
-									</a>
-								</li>
-							</ul>
-						<?php echo '</li>'; ?>
-						
-						if (isset($menuparent) && $menuparent == "master") {
+						if (isset($menuparent) && $menuparent == "perjalanan_dinas") {
 							echo '<li class="active">';
 						} else {
 							echo '<li>';
 						}
 						?>
-						<!-- open <li> tag generated with php, see line 134-139 -->
+						<a href="#"><i class="fa fa-plane fa-fw"></i> Perjalanan Dinas<span class="fa arrow"></span></a>
+						<ul class="nav nav-second-level">
+							<li>
+								<a href="form_perjalanan_dinas.php">
+									<i class="fa fa-plus fa-fw"></i> Buat Pengajuan Baru
+								</a>
+							</li>
+							<li>
+								<a href="perjalanan_dinas_list.php">
+									<i class="fa fa-list fa-fw"></i> Daftar Pengajuan Saya
+								</a>
+							</li>
+						</ul>
+						<?php echo '</li>'; ?>
 
 						</li>
 						<?php
@@ -294,7 +285,7 @@ $res = mysqli_fetch_array($ress_g);
 						<!-- open <li> tag generated with php, see line 155-160 -->
 
 						</li>
-						
+
 						<!-- Menu Request Slip Gaji -->
 						<?php
 						if (isset($menuparent) && $menuparent == "gaji") {
@@ -303,33 +294,36 @@ $res = mysqli_fetch_array($ress_g);
 							echo '<li>';
 						}
 						?>
-							<a href="#"><i class="fa fa-download fa-fw"></i> Slip Gaji<span class="fa arrow"></span></a>
-							<ul class="nav nav-second-level">
-								<li>
-									<a href="request_slip_gaji.php">
-										<i class="fa fa-file-text-o fa-fw"></i> Request Slip Gaji
-									</a>
-								</li>
-								<li>
-									<a href="request_slip_gaji_list.php">
-										<i class="fa fa-list fa-fw"></i> Daftar Request Saya
-									</a>
-								</li>
-							</ul>
+						<a href="#"><i class="fa fa-download fa-fw"></i> Slip Gaji<span class="fa arrow"></span></a>
+						<ul class="nav nav-second-level">
+							<li>
+								<a href="request_slip_gaji.php">
+									<i class="fa fa-file-text-o fa-fw"></i> Request Slip Gaji
+								</a>
+							</li>
+							<li>
+								<a href="request_slip_gaji_list.php">
+									<i class="fa fa-list fa-fw"></i> Daftar Request Saya
+								</a>
+							</li>
+						</ul>
 						</li>
-						
+
 						<?php if ($sess_jabatan == 'Manager' || $sess_jabatan == 'Leader'): ?>
-						<li>
-							<a href="#"><i class="fa fa-users fa-fw"></i> Permintaan Karyawan<span class="fa arrow"></span></a>
-							<ul class="nav nav-second-level">
-								<li>
-									<a href="form_permintaan_karyawan.php"><i class="fa fa-plus-circle"></i> Buat Permintaan Baru</a>
-								</li>
-								<li>
-									<a href="permintaan_karyawan_list.php"><i class="fa fa-list"></i> Daftar Permintaan Saya</a>
-								</li>
-							</ul>
-						</li>
+							<li>
+								<a href="#"><i class="fa fa-users fa-fw"></i> Permintaan Karyawan<span
+										class="fa arrow"></span></a>
+								<ul class="nav nav-second-level">
+									<li>
+										<a href="form_permintaan_karyawan.php"><i class="fa fa-plus-circle"></i> Buat
+											Permintaan Baru</a>
+									</li>
+									<li>
+										<a href="permintaan_karyawan_list.php"><i class="fa fa-list"></i> Daftar Permintaan
+											Saya</a>
+									</li>
+								</ul>
+							</li>
 						<?php endif; ?>
 					</ul>
 				</div>

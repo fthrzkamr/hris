@@ -17,7 +17,7 @@ $id = $sess_mngid;
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>HRIS PT. Dua Farma Group - <?php echo $pagedesc; ?></title>
+    <title>HRIS DF Group- <?php echo $pagedesc; ?></title>
     <link href="libs/images/dua.png" rel="icon" type="images/x-icon">
     <link href="libs/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="libs/metisMenu/dist/metisMenu.min.css" rel="stylesheet">
@@ -50,7 +50,7 @@ $id = $sess_mngid;
                 <div class="sidebar-nav navbar-collapse">
                     <ul class="nav" id="side-menu">
                         <li class="sidebar-search">
-                            <h4>HRIS<br> <b>PT. Dua Farma Group</b></h4>
+                            <h4>HRIS<br> <b>DF Group</b></h4>
                             <h5 class="text-muted"><i class="fa fa-calendar fa-fw"></i> <?php echo "$hari_ini, $tanggal $bulan_ini $tahun"; ?></h5>
                         </li>
                         <li><a href="index.php"><i class="fa fa-home fa-fw"></i> Beranda</a></li>
