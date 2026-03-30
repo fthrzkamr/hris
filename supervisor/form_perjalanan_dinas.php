@@ -146,6 +146,20 @@ if (empty($departemen_user) || is_numeric($departemen_user)) {
                             <p class="text-muted">Isi keterangan, qty, dan perkiraan sebagai estimasi. Nilai nominal
                                 akhir akan ditentukan
                                 oleh HR dan Manager HR.</p>
+                            <div class="alert alert-info" role="alert" style="margin-top:8px;">
+                                <strong>Catatan keterangan:</strong>
+                                <div class="small">Gunakan keterangan yang jelas (pilih salah satu contoh berikut atau sesuaikan dengan kebutuhan).</div>
+                                <ul class="list-group" style="margin-top:8px; margin-bottom:8px;">
+                                    <li class="list-group-item">Biaya Keberangkatan (Penerbangan, Bus, Kereta Api, Kapal)</li>
+                                    <li class="list-group-item">Biaya Kepulangan (Penerbangan, Bus, Kereta Api, Kapal)</li>
+                                    <li class="list-group-item">Biaya Luar Kota</li>
+                                    <li class="list-group-item">Hotel / Kost</li>
+                                    <li class="list-group-item">Bensin</li>
+                                    <li class="list-group-item">Biaya Tol</li>
+                                    <li class="list-group-item">Biaya Tak Terduga</li>
+                                </ul>
+                                <div class="small text-muted">Contoh boleh disingkat, mis. HOTEL / TRANSPORTASI / MAKAN.</div>
+                            </div>
                         </div>
                     </div>
 

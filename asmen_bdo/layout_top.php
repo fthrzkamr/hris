@@ -138,17 +138,7 @@ $res = mysqli_fetch_array($ress_g);
 						</ul>
 						<?php echo '</li>'; ?>
 
-						if(isset($menuparent) && $menuparent == "master") {
-						echo '<li class="active">';
-							}
-							else {
-							echo '
-						<li>';
-							}
-							?>
-							<!-- open <li> tag generated with php, see line 134-139 -->
-
-						</li>
+					
 						<?php
 						if (isset($menuparent) && $menuparent == "approval") {
 							echo '<li class="active">';
