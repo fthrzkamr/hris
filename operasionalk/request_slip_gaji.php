@@ -7,7 +7,7 @@ $menuparent = "gaji";
 include("layout_top.php");
 
 // Ambil NPP user yang login
-$npp = $_SESSION['operasionalk'];
+$npp = isset($sess_mngid) ? $sess_mngid : '';
 
 // Ambil data karyawan yang login
 $sql_emp = "SELECT npp, nama_emp FROM employee WHERE npp = ?";

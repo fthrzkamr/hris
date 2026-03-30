@@ -18,7 +18,7 @@ function get_bulan_indo($tanggal) {
 }
 
 // Ambil NPP user yang login (KEAMANAN PENTING!)
-$npp_login = $_SESSION['operasionalk'];
+$npp_login = isset($sess_mngid) ? $sess_mngid : '';
 $id_request = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
 if ($id_request == 0) {

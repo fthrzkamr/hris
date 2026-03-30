@@ -7,7 +7,7 @@ $menuparent = "gaji";
 include("layout_top.php");
 
 // Ambil NPP user yang login
-$npp = $_SESSION['apj'];
+$npp = isset($sess_mngid) ? $sess_mngid : '';
 
 // Bulan dalam bahasa Indonesia
 $bulan_list = [

@@ -3,7 +3,7 @@ include("sess_check.php");
 include("dist/function/format_rupiah.php");
 
 // Ambil NPP user yang login (KEAMANAN PENTING!)
-$npp_login = $_SESSION['operasionalk'];
+$npp_login = isset($sess_mngid) ? $sess_mngid : '';
 $id_request = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
 if ($id_request == 0) {

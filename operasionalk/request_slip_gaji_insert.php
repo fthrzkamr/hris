@@ -9,7 +9,7 @@ switch ($_SERVER['REQUEST_METHOD']) {
         $bulan = mysqli_real_escape_string($conn, $_POST['bulan']);
         $keterangan = isset($_POST['keterangan']) ? mysqli_real_escape_string($conn, $_POST['keterangan']) : '';
 
-        if ($npp != $_SESSION['operasionalk']) {
+        if ($npp != $sess_mngid) {
             $_SESSION['message'] = 'Akses ditolak! Anda hanya dapat melakukan request untuk diri sendiri.';
             $_SESSION['status'] = 'danger';
             header("location: request_slip_gaji.php");

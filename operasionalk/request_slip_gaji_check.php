@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $bulan = $_POST['bulan'];
     
     // Validasi: pastikan NPP yang dicek adalah NPP yang login
-    if ($npp != $_SESSION['operasionalk']) {
+    if ($npp != $sess_mngid) {
         echo json_encode([
             'status' => 'error',
             'message' => 'Unauthorized access'

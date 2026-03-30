@@ -146,6 +146,7 @@ if (empty($departemen_user) || is_numeric($departemen_user)) {
                             <p class="text-muted">Isi keterangan, qty, dan perkiraan sebagai estimasi. Nilai nominal
                                 akhir akan ditentukan
                                 oleh HR dan Manager HR.</p>
+
                             <div class="alert alert-info" role="alert" style="margin-top:8px;">
                                 <strong>Catatan keterangan:</strong>
                                 <div class="small">Gunakan keterangan yang jelas (pilih salah satu contoh berikut atau sesuaikan dengan kebutuhan).</div>
