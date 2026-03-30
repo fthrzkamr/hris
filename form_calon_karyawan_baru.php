@@ -14,6 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nomor_ktp = trim($_POST['nomor_ktp'] ?? '');
     $kota_lahir = trim($_POST['kota_lahir'] ?? '');
     $alamat_tinggal_sekarang = trim($_POST['alamat_tinggal_sekarang'] ?? '');
+    $status_tinggal = $_POST['status_tinggal'] ?? '';
     $tanggal_lahir = $_POST['tanggal_lahir'] ?? '';
     $pendidikan_terakhir = $_POST['pendidikan_terakhir'] ?? '';
     $nama_institusi = trim($_POST['nama_institusi'] ?? '');
@@ -30,8 +31,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $bpjs_kesehatan = trim($_POST['bpjs_kesehatan'] ?? '');
     $nama_bank = trim($_POST['nama_bank'] ?? '');
     $norek_mandiri = trim($_POST['norek_mandiri'] ?? '');
-    $nomor_emrg_pr = trim($_POST['nomor_emrg_pr'] ?? '');
-    $nomor_emrg_kd = trim($_POST['nomor_emrg_kd'] ?? '');
+    // Emergency contact (new keys)
+    $emrg1_phone = trim($_POST['emrg1_phone'] ?? '');
+    $emrg1_rel = $_POST['emrg1_rel'] ?? '';
+    $emrg1_name = trim($_POST['emrg1_name'] ?? '');
+
+    $emrg2_phone = trim($_POST['emrg2_phone'] ?? '');
+    $emrg2_rel = $_POST['emrg2_rel'] ?? '';
+    $emrg2_name = trim($_POST['emrg2_name'] ?? '');
     $cabang = $_POST['cabang'] ?? '';
     $nama_bagian = $_POST['nama_bagian'] ?? '';
 
@@ -101,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!empty($error)) {
         // Error already set from file upload
     } else if (empty($nama_emp) || empty($jk_emp) || empty($telp_emp) || empty($alamat) || empty($nomor_ktp) || 
-        empty($kota_lahir) || empty($alamat_tinggal_sekarang) || empty($tanggal_lahir) || 
+        empty($kota_lahir) || empty($alamat_tinggal_sekarang) || empty($status_tinggal) || empty($tanggal_lahir) || 
         empty($nomor_kk) || empty($agama) || empty($gol_darah) || empty($status_kawin) || empty($nomor_tlp) || 
         empty($pendidikan_terakhir) || empty($nama_institusi) || empty($jurusan) || 
         empty($nama_pasangan) || empty($pekerjaan) || empty($nama_anak) ||
@@ -111,6 +118,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else if (empty($foto_emp)) {
         $error = 'Foto wajib diupload';
     } else {
+        // Prepare emergency contact storage: combine name and number into DB fields
+        $nomor_emrg_pr = '';
+        if(!empty($emrg1_name)) $nomor_emrg_pr = $emrg1_name . '|' . $emrg1_phone;
+        else $nomor_emrg_pr = $emrg1_phone;
+
+        $nomor_emrg_kd = '';
+        if(!empty($emrg2_name)) $nomor_emrg_kd = $emrg2_name . '|' . $emrg2_phone;
+        else $nomor_emrg_kd = $emrg2_phone;
+
+        // Keep alamat_tinggal_sekarang as provided (single input). Do not append status detail.
+
         // Insert into employee table with status 'Calon Karyawan'
         $stmt = mysqli_prepare($conn, "INSERT INTO employee 
             (npp, nama_emp, jk_emp, telp_emp, alamat, nomor_ktp, kota_lahir, alamat_tinggal_sekarang, 
@@ -385,9 +403,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
 
                         <div class="form-group">
-                            <label>Alamat Tinggal Sekarang <span class="required-mark">*</span></label>
-                            <textarea name="alamat_tinggal_sekarang" class="form-control" required
-                                rows="2"><?php echo htmlspecialchars($_POST['alamat_tinggal_sekarang'] ?? ''); ?></textarea>
+                            <label>Status Tempat Tinggal <span class="required-mark">*</span></label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <select name="status_tinggal" id="status_tinggal" class="form-control" required>
+                                        <option value="">-- Pilih Status Tempat Tinggal --</option>
+                                        <option value="Orang Tua" <?php echo (($_POST['status_tinggal'] ?? '') === 'Orang Tua') ? 'selected' : ''; ?>>Orang Tua</option>
+                                        <option value="Kos" <?php echo (($_POST['status_tinggal'] ?? '') === 'Kos') ? 'selected' : ''; ?>>Kos</option>
+                                        <option value="Hotel" <?php echo (($_POST['status_tinggal'] ?? '') === 'Hotel') ? 'selected' : ''; ?>>Hotel</option>
+                                        <option value="Sendiri" <?php echo (($_POST['status_tinggal'] ?? '') === 'Sendiri') ? 'selected' : ''; ?>>Tinggal Sendiri</option>
+                                        <option value="Lainnya" <?php echo (($_POST['status_tinggal'] ?? '') === 'Lainnya') ? 'selected' : ''; ?>>Lainnya</option>
+                                    </select>
+                                    <!-- single address input used; no separate status detail field -->
+                                </div>
+                                <div class="col-md-6">
+                                    <div id="alamat_new_container">
+                                        <input type="text" name="alamat_tinggal_sekarang" id="alamat_tinggal_sekarang" class="form-control" required placeholder="Masukkan alamat lengkap (jalan, RT/RW, kota)" value="<?php echo htmlspecialchars($_POST['alamat_tinggal_sekarang'] ?? ''); ?>">
+                                        <small class="text-muted">Isi lengkap: jalan, RT/RW, kel, kec, kota</small>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="row">
@@ -440,6 +475,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <select name="status_kawin" class="form-control" required>
                                         <option value="belum menikah" <?php echo (($_POST['status_kawin'] ?? 'belum menikah') === 'belum menikah') ? 'selected' : ''; ?>>Belum Menikah</option>
                                         <option value="sudah menikah" <?php echo (($_POST['status_kawin'] ?? '') === 'sudah menikah') ? 'selected' : ''; ?>>Sudah Menikah</option>
+                                        <option value="cerai" <?php echo (($_POST['status_kawin'] ?? '') === 'cerai') ? 'selected' : ''; ?>>Cerai</option>
                                     </select>
                                 </div>
                             </div>
@@ -539,16 +575,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>Nomor Kontak Darurat 1 <span class="required-mark">*</span></label>
-                                    <input type="text" name="nomor_emrg_pr" class="form-control" required
-                                        value="<?php echo htmlspecialchars($_POST['nomor_emrg_pr'] ?? ''); ?>">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <input type="text" name="emrg1_phone" class="form-control" required
+                                                            value="<?php echo htmlspecialchars($_POST['emrg1_phone'] ?? ''); ?>" placeholder="Nomor Kontak">
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <select name="emrg1_rel" id="emrg1_rel" class="form-control" required>
+                                                            <option value="">-- Hubungan --</option>
+                                                            <option value="Orang Tua" <?php echo (($_POST['emrg1_rel'] ?? '') === 'Orang Tua') ? 'selected' : ''; ?>>Orang Tua</option>
+                                                            <option value="Pasangan" <?php echo (($_POST['emrg1_rel'] ?? '') === 'Pasangan') ? 'selected' : ''; ?>>Pasangan</option>
+                                                            <option value="Saudara" <?php echo (($_POST['emrg1_rel'] ?? '') === 'Saudara') ? 'selected' : ''; ?>>Saudara</option>
+                                                            <option value="Teman" <?php echo (($_POST['emrg1_rel'] ?? '') === 'Teman') ? 'selected' : ''; ?>>Teman</option>
+                                                            <option value="Lainnya" <?php echo (($_POST['emrg1_rel'] ?? '') === 'Lainnya') ? 'selected' : ''; ?>>Lainnya</option>
+                                                        </select>
+                                                        <input type="text" name="emrg1_name" id="emrg1_name" class="form-control" style="margin-top:8px; display:none;" placeholder="Nama Kontak (jika 'Lainnya')" value="<?php echo htmlspecialchars($_POST['emrg1_name'] ?? ''); ?>">
+                                                    </div>
+                                                </div>
                                     <small class="text-muted">Contoh: Orang tua/Saudara</small>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>Nomor Kontak Darurat 2 <span class="required-mark">*</span></label>
-                                    <input type="text" name="nomor_emrg_kd" class="form-control" required
-                                        value="<?php echo htmlspecialchars($_POST['nomor_emrg_kd'] ?? ''); ?>">
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <input type="text" name="emrg2_phone" class="form-control" required
+                                                            value="<?php echo htmlspecialchars($_POST['emrg2_phone'] ?? ''); ?>" placeholder="Nomor Kontak Alternatif">
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <select name="emrg2_rel" id="emrg2_rel" class="form-control" required>
+                                                            <option value="">-- Hubungan --</option>
+                                                            <option value="Orang Tua" <?php echo (($_POST['emrg2_rel'] ?? '') === 'Orang Tua') ? 'selected' : ''; ?>>Orang Tua</option>
+                                                            <option value="Pasangan" <?php echo (($_POST['emrg2_rel'] ?? '') === 'Pasangan') ? 'selected' : ''; ?>>Pasangan</option>
+                                                            <option value="Saudara" <?php echo (($_POST['emrg2_rel'] ?? '') === 'Saudara') ? 'selected' : ''; ?>>Saudara</option>
+                                                            <option value="Teman" <?php echo (($_POST['emrg2_rel'] ?? '') === 'Teman') ? 'selected' : ''; ?>>Teman</option>
+                                                            <option value="Lainnya" <?php echo (($_POST['emrg2_rel'] ?? '') === 'Lainnya') ? 'selected' : ''; ?>>Lainnya</option>
+                                                        </select>
+                                                        <input type="text" name="emrg2_name" id="emrg2_name" class="form-control" style="margin-top:8px; display:none;" placeholder="Nama Kontak (jika 'Lainnya')" value="<?php echo htmlspecialchars($_POST['emrg2_name'] ?? ''); ?>">
+                                                    </div>
+                                                </div>
                                 </div>
                             </div>
                         </div>
@@ -650,6 +716,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script src="libs/jquery/dist/jquery.min.js"></script>
     <script src="libs/bootstrap/dist/js/bootstrap.min.js"></script>
+    <script>
+        $(function(){
+            function toggleNameInput(selId, inputId){
+                var v = $(selId).val();
+                if(v === '' ){
+                    $(inputId).hide();
+                } else if(v === 'Lainnya'){
+                    $(inputId).show().attr('placeholder','Nama Kontak (harus diisi)');
+                } else {
+                    $(inputId).show().attr('placeholder','Nama Kontak');
+                }
+            }
+            $('#emrg1_rel').on('change', function(){ toggleNameInput('#emrg1_rel','#emrg1_name'); });
+            $('#emrg2_rel').on('change', function(){ toggleNameInput('#emrg2_rel','#emrg2_name'); });
+            // status_tinggal toggle
+            function toggleStatusDetail(){
+                var v = $('#status_tinggal').val();
+                if(v === '' ){
+                    $('#alamat_new_container').hide();
+                } else {
+                    $('#alamat_new_container').show();
+                    $('#alamat_tinggal_sekarang').attr('placeholder', 'Masukkan alamat lengkap ('+v+')');
+                }
+            }
+            $('#status_tinggal').on('change', toggleStatusDetail);
+            toggleStatusDetail();
+            // Initialize on page load
+            toggleNameInput('#emrg1_rel','#emrg1_name');
+            toggleNameInput('#emrg2_rel','#emrg2_name');
+        });
+    </script>
 </body>
 
 </html>
