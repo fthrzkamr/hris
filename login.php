@@ -8,7 +8,7 @@
 	<meta name="description" content="">
 	<meta name="author" content="">
 
-	<title>DF GROUP - <?php echo $pagedesc ?></title>
+	<title>HR IS DF GROUP - <?php echo $pagedesc ?></title>
 
 	<link href="" rel="icon" type="images/x-icon">
 
@@ -63,6 +63,11 @@
 										<div class="form-group">
 											<input type="submit" class="btn btn-success btn-block" name="login" value="Masuk">
 										</div>
+										<div class="form-group text-left">
+											<a href="form_calon_karyawan_baru.php" class="btn btn-success btn-sm">
+												<i class="fa fa-user-plus"></i> Form Calon Karyawan Baru
+											</a>
+										</div>
 									</form>
 								</div>
 							</div>
@@ -76,7 +81,7 @@
 	<!-- footer-bottom -->
 	<div class="navbar navbar-inverse navbar-fixed-bottom footer-bottom">
 		<div class="container text-center">
-			<p class="text-center" style="color: #D1C4E9; margin: 0 0 5px; padding: 0"><small>HR IS DUA FARMA GROUP</small></p>
+			<p class="text-center" style="color: #D1C4E9; margin: 0 0 5px; padding: 0"><small>HR IS DF GROUP</small></p>
 		</div>
 	</div><!-- /.footer-bottom -->
 
