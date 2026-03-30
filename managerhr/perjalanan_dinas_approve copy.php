@@ -248,17 +248,16 @@ $pengajuan = mysqli_fetch_assoc($res_p);
 
                         <div class="table-responsive">
                             <table class="table table-striped table-bordered rincian-table">
-                                        <thead>
-                                            <tr>
-                                                <th style="width:6%; text-align:center">No</th>
-                                                <th>Keterangan</th>
-                                                <th style="width:16%; text-align:right">Nominal (input)</th>
-                                                <th style="width:8%; text-align:center">Qty</th>
-                                                <th style="width:16%; text-align:right">Perkiraan</th>
-                                                <th style="width:16%; text-align:right">Total</th>
-                                                <th style="width:8%; text-align:center">Aksi</th>
-                                            </tr>
-                                        </thead>
+                                <thead>
+                                    <tr>
+                                        <th style="width:6%; text-align:center">No</th>
+                                        <th>Keterangan</th>
+                                        <th style="width:18%; text-align:right">Nominal (input)</th>
+                                        <th style="width:8%; text-align:center">Qty</th>
+                                        <th style="width:18%; text-align:right">Perkiraan</th>
+                                        <th style="width:18%; text-align:right">Total</th>
+                                    </tr>
+                                </thead>
                                 <tbody>
                                     <?php foreach ($rincian as $it):
                                         $nominal = (float) $it['nominal'];
@@ -276,27 +275,11 @@ $pengajuan = mysqli_fetch_assoc($res_p);
                                         <td class="text-center"><?php echo $qty; ?></td>
                                         <td style="text-align:right">Rp <?php echo number_format((float) $it['perkiraan'], 0, ',', '.'); ?></td>
                                         <td class="text-right line-total">Rp <?php echo number_format($total, 0, ',', '.'); ?></td>
-                                        <td class="text-center">
-                                            <button type="button" class="btn btn-xs btn-warning btnEditApprove"
-                                                data-id="<?php echo (int) $it['id']; ?>"
-                                                data-ket="<?php echo htmlspecialchars($it['ket'], ENT_QUOTES); ?>"
-                                                data-nominal="<?php echo htmlspecialchars($it['nominal']); ?>"
-                                                data-qty="<?php echo htmlspecialchars($it['qty']); ?>"
-                                                data-perkiraan="<?php echo htmlspecialchars($it['perkiraan']); ?>"
-                                                data-keterangan="<?php echo htmlspecialchars($it['keterangan'], ENT_QUOTES); ?>">
-                                                <i class="fa fa-edit"></i>
-                                            </button>
-                                            <button type="button" class="btn btn-xs btn-danger btnDeleteApprove" data-id="<?php echo (int) $it['id']; ?>">
-                                                <i class="fa fa-trash"></i>
-                                            </button>
-                                        </td>
                                     </tr>
                                     <?php endforeach; ?>
                                 </tbody>
                             </table>
                         </div>
-
-                            <!-- modal moved below form to avoid nested forms -->
 
                         <div class="form-group" style="margin-top:12px">
                             <label>Catatan Manager HR (opsional)</label>
@@ -304,7 +287,6 @@ $pengajuan = mysqli_fetch_assoc($res_p);
                         </div>
 
                         <div class="actions">
-                            <button type="button" id="btnAddItemApprove" class="btn btn-primary btn-lg"><i class="fa fa-plus"></i> Tambah Item</button>
                             <button type="submit" name="aksi" value="approve_with_changes" class="btn btn-success btn-lg">
                                 <i class="fa fa-check"></i> Approve & Teruskan ke Direktur
                             </button>
@@ -327,95 +309,6 @@ $pengajuan = mysqli_fetch_assoc($res_p);
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
         $(function () {
-            // Handlers for add/edit/delete rincian within approve page
-            $('#btnAddItemApprove').on('click', function () {
-                $('#rincianFormApprove')[0].reset();
-                $('#rincian_id_approve').val('');
-                $('#rincianModalApprove .modal-title').text('Tambah Item');
-                $('#rincianModalApprove').modal('show');
-            });
-
-            $(document).on('click', '.btnEditApprove', function () {
-                $('#rincian_id_approve').val($(this).data('id'));
-                $('#ket_approve').val($(this).data('ket'));
-                $('#nominal_approve').val($(this).data('nominal'));
-                $('#qty_approve').val($(this).data('qty'));
-                $('#perkiraan_approve').val($(this).data('perkiraan'));
-                $('#keterangan_approve').val($(this).data('keterangan'));
-                $('#rincianModalApprove .modal-title').text('Edit Item');
-                $('#rincianModalApprove').modal('show');
-            });
-
-            $('#rincianFormApprove').on('submit', function (e) {
-                e.preventDefault();
-                var fd = $(this).serialize();
-                $.post('perjalanan_rincian_save.php', fd, function (res) {
-                    if (res && res.success) {
-                        if (res.budget_total !== undefined) {
-                            var fmt = res.budget_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-                            $('#budgetDisplay').text('Rp ' + fmt);
-                        }
-                        // update table row or append new row
-                        if (res.row) {
-                            var row = res.row;
-                            var rowHtml = '<tr data-id="' + row.id + '">';
-                            rowHtml += '<td class="text-center">' + (row.nomor ? row.nomor : '') + '</td>';
-                            rowHtml += '<td>' + (row.ket ? $('<div>').text(row.ket).html() : '') + '</td>';
-                            rowHtml += '<td class="text-right"><input type="text" name="nominal[' + row.id + ']" value="' + (row.nominal ? Number(row.nominal).toLocaleString('id-ID') : '') + '" class="nominal-field" data-qty="' + row.qty + '"></td>';
-                            rowHtml += '<td class="text-center">' + (row.qty ? row.qty : '') + '</td>';
-                            rowHtml += '<td class="text-right">Rp ' + (row.perkiraan ? Number(row.perkiraan).toLocaleString('id-ID') : '0') + '</td>';
-                            rowHtml += '<td class="text-right line-total">Rp ' + (row.total ? Number(row.total).toLocaleString('id-ID') : '0') + '</td>';
-                            rowHtml += '<td class="text-center"><button type="button" class="btn btn-xs btn-warning btnEditApprove" data-id="' + row.id + '" data-ket="' + $('<div>').text(row.ket).html() + '" data-nominal="' + row.nominal + '" data-qty="' + row.qty + '" data-perkiraan="' + row.perkiraan + '" data-keterangan="' + $('<div>').text(row.keterangan).html() + '"><i class="fa fa-edit"></i></button> '
-                            rowHtml += '<button type="button" class="btn btn-xs btn-danger btnDeleteApprove" data-id="' + row.id + '"><i class="fa fa-trash"></i></button></td>';
-                            rowHtml += '</tr>';
-
-                            // if row exists, replace; otherwise insert before last summary row
-                            var existing = $('.rincian-table tbody tr[data-id="' + row.id + '"]');
-                            if (existing.length) {
-                                existing.replaceWith(rowHtml);
-                            } else {
-                                $('.rincian-table tbody tr').last().before(rowHtml);
-                            }
-                        }
-                        $('#rincianModalApprove').modal('hide');
-                        Swal.fire({ icon: 'success', title: 'Tersimpan', showConfirmButton: false, timer: 900 });
-                    } else {
-                        Swal.fire({ icon: 'error', title: 'Gagal', text: res && res.error ? res.error : 'Gagal menyimpan item' });
-                    }
-                }, 'json').fail(function () { Swal.fire({ icon: 'error', title: 'Request gagal' }); });
-            });
-
-            $(document).on('click', '.btnDeleteApprove', function () {
-                var id = parseInt($(this).data('id')) || parseInt($(this).attr('data-id')) || 0;
-                if (!id || isNaN(id) || id <= 0) {
-                    Swal.fire({ icon: 'error', title: 'ID tidak valid', text: 'ID item tidak valid untuk dihapus.' });
-                    return;
-                }
-                Swal.fire({
-                    title: 'Hapus item?',
-                    text: 'Item akan dihapus permanen.',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonText: 'Hapus',
-                    cancelButtonText: 'Batal'
-                }).then(function (result) {
-                    if (result.isConfirmed) {
-                        $.post('perjalanan_rincian_delete.php', { id: id }, function (res) {
-                                if (res && res.success) {
-                                if (res.budget_total !== undefined) {
-                                    var fmt = res.budget_total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-                                    $('#budgetDisplay').text('Rp ' + fmt);
-                                }
-                                // remove row from table
-                                $('.rincian-table tbody tr[data-id="' + id + '"]').remove();
-                                Swal.fire({ icon: 'success', title: 'Terhapus', showConfirmButton: false, timer: 900 });
-                            } else {
-                                Swal.fire({ icon: 'error', title: 'Gagal', text: res && res.error ? res.error : 'Gagal menghapus' });
-                            }
-                        }, 'json').fail(function () { Swal.fire({ icon: 'error', title: 'Request gagal' }); });
-                    }
-                });
-            });
             function formatRp(num) {
                 num = parseFloat(num) || 0;
                 return num.toLocaleString('id-ID', { maximumFractionDigits: 0 });
@@ -445,29 +338,4 @@ $pengajuan = mysqli_fetch_assoc($res_p);
             recalcAll();
         });
 </script>
-<!-- Modal for add/edit rincian (moved outside the approval form) -->
-<div id="rincianModalApprove" class="modal fade" tabindex="-1" role="dialog">
-    <div class="modal-dialog">
-        <form id="rincianFormApprove">
-            <input type="hidden" name="id" id="rincian_id_approve" value="">
-            <input type="hidden" name="perjalanan_id" value="<?php echo (int) $id; ?>">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h4 class="modal-title">Tambah / Edit Item</h4>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group"><label>Keterangan</label><input name="ket" id="ket_approve" class="form-control" required></div>
-                    <div class="form-group"><label>Nominal</label><input type="text" inputmode="numeric" pattern="[0-9.]*" name="nominal" id="nominal_approve" class="form-control" oninput="this.value=this.value.replace(/[^0-9\.]/g,'');"></div>
-                    <div class="form-group"><label>Qty</label><input type="number" step="1" min="0" name="qty" id="qty_approve" class="form-control" oninput="this.value=this.value.replace(/[^0-9]/g,'');"></div>
-                    <div class="form-group"><label>Perkiraan</label><input type="text" inputmode="numeric" pattern="[0-9.]*" name="perkiraan" id="perkiraan_approve" class="form-control" oninput="this.value=this.value.replace(/[^0-9\.]/g,'');"></div>
-                    <div class="form-group"><label>Keterangan Tambahan</label><input name="keterangan" id="keterangan_approve" class="form-control"></div>
-                </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary">Simpan</button>
-                    <button type="button" class="btn btn-default" data-dismiss="modal">Batal</button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
 <?php include('layout_bottom.php'); ?>

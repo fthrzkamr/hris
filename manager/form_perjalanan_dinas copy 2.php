@@ -147,19 +147,19 @@ if (empty($departemen_user) || is_numeric($departemen_user)) {
                                 akhir akan ditentukan
                                 oleh HR dan Manager HR.</p>
 
+                            <!-- Helper note and example list to reduce user confusion -->
                             <div class="alert alert-info" role="alert" style="margin-top:8px;">
-                                <strong>Catatan keterangan:</strong>
-                                <div class="small">Gunakan keterangan yang jelas (pilih salah satu contoh berikut atau sesuaikan dengan kebutuhan).</div>
-                                <ul class="list-group" style="margin-top:8px; margin-bottom:8px;">
-                                    <li class="list-group-item">Biaya Keberangkatan (Penerbangan, Bus, Kereta Api, Kapal)</li>
-                                    <li class="list-group-item">Biaya Kepulangan (Penerbangan, Bus, Kereta Api, Kapal)</li>
-                                    <li class="list-group-item">Biaya Luar Kota</li>
-                                    <li class="list-group-item">Hotel / Kost</li>
-                                    <li class="list-group-item">Bensin</li>
-                                    <li class="list-group-item">Biaya Tol</li>
-                                    <li class="list-group-item">Biaya Tak Terduga</li>
+                                <strong>Catatan:</strong> Tuliskan keterangan singkat untuk setiap baris. Contoh umum:
+                                <ul class="examples-list" style="margin-top:6px;">
+                                    <li>Biaya Keberangkatan (Penerbangan, Bus, Kereta Api, Kapal)</li>
+                                    <li>Biaya Kepulangan (Penerbangan, Bus, Kereta Api, Kapal)</li>
+                                    <li>Biaya Luar Kota</li>
+                                    <li>Hotel / Kost</li>
+                                    <li>Bensin</li>
+                                    <li>Biaya Tol</li>
+                                    <li>Biaya Tak Terduga</li>
                                 </ul>
-                                <div class="small text-muted">Contoh boleh disingkat, mis. HOTEL / TRANSPORTASI / MAKAN.</div>
+                                <small class="text-muted">Contoh di atas bisa diketik persis atau disingkat (mis. HOTEL, TRANSPORTASI, MAKAN).</small>
                             </div>
                         </div>
                     </div>
