@@ -98,14 +98,14 @@ if (!$res) {
     <?php include("layout_alert.php"); ?>
 
     <?php if (isset($error_msg)): ?>
-    <div class="row">
-        <div class="col-lg-12">
-            <div class="alert alert-danger">
-                <strong>Error Database:</strong> <?php echo htmlspecialchars($error_msg); ?>
-                <br><small>Pastikan tabel permintaan_karyawan dan permintaan_pengajuan sudah ada di database.</small>
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="alert alert-danger">
+                    <strong>Error Database:</strong> <?php echo htmlspecialchars($error_msg); ?>
+                    <br><small>Pastikan tabel permintaan_karyawan dan permintaan_pengajuan sudah ada di database.</small>
+                </div>
             </div>
         </div>
-    </div>
     <?php endif; ?>
 
     <div class="row">
@@ -131,55 +131,56 @@ if (!$res) {
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php 
+                                <?php
                                 $no = 1;
                                 if ($res):
-                                while ($row = mysqli_fetch_assoc($res)): 
-                                ?>
-                                    <tr>
-                                        <td><?php echo $no++; ?></td>
-                                        <td><?php echo htmlspecialchars($row['no_dokumen']); ?></td>
-                                        <td><?php echo htmlspecialchars($row['jabatan']); ?></td>
-                                        <td><?php echo htmlspecialchars($row['jumlah_dibutuhkan']); ?> orang</td>
-                                        <td><?php echo date('d-m-Y', strtotime($row['tanggal_dokumen'])); ?></td>
-                                        <td><?php echo htmlspecialchars($row['pengaju']); ?></td>
-                                        <td>
-                                            <?php 
-                                            $status = $row['status'];
-                                            if ($status == 'DIAJUKAN') {
-                                                echo '<span class="status-badge status-pending">Menunggu</span>';
-                                            } elseif ($status == 'DISETUJUI') {
-                                                echo '<span class="status-badge status-approved">Disetujui</span>';
-                                            } elseif ($status == 'DITOLAK') {
-                                                echo '<span class="status-badge status-rejected">Ditolak</span>';
-                                            }
-                                            ?>
-                                        </td>
-                                        <td>
-                                            <?php 
-                                            $status_direktur = $row['status_app_direktur'];
-                                            if (empty($status_direktur) && $status == 'DISETUJUI') {
-                                                echo '<span class="status-badge status-waiting">Menunggu</span>';
-                                            } elseif ($status_direktur == 'DISETUJUI') {
-                                                echo '<span class="status-badge status-approved">Disetujui</span>';
-                                            } elseif ($status_direktur == 'DITOLAK') {
-                                                echo '<span class="status-badge status-rejected">Ditolak</span>';
-                                            } elseif ($status == 'DITOLAK') {
-                                                echo '<span class="text-muted">-</span>';
-                                            } else {
-                                                echo '<span class="text-muted">-</span>';
-                                            }
-                                            ?>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group-action">
-                                                <a href="permintaan_karyawan_detail.php?id=<?php echo $row['id']; ?>" class="btn btn-xs btn-primary">
-                                                    <i class="fa fa-eye"></i> Detail
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endwhile; endif; ?>
+                                    while ($row = mysqli_fetch_assoc($res)):
+                                        ?>
+                                        <tr>
+                                            <td><?php echo $no++; ?></td>
+                                            <td><?php echo htmlspecialchars($row['no_dokumen']); ?></td>
+                                            <td><?php echo htmlspecialchars($row['jabatan']); ?></td>
+                                            <td><?php echo htmlspecialchars($row['jumlah_dibutuhkan']); ?> orang</td>
+                                            <td><?php echo date('d-m-Y', strtotime($row['tanggal_dokumen'])); ?></td>
+                                            <td><?php echo htmlspecialchars($row['pengaju'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+                                            <td>
+                                                <?php
+                                                $status = $row['status'];
+                                                if ($status == 'DIAJUKAN') {
+                                                    echo '<span class="status-badge status-pending">Menunggu</span>';
+                                                } elseif ($status == 'DISETUJUI') {
+                                                    echo '<span class="status-badge status-approved">Disetujui</span>';
+                                                } elseif ($status == 'DITOLAK') {
+                                                    echo '<span class="status-badge status-rejected">Ditolak</span>';
+                                                }
+                                                ?>
+                                            </td>
+                                            <td>
+                                                <?php
+                                                $status_direktur = $row['status_app_direktur'];
+                                                if (empty($status_direktur) && $status == 'DISETUJUI') {
+                                                    echo '<span class="status-badge status-waiting">Menunggu</span>';
+                                                } elseif ($status_direktur == 'DISETUJUI') {
+                                                    echo '<span class="status-badge status-approved">Disetujui</span>';
+                                                } elseif ($status_direktur == 'DITOLAK') {
+                                                    echo '<span class="status-badge status-rejected">Ditolak</span>';
+                                                } elseif ($status == 'DITOLAK') {
+                                                    echo '<span class="text-muted">-</span>';
+                                                } else {
+                                                    echo '<span class="text-muted">-</span>';
+                                                }
+                                                ?>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group-action">
+                                                    <a href="permintaan_karyawan_detail.php?id=<?php echo $row['id']; ?>"
+                                                        class="btn btn-xs btn-primary">
+                                                        <i class="fa fa-eye"></i> Detail
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endwhile; endif; ?>
                             </tbody>
                         </table>
                     </div>
@@ -190,7 +191,7 @@ if (!$res) {
 </div>
 
 <script>
-    $(document).ready(function() {
+    $(document).ready(function () {
         $('#dataTables').DataTable({
             responsive: true,
             pageLength: 25,

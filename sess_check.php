@@ -2,7 +2,12 @@
 // memulai session
 session_start();
 // membaca nilai variabel session 
-$chk_sess = $_SESSION['admin'];
+$chk_sess = $_SESSION['admin'] ?? null;
+// mengarahkan ke halaman login.php apabila session belum terdaftar
+if (!isset($chk_sess) || $chk_sess === '') {
+	header("location: login.php?login=false");
+	exit();
+}
 // memanggil file koneksi
 include("dist/config/koneksi.php");
 include("dist/config/library.php");
@@ -14,9 +19,10 @@ $row_sess = mysqli_fetch_array($ress_sess);
 $sess_admid = $row_sess['npp'];
 $sess_admuser = $row_sess['npp'];
 $sess_admname = $row_sess['nama_emp'];
-// mengarahkan ke halaman login.php apabila session belum terdaftar
-if (!isset($chk_sess)) {
+$sess_jabatan = $row_sess['jabatan'] ?? null;
+
+if (!$row_sess) {
 	header("location: login.php?login=false");
-	// footer()
+	exit();
 }
 ?>

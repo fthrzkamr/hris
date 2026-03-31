@@ -1,4 +1,29 @@
 <?php
+// Require login (admin session) so created_by can use logged-in NPP
+session_start();
+$chk_sess = $_SESSION['admin'] ?? null;
+if (!isset($chk_sess) || $chk_sess === '') {
+    header("location: login.php?login=false");
+    exit();
+}
+
+include __DIR__ . '/dist/config/koneksi.php';
+include __DIR__ . '/dist/config/library.php';
+
+// Load employee session data
+$sql_sess = "SELECT * FROM employee WHERE npp='" . mysqli_real_escape_string($conn, $chk_sess) . "'";
+$ress_sess = mysqli_query($conn, $sql_sess);
+$row_sess = $ress_sess ? mysqli_fetch_array($ress_sess) : null;
+if (!$row_sess) {
+    header("location: login.php?login=false");
+    exit();
+}
+
+$sess_admid = $row_sess['npp'];
+$sess_admuser = $row_sess['npp'];
+$sess_admname = $row_sess['nama_emp'];
+$sess_jabatan = $row_sess['jabatan'] ?? null;
+
 // Simple printable form for new employee request with saving to database
 
 function generate_doc_no()
@@ -18,8 +43,6 @@ $doc_date_display = date('d-m-Y');
 $doc_date_db = date('Y-m-d');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    include __DIR__ . '/dist/config/koneksi.php';
-
     // ensure main table exists (column names in Bahasa Indonesia)
     $createSql = "CREATE TABLE IF NOT EXISTS permintaan_karyawan (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -42,9 +65,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             berat VARCHAR(20),
             rentang_gaji VARCHAR(100),
             lain_lain TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_by VARCHAR(50),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_created_by (created_by)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
     mysqli_query($conn, $createSql);
+
+    // Ensure columns exist (for old tables)
+    $checkCreatedBy = mysqli_query($conn, "SHOW COLUMNS FROM permintaan_karyawan LIKE 'created_by'");
+    if ($checkCreatedBy && mysqli_num_rows($checkCreatedBy) == 0) {
+        mysqli_query($conn, "ALTER TABLE permintaan_karyawan ADD COLUMN created_by VARCHAR(50)");
+    }
+    $checkCreatedAt = mysqli_query($conn, "SHOW COLUMNS FROM permintaan_karyawan LIKE 'created_at'");
+    if ($checkCreatedAt && mysqli_num_rows($checkCreatedAt) == 0) {
+        mysqli_query($conn, "ALTER TABLE permintaan_karyawan ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+    }
+
+    // Ensure index exists (avoid "Duplicate key name" fatal when mysqli is in exception mode)
+    try {
+        $idxRes = mysqli_query($conn, "SHOW INDEX FROM permintaan_karyawan WHERE Key_name = 'idx_created_by'");
+        if ($idxRes && mysqli_num_rows($idxRes) == 0) {
+            mysqli_query($conn, "ALTER TABLE permintaan_karyawan ADD INDEX idx_created_by (created_by)");
+        }
+    } catch (Throwable $e) {
+        // ignore index errors (non-critical)
+    }
 
     // create related tables for duties and skills
     $createDuties = "CREATE TABLE IF NOT EXISTS job_duties_karyawan (
@@ -137,10 +182,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // insert into permintaan_karyawan (main record)
     $stmt = mysqli_prepare($conn, "INSERT INTO permintaan_karyawan
-            (no_dokumen,revisi,tanggal_dokumen,jabatan,unit_kerja,tgl_mulai,jumlah_dibutuhkan,untuk,jumlah_sekarang,alasan,gender,usia,pendidikan,jurusan,pengalaman,tinggi,berat,rentang_gaji,lain_lain)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-    // 19 params: 6 string + int + string + int + 10 string
-    $types = 'ssssssisissssssssss';
+            (no_dokumen,revisi,tanggal_dokumen,jabatan,unit_kerja,tgl_mulai,jumlah_dibutuhkan,untuk,jumlah_sekarang,alasan,gender,usia,pendidikan,jurusan,pengalaman,tinggi,berat,rentang_gaji,lain_lain,created_by)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+    // 20 params total:
+    // 1-6: string, 7: int, 8: string, 9: int, 10-20: string
+    $types = 'ssssss' . 'i' . 's' . 'i' . str_repeat('s', 11);
     mysqli_stmt_bind_param(
         $stmt,
         $types,
@@ -162,7 +208,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $height,
         $weight,
         $range_salary,
-        $other
+        $other,
+        $sess_admid
     );
     $ok = mysqli_stmt_execute($stmt);
     if ($ok) {
