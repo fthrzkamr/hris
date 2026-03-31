@@ -7,10 +7,18 @@ include("layout_top.php");
 
 // Bulan dalam bahasa Indonesia
 $bulan_list = [
-    "01" => "Januari", "02" => "Februari", "03" => "Maret",
-    "04" => "April", "05" => "Mei", "06" => "Juni",
-    "07" => "Juli", "08" => "Agustus", "09" => "September",
-    "10" => "Oktober", "11" => "November", "12" => "Desember"
+    "01" => "Januari",
+    "02" => "Februari",
+    "03" => "Maret",
+    "04" => "April",
+    "05" => "Mei",
+    "06" => "Juni",
+    "07" => "Juli",
+    "08" => "Agustus",
+    "09" => "September",
+    "10" => "Oktober",
+    "11" => "November",
+    "12" => "Desember"
 ];
 
 // Filter status
@@ -41,7 +49,7 @@ $count_pending = mysqli_fetch_assoc($result_count)['total'];
         <div class="row">
             <div class="col-lg-12">
                 <h1 class="page-header">
-                    Approval Request Slip Gaji 
+                    Approval Request Slip Gaji
                     <?php if ($count_pending > 0) { ?>
                         <span class="badge" style="background-color: #d9534f;"><?php echo $count_pending; ?></span>
                     <?php } ?>
@@ -68,13 +76,16 @@ $count_pending = mysqli_fetch_assoc($result_count)['total'];
                 <div class="panel panel-default">
                     <div class="panel-body">
                         <div class="btn-group" role="group">
-                            <a href="?status=pending" class="btn btn-<?php echo ($filter_status == 'pending') ? 'warning' : 'default'; ?>">
+                            <a href="?status=pending"
+                                class="btn btn-<?php echo ($filter_status == 'pending') ? 'warning' : 'default'; ?>">
                                 <i class="fa fa-clock-o fa-fw"></i> Pending (<?php echo $count_pending; ?>)
                             </a>
-                            <a href="?status=approved" class="btn btn-<?php echo ($filter_status == 'approved') ? 'success' : 'default'; ?>">
+                            <a href="?status=approved"
+                                class="btn btn-<?php echo ($filter_status == 'approved') ? 'success' : 'default'; ?>">
                                 <i class="fa fa-check fa-fw"></i> Disetujui
                             </a>
-                            <a href="?status=rejected" class="btn btn-<?php echo ($filter_status == 'rejected') ? 'danger' : 'default'; ?>">
+                            <a href="?status=rejected"
+                                class="btn btn-<?php echo ($filter_status == 'rejected') ? 'danger' : 'default'; ?>">
                                 <i class="fa fa-times fa-fw"></i> Ditolak
                             </a>
                         </div>
@@ -88,7 +99,8 @@ $count_pending = mysqli_fetch_assoc($result_count)['total'];
             <div class="col-lg-12">
                 <div class="panel panel-default">
                     <div class="panel-heading">
-                        <i class="fa fa-list fa-fw"></i> Daftar Request Slip Gaji - Status: <strong><?php echo ucfirst($filter_status); ?></strong>
+                        <i class="fa fa-list fa-fw"></i> Daftar Request Slip Gaji - Status:
+                        <strong><?php echo ucfirst($filter_status); ?></strong>
                     </div>
                     <div class="panel-body">
                         <div class="table-responsive">
@@ -107,13 +119,13 @@ $count_pending = mysqli_fetch_assoc($result_count)['total'];
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php 
+                                    <?php
                                     if (mysqli_num_rows($result) > 0) {
                                         $no = 1;
                                         while ($row = mysqli_fetch_assoc($result)) {
                                             $periode = $bulan_list[$row['bulan']] . " " . $row['tahun'];
                                             $tanggal_request = date('d/m/Y H:i', strtotime($row['tanggal_request']));
-                                            
+
                                             // Status badge
                                             if ($row['status'] == 'approved') {
                                                 $status_badge = '<span class="label label-success">Disetujui</span>';
@@ -122,58 +134,63 @@ $count_pending = mysqli_fetch_assoc($result_count)['total'];
                                             } else {
                                                 $status_badge = '<span class="label label-warning">Pending</span>';
                                             }
-                                    ?>
-                                    <tr>
-                                        <td class="text-center"><?php echo $no++; ?></td>
-                                        <td class="text-center"><?php echo $row['npp']; ?></td>
-                                        <td><?php echo $row['nama_karyawan']; ?></td>
-                                        <td class="text-center"><?php echo $row['nama_bagian_join'] ?: '-'; ?></td>
-                                        <td class="text-center"><?php echo $row['cabang'] ?: '-'; ?></td>
-                                        <td class="text-center"><strong><?php echo $periode; ?></strong></td>
-                                        <td class="text-center"><?php echo $tanggal_request; ?></td>
-                                        <td class="text-center"><?php echo $status_badge; ?></td>
-                                        <td class="text-center">
-                                            <?php if ($row['status'] == 'pending') { ?>
-                                                <button type="button" class="btn btn-xs btn-primary" 
-                                                        onclick="processRequest(<?php echo $row['id_request']; ?>, '<?php echo $row['npp']; ?>', '<?php echo $row['nama_karyawan']; ?>', '<?php echo $periode; ?>', '<?php echo $row['bulan']; ?>', '<?php echo $row['tahun']; ?>')">
-                                                    <i class="fa fa-edit fa-fw"></i> Proses & Input Gaji
-                                                </button>
-                                                <button type="button" class="btn btn-xs btn-danger" 
-                                                        onclick="rejectRequest(<?php echo $row['id_request']; ?>, '<?php echo $row['npp']; ?>', '<?php echo $row['nama_karyawan']; ?>', '<?php echo $periode; ?>')">
-                                                    <i class="fa fa-times fa-fw"></i> Tolak
-                                                </button>
-                                            <?php } elseif ($row['status'] == 'approved') { ?>
-                                                <a href="request_slip_gaji_xls.php?id=<?php echo $row['id_request']; ?>" 
-                                                   class="btn btn-xs btn-success" target="_blank" title="Export Slip Gaji ke Excel">
-                                                    <i class="fa fa-file-excel-o fa-fw"></i> XLS
-                                                </a>
-                                                <a href="request_slip_gaji_download.php?id=<?php echo $row['id_request']; ?>" 
-                                                   class="btn btn-xs btn-danger" target="_blank" title="Download Slip Gaji PDF">
-                                                    <i class="fa fa-file-pdf-o fa-fw"></i> PDF
-                                                </a>
-                                                <br>
-                                                <small class="text-muted">Disetujui: <?php echo $row['approved_by']; ?></small>
-                                            <?php } else { ?>
-                                                <span class="text-muted"><em>Ditolak</em></span>
-                                                <?php if (!empty($row['keterangan_reject'])) { ?>
-                                                    <br>
-                                                    <button type="button" class="btn btn-xs btn-default" 
-                                                            onclick="alert('<?php echo addslashes($row['keterangan_reject']); ?>')">
-                                                        <i class="fa fa-info-circle"></i> Lihat Alasan
-                                                    </button>
-                                                <?php } ?>
-                                            <?php } ?>
-                                        </td>
-                                    </tr>
-                                    <?php 
+                                            ?>
+                                            <tr>
+                                                <td class="text-center"><?php echo $no++; ?></td>
+                                                <td class="text-center"><?php echo $row['npp']; ?></td>
+                                                <td><?php echo $row['nama_karyawan']; ?></td>
+                                                <td class="text-center"><?php echo $row['nama_bagian_join'] ?: '-'; ?></td>
+                                                <td class="text-center"><?php echo $row['cabang'] ?: '-'; ?></td>
+                                                <td class="text-center"><strong><?php echo $periode; ?></strong></td>
+                                                <td class="text-center"><?php echo $tanggal_request; ?></td>
+                                                <td class="text-center"><?php echo $status_badge; ?></td>
+                                                <td class="text-center">
+                                                    <?php if ($row['status'] == 'pending') { ?>
+                                                        <button type="button" class="btn btn-xs btn-success"
+                                                            onclick="approveRequest(<?php echo $row['id_request']; ?>)">
+                                                            <i class="fa fa-check fa-fw"></i> Approve
+                                                        </button>
+                                                        <button type="button" class="btn btn-xs btn-danger"
+                                                            onclick="rejectRequest(<?php echo $row['id_request']; ?>, '<?php echo $row['npp']; ?>', '<?php echo $row['nama_karyawan']; ?>', '<?php echo $periode; ?>')">
+                                                            <i class="fa fa-times fa-fw"></i> Tolak
+                                                        </button>
+                                                    <?php } elseif ($row['status'] == 'approved') { ?>
+                                                        <?php /*
+                                                        <a href="request_slip_gaji_xls.php?id=<?php echo $row['id_request']; ?>"
+                                                            class="btn btn-xs btn-success" target="_blank"
+                                                            title="Export Slip Gaji ke Excel">
+                                                            <i class="fa fa-file-excel-o fa-fw"></i> XLS
+                                                        </a>
+                                                        <a href="request_slip_gaji_download.php?id=<?php echo $row['id_request']; ?>"
+                                                            class="btn btn-xs btn-danger" target="_blank"
+                                                            title="Download Slip Gaji PDF">
+                                                            <i class="fa fa-file-pdf-o fa-fw"></i> PDF
+                                                        </a>
+                                                        <br>
+                                                        */ ?>
+                                                        <small class="text-muted">Disetujui:
+                                                            <?php echo $row['approved_by']; ?></small>
+                                                    <?php } else { ?>
+                                                        <span class="text-muted"><em>Ditolak</em></span>
+                                                        <?php if (!empty($row['keterangan_reject'])) { ?>
+                                                            <br>
+                                                            <button type="button" class="btn btn-xs btn-default"
+                                                                onclick="alert('<?php echo addslashes($row['keterangan_reject']); ?>')">
+                                                                <i class="fa fa-info-circle"></i> Lihat Alasan
+                                                            </button>
+                                                        <?php } ?>
+                                                    <?php } ?>
+                                                </td>
+                                            </tr>
+                                        <?php
                                         }
                                     } else {
-                                    ?>
-                                    <tr>
-                                        <td colspan="9" class="text-center">
-                                            <em>Tidak ada data request dengan status <?php echo $filter_status; ?>.</em>
-                                        </td>
-                                    </tr>
+                                        ?>
+                                        <tr>
+                                            <td colspan="9" class="text-center">
+                                                <em>Tidak ada data request dengan status <?php echo $filter_status; ?>.</em>
+                                            </td>
+                                        </tr>
                                     <?php } ?>
                                 </tbody>
                             </table>
@@ -186,159 +203,11 @@ $count_pending = mysqli_fetch_assoc($result_count)['total'];
     </div><!-- /.container-fluid -->
 </div><!-- /#page-wrapper -->
 
-<!-- Modal Process & Input Gaji -->
-<div class="modal fade" id="processModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <form method="post" action="request_slip_gaji_approval.php" id="processForm">
-                <div class="modal-header bg-primary" style="background-color: #337ab7; color: white;">
-                    <button type="button" class="close" data-dismiss="modal" style="color: white;">&times;</button>
-                    <h4 class="modal-title"><i class="fa fa-edit"></i> Proses & Input Data Slip Gaji</h4>
-                </div>
-                <div class="modal-body">
-                    <input type="hidden" name="id_request" id="process_id">
-                    <input type="hidden" name="npp" id="process_npp">
-                    <input type="hidden" name="bulan" id="process_bulan">
-                    <input type="hidden" name="tahun" id="process_tahun">
-                    <input type="hidden" name="action" value="approve_with_data">
-                    
-                    <!-- Info Karyawan -->
-                    <div class="alert alert-info">
-                        <strong><i class="fa fa-user"></i> Data Karyawan:</strong><br>
-                        <table class="table table-condensed" style="margin-top: 10px; margin-bottom: 0;">
-                            <tr>
-                                <td width="120"><strong>NPP</strong></td>
-                                <td>: <span id="process_npp_display"></span></td>
-                                <td width="120"><strong>Periode</strong></td>
-                                <td>: <span id="process_periode"></span></td>
-                            </tr>
-                            <tr>
-                                <td><strong>Nama</strong></td>
-                                <td colspan="3">: <span id="process_nama"></span></td>
-                            </tr>
-                        </table>
-                    </div>
-
-                    <!-- Form Input Gaji -->
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="panel panel-success">
-                                <div class="panel-heading">
-                                    <strong><i class="fa fa-plus-circle"></i> PENDAPATAN</strong>
-                                </div>
-                                <div class="panel-body">
-                                    <div class="form-group">
-                                        <label>Gaji Pokok <span class="text-danger">*</span></label>
-                                        <input type="number" class="form-control" name="gaji_pokok" id="gaji_pokok" required 
-                                               min="0" placeholder="0" onchange="hitungTotal()">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Tunjangan Transportasi</label>
-                                        <input type="number" class="form-control" name="tunj_transport" id="tunj_transport" 
-                                               min="0" value="0" placeholder="0" onchange="hitungTotal()">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Tunjangan Jabatan</label>
-                                        <input type="number" class="form-control" name="tunj_jabatan" id="tunj_jabatan" 
-                                               min="0" value="0" placeholder="0" onchange="hitungTotal()">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Tunjangan Kinerja</label>
-                                        <input type="number" class="form-control" name="tunj_kinerja" id="tunj_kinerja" 
-                                               min="0" value="0" placeholder="0" onchange="hitungTotal()">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Tunjangan BPJS Kesehatan</label>
-                                        <input type="number" class="form-control" name="tunj_bpjs_kesehatan" id="tunj_bpjs_kesehatan" 
-                                               min="0" value="0" placeholder="0" onchange="hitungTotal()">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Tunjangan BPJS TK</label>
-                                        <input type="number" class="form-control" name="tunj_bpjs_tk" id="tunj_bpjs_tk" 
-                                               min="0" value="0" placeholder="0" onchange="hitungTotal()">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Tunjangan Pajak Pph 21</label>
-                                        <input type="number" class="form-control" name="tunj_pajak_pph21" id="tunj_pajak_pph21" 
-                                               min="0" value="0" placeholder="0" onchange="hitungTotal()">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-6">
-                            <div class="panel panel-danger">
-                                <div class="panel-heading">
-                                    <strong><i class="fa fa-minus-circle"></i> POTONGAN</strong>
-                                </div>
-                                <div class="panel-body">
-                                    <div class="form-group">
-                                        <label>Potongan BPJS Kesehatan</label>
-                                        <input type="number" class="form-control" name="p_bpjs_kesehatan" id="p_bpjs_kesehatan" 
-                                               min="0" value="0" placeholder="0" onchange="hitungTotal()">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Potongan BPJS TK</label>
-                                        <input type="number" class="form-control" name="p_bpjs_tk" id="p_bpjs_tk" 
-                                               min="0" value="0" placeholder="0" onchange="hitungTotal()">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Potongan Pajak Pph 21</label>
-                                        <input type="number" class="form-control" name="p_pajak_pph21" id="p_pajak_pph21" 
-                                               min="0" value="0" placeholder="0" onchange="hitungTotal()">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Potongan Keterlambatan</label>
-                                        <input type="number" class="form-control" name="p_keterlambatan" id="p_keterlambatan" 
-                                               min="0" value="0" placeholder="0" onchange="hitungTotal()">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Angsuran Pinjaman Kantor</label>
-                                        <input type="number" class="form-control" name="p_pinjaman" id="p_pinjaman" 
-                                               min="0" value="0" placeholder="0" onchange="hitungTotal()">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Total Gaji -->
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="alert alert-success" style="background-color: #d4edda; border-color: #c3e6cb; text-align: center;">
-                                <strong><i class="fa fa-plus-circle"></i> Total Pendapatan</strong><br>
-                                <h3 style="margin: 10px 0; color: #155724;" id="display_total_pendapatan">Rp 0</h3>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="alert alert-danger" style="background-color: #f8d7da; border-color: #f5c6cb; text-align: center;">
-                                <strong><i class="fa fa-minus-circle"></i> Total Potongan</strong><br>
-                                <h3 style="margin: 10px 0; color: #721c24;" id="display_total_potongan">Rp 0</h3>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="alert alert-info" style="text-align: center;">
-                        <strong><i class="fa fa-money"></i> Gaji Bersih</strong><br>
-                        <h3 style="margin: 10px 0; color: #004085; font-weight: bold;" id="display_gaji_bersih">Rp 0</h3>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Catatan (Opsional)</label>
-                        <textarea class="form-control" name="catatan" rows="2" placeholder="Catatan tambahan untuk slip gaji ini..."></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">
-                        <i class="fa fa-times"></i> Batal
-                    </button>
-                    <button type="submit" class="btn btn-success" id="btnSubmitProcess">
-                        <i class="fa fa-check"></i> Simpan & Setujui
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+<!-- Hidden form for approve action -->
+<form method="post" action="request_slip_gaji_approval.php" id="approveForm" style="display:none;">
+    <input type="hidden" name="id_request" id="approve_id">
+    <input type="hidden" name="action" value="approve">
+</form>
 
 <!-- Modal Reject -->
 <div class="modal fade" id="rejectModal" tabindex="-1" role="dialog">
@@ -369,7 +238,8 @@ $count_pending = mysqli_fetch_assoc($result_count)['total'];
                     </table>
                     <div class="form-group">
                         <label>Alasan Penolakan <span class="text-danger">*</span></label>
-                        <textarea class="form-control" name="keterangan_reject" rows="3" required placeholder="Masukkan alasan penolakan..."></textarea>
+                        <textarea class="form-control" name="keterangan_reject" rows="3" required
+                            placeholder="Masukkan alasan penolakan..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -384,109 +254,22 @@ $count_pending = mysqli_fetch_assoc($result_count)['total'];
 </div>
 
 <script>
-function processRequest(id, npp, nama, periode, bulan, tahun) {
-    // Set hidden fields
-    document.getElementById('process_id').value = id;
-    document.getElementById('process_npp').value = npp;
-    document.getElementById('process_bulan').value = bulan;
-    document.getElementById('process_tahun').value = tahun;
-    
-    // Set display fields
-    document.getElementById('process_npp_display').innerText = npp;
-    document.getElementById('process_nama').innerText = nama;
-    document.getElementById('process_periode').innerText = periode;
-    
-    // Reset form
-    document.getElementById('processForm').reset();
-    document.getElementById('process_id').value = id;
-    document.getElementById('process_npp').value = npp;
-    document.getElementById('process_bulan').value = bulan;
-    document.getElementById('process_tahun').value = tahun;
-    
-    // Reset calculated values
-    hitungTotal();
-    
-    // Show modal
-    $('#processModal').modal('show');
-}
+    function approveRequest(id) {
+        if (!confirm('Setujui request slip gaji ini?')) {
+            return false;
+        }
 
-function rejectRequest(id, npp, nama, periode) {
-    document.getElementById('reject_id').value = id;
-    document.getElementById('reject_npp').innerText = npp;
-    document.getElementById('reject_nama').innerText = nama;
-    document.getElementById('reject_periode').innerText = periode;
-    $('#rejectModal').modal('show');
-}
-
-function hitungTotal() {
-    // Ambil nilai pendapatan
-    var gajiPokok = parseFloat(document.getElementById('gaji_pokok').value) || 0;
-    var tunjTransport = parseFloat(document.getElementById('tunj_transport').value) || 0;
-    var tunjJabatan = parseFloat(document.getElementById('tunj_jabatan').value) || 0;
-    var tunjKinerja = parseFloat(document.getElementById('tunj_kinerja').value) || 0;
-    var tunjBpjsKesehatan = parseFloat(document.getElementById('tunj_bpjs_kesehatan').value) || 0;
-    var tunjBpjsTk = parseFloat(document.getElementById('tunj_bpjs_tk').value) || 0;
-    var tunjPajakPph21 = parseFloat(document.getElementById('tunj_pajak_pph21').value) || 0;
-    
-    // Ambil nilai potongan
-    var pBpjsKesehatan = parseFloat(document.getElementById('p_bpjs_kesehatan').value) || 0;
-    var pBpjsTk = parseFloat(document.getElementById('p_bpjs_tk').value) || 0;
-    var pPajakPph21 = parseFloat(document.getElementById('p_pajak_pph21').value) || 0;
-    var pKeterlambatan = parseFloat(document.getElementById('p_keterlambatan').value) || 0;
-    var pPinjaman = parseFloat(document.getElementById('p_pinjaman').value) || 0;
-    
-    // Hitung total
-    var totalPendapatan = gajiPokok + tunjTransport + tunjJabatan + tunjKinerja + tunjBpjsKesehatan + tunjBpjsTk + tunjPajakPph21;
-    var totalPotongan = pBpjsKesehatan + pBpjsTk + pPajakPph21 + pKeterlambatan + pPinjaman;
-    var gajiBersih = totalPendapatan - totalPotongan;
-    
-    // Format rupiah
-    document.getElementById('display_total_pendapatan').innerText = formatRupiah(totalPendapatan);
-    document.getElementById('display_total_potongan').innerText = formatRupiah(totalPotongan);
-    document.getElementById('display_gaji_bersih').innerText = formatRupiah(gajiBersih);
-}
-
-function formatRupiah(angka) {
-    var number_string = angka.toString().replace(/[^,\d]/g, ''),
-        split = number_string.split(','),
-        sisa = split[0].length % 3,
-        rupiah = split[0].substr(0, sisa),
-        ribuan = split[0].substr(sisa).match(/\d{3}/gi);
-    
-    if (ribuan) {
-        separator = sisa ? '.' : '';
-        rupiah += separator + ribuan.join('.');
+        document.getElementById('approve_id').value = id;
+        document.getElementById('approveForm').submit();
     }
-    
-    rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
-    return 'Rp ' + rupiah;
-}
 
-// Validasi form sebelum submit
-document.getElementById('processForm').addEventListener('submit', function(e) {
-    var gajiPokok = parseFloat(document.getElementById('gaji_pokok').value) || 0;
-    
-    if (gajiPokok <= 0) {
-        e.preventDefault();
-        alert('Gaji pokok harus diisi dan lebih besar dari 0!');
-        document.getElementById('gaji_pokok').focus();
-        return false;
+    function rejectRequest(id, npp, nama, periode) {
+        document.getElementById('reject_id').value = id;
+        document.getElementById('reject_npp').innerText = npp;
+        document.getElementById('reject_nama').innerText = nama;
+        document.getElementById('reject_periode').innerText = periode;
+        $('#rejectModal').modal('show');
     }
-    
-    var confirm_msg = 'Apakah Anda yakin data yang diinput sudah benar?\n\n';
-    confirm_msg += 'Data ini akan disimpan dan request akan disetujui.';
-    
-    if (!confirm(confirm_msg)) {
-        e.preventDefault();
-        return false;
-    }
-    
-    // Disable button untuk prevent double submit
-    document.getElementById('btnSubmitProcess').disabled = true;
-    document.getElementById('btnSubmitProcess').innerHTML = '<i class="fa fa-spinner fa-spin"></i> Memproses...';
-    
-    return true;
-});
 </script>
 
 <?php include("layout_bottom.php"); ?>

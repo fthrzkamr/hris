@@ -2,10 +2,15 @@
 	// memulai session
 	session_start();
 	// membaca nilai variabel session 
-	$chk_sess = $_SESSION['manager'];
+	$chk_sess = $_SESSION['manager'] ?? null;
+	// mengarahkan ke halaman login.php apabila session belum terdaftar
+	if (!isset($chk_sess) || $chk_sess === '') {
+		header("location: ../login.php?login=false");
+		exit;
+	}
 	// memanggil file koneksi
-	include("dist/config/koneksi.php");
-	include("dist/config/library.php");
+	include(__DIR__ . "/../dist/config/koneksi.php");
+	include(__DIR__ . "/../dist/config/library.php");
 	// mengambil data pengguna dari tabel pengguna
 	$sql_sess = "SELECT * FROM employee WHERE npp='". $chk_sess ."'";
 	$ress_sess = mysqli_query($conn, $sql_sess);
@@ -15,8 +20,4 @@
 	$sess_mngname = $row_sess['nama_emp'];
 	$sess_bagian = $row_sess['nama_bagian'];
 	$sess_jabatan = $row_sess['jabatan'];
-	// mengarahkan ke halaman login.php apabila session belum terdaftar
-	if(! isset($chk_sess)) {
-		header("location: ../login.php?login=false");
-	}
 ?>

@@ -87,4 +87,17 @@
 		echo "Data rekapitulasi kas/saldo akhir bulan ini berhasil diperbarui.";
 		echo '</div>';
 	}
+
+	// session flash message (dipakai oleh processor/handler)
+	if (isset($_SESSION['message']) && $_SESSION['message'] !== '') {
+		$alert_type = isset($_SESSION['status']) ? strtolower((string)$_SESSION['status']) : 'info';
+		if ($alert_type === 'error') { $alert_type = 'danger'; }
+		if (!in_array($alert_type, ['success', 'info', 'warning', 'danger'], true)) { $alert_type = 'info'; }
+		echo '<div class="alert alert-' . $alert_type . ' alert-dismissable">';
+		echo '<button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>';
+		echo htmlspecialchars((string)$_SESSION['message'], ENT_QUOTES, 'UTF-8');
+		echo '</div>';
+		unset($_SESSION['message']);
+		unset($_SESSION['status']);
+	}
 ?>

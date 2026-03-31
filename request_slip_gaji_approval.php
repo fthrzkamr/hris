@@ -4,15 +4,10 @@ include("sess_check.php");
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $id_request = mysqli_real_escape_string($conn, $_POST['id_request']);
     $action = mysqli_real_escape_string($conn, $_POST['action']);
-    
-    // Ambil informasi user yang melakukan approval (dari session)
-    // Sesuaikan dengan struktur session di sistem Anda
     $approved_by = isset($sess_admname) ? $sess_admname : (isset($sess_mngname) ? $sess_mngname : 'SYSTEM');
-    
     $tanggal_approval = date('Y-m-d H:i:s');
-    
+
     if ($action == 'approve') {
-        // Approve request (tanpa input data - old method)
         $sql_update = "UPDATE request_slip_gaji 
                        SET status = 'approved', 
                            approved_by = ?, 
@@ -21,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                        WHERE id_request = ?";
         $stmt_update = mysqli_prepare($conn, $sql_update);
         mysqli_stmt_bind_param($stmt_update, "ssi", $approved_by, $tanggal_approval, $id_request);
-        
+
         if (mysqli_stmt_execute($stmt_update)) {
             $_SESSION['message'] = 'Request slip gaji berhasil disetujui!';
             $_SESSION['status'] = 'success';
@@ -29,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $_SESSION['message'] = 'Gagal menyetujui request. Error: ' . mysqli_error($conn);
             $_SESSION['status'] = 'danger';
         }
-        
+
     } elseif ($action == 'approve_with_data') {
         // Approve dengan input data gaji
         $npp = mysqli_real_escape_string($conn, $_POST['npp']);
@@ -137,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             mysqli_stmt_bind_param($stmt_update_emp, "ddddds", 
                 $gaji_pokok, $tunj_jabatan, $tunj_kinerja, $tunj_transport, $total_gaji, $npp);
             mysqli_stmt_execute($stmt_update_emp);
-            
+
             // Update status request menjadi approved
             $sql_update = "UPDATE request_slip_gaji 
                            SET status = 'approved', 
@@ -151,10 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if (mysqli_stmt_execute($stmt_update)) {
                 $_SESSION['message'] = "Data slip gaji berhasil $action_type dan request telah disetujui!";
                 $_SESSION['status'] = 'success';
-                
-                // TODO: Kirim notifikasi WhatsApp ke karyawan (NPP: $npp) bahwa slip gaji periode $bulan/$tahun sudah disetujui
-                // Implementasi notifikasi WA dapat menggunakan WhatsApp Business API atau layanan pihak ketiga
-                
+
             } else {
                 $_SESSION['message'] = "Data slip gaji $action_type tetapi gagal update status request. Error: " . mysqli_error($conn);
                 $_SESSION['status'] = 'warning';
@@ -193,9 +185,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $_SESSION['status'] = 'danger';
         }
     }
-    
+
     header("location: request_slip_gaji_approval_list.php");
-    
+
 } else {
     header("location: request_slip_gaji_approval_list.php");
 }
