@@ -392,7 +392,7 @@ $submission = mysqli_fetch_assoc($result_status);
             </ol>
         </div>
 
-        <table style="width:100%; margin-top:20px; border:0; table-layout:fixed;">
+        <!-- <table style="width:100%; margin-top:20px; border:0; table-layout:fixed;">
             <tr>
                 <td style="width:25%; text-align:center; border:0">Diusulkan Oleh,</td>
                 <td style="width:25%; text-align:center; border:0">Mengetahui HRGA Manager,</td>
@@ -422,7 +422,7 @@ $submission = mysqli_fetch_assoc($result_status);
             <div class="signature" style="height:90px; margin-top:6px"></div>
             <div style="margin-top:6px; font-size:11px">Nama : Lucky Hafiansyah</div>
             <div style="font-size:11px">Tanggal : </div>
-        </div>
+        </div> -->
     </div>
 </body>
 
