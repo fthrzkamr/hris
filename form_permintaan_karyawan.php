@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $unit_kerja = $_POST['unit_kerja'] ?? '';
     $tgl_mulai = isset($_POST['tgl_mulai']) ? trim($_POST['tgl_mulai']) : '';
     if ($tgl_mulai === '') $tgl_mulai = null;
-    $jumlah_dibutuhkan = $_POST['jumlah_dibutuhkan'] ?? null;
+    $jumlah_dibutuhkan = (isset($_POST['jumlah_dibutuhkan']) && $_POST['jumlah_dibutuhkan'] !== '') ? (int) $_POST['jumlah_dibutuhkan'] : 0;
     // handle 'Untuk' options: Penambahan, Penggantian, Lain-lain (with free text)
     $untuk_raw = $_POST['untuk'] ?? '';
     $untuk_lain = $_POST['untuk_lain'] ?? '';
@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $untuk = $untuk_raw;
     }
-    $jumlah_sekarang = $_POST['jumlah_sekarang'] ?? null;
+    $jumlah_sekarang = (isset($_POST['jumlah_sekarang']) && $_POST['jumlah_sekarang'] !== '') ? (int) $_POST['jumlah_sekarang'] : 0;
     $alasan = $_POST['alasan'] ?? '';
 
     $duties = [];
@@ -139,7 +139,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt = mysqli_prepare($conn, "INSERT INTO permintaan_karyawan
             (no_dokumen,revisi,tanggal_dokumen,jabatan,unit_kerja,tgl_mulai,jumlah_dibutuhkan,untuk,jumlah_sekarang,alasan,gender,usia,pendidikan,jurusan,pengalaman,tinggi,berat,rentang_gaji,lain_lain)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-    $types = 'ssssssisisssssssss';  // added unit_kerja
+    // 19 params: 6 string + int + string + int + 10 string
+    $types = 'ssssssisissssssssss';
     mysqli_stmt_bind_param(
         $stmt,
         $types,

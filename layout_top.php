@@ -202,6 +202,16 @@ if (isset($conn)) {
 							echo '<li><a href="permintaan_karyawan_list.php"><i class="fa fa-download fa-fw"></i>&nbsp;Pengajuan Karyawan</a></li>';
 						}
 						?>
+
+						<!-- Form Permintaan Karyawan Baru -->
+						<?php
+						$is_form_permintaan_karyawan = (basename($_SERVER['PHP_SELF']) == 'form_permintaan_karyawan.php');
+						if ($is_form_permintaan_karyawan) {
+							echo '<li><a href="form_permintaan_karyawan.php" class="active"><i class="fa fa-file-text-o fa-fw"></i>&nbsp;Form Permintaan Karyawan</a></li>';
+						} else {
+							echo '<li><a href="form_permintaan_karyawan.php"><i class="fa fa-file-text-o fa-fw"></i>&nbsp;Form Permintaan Karyawan</a></li>';
+						}
+						?>
 						<?php
 						if (isset($menuparent) && $menuparent == "approval") {
 							echo '<li class="active">';
