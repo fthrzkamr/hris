@@ -134,9 +134,10 @@
 									</div>
 									<div class="col-xs-9 text-right">
 										<div class="huge" style="font-size:20px;">
-											<?php echo $sisa_cuti; ?> &nbsp;|&nbsp; <?php echo $dalam_pengajuan; ?>
-											&nbsp;|&nbsp; <?php echo $total_pengajuan; ?>
+											Sisa Cuti <?php echo $sisa_cuti; ?> 
 										</div>
+										<!-- &nbsp;|&nbsp; <?php echo $dalam_pengajuan; ?>
+											&nbsp;|&nbsp; <?php echo $total_pengajuan; ?> -->
 										<div><h4>Data Cuti</h4></div>
 									</div>
 								</div>
