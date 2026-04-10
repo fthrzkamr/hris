@@ -112,16 +112,16 @@ try {
     $insert_absensi_sql = "INSERT INTO absensi_kurir 
         (npp, tanggal_absen, jam_absen, jam_masuk, jam_pulang, jenis_tugas, 
          total_aktual_titik, target_titik, is_hadir, is_late, menit_terlambat, 
-         insentif_titik, denda_telat, uang_makan, uang_lembur, grand_total_harian, is_cuti, keterangan_cuti, 
+         insentif_titik, denda_telat, uang_makan, uang_lembur, grand_total_harian, is_cuti, is_sakit, keterangan_cuti, 
          lembur_operasional, lembur_ambil_barang, lembur_lainnya, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         ON DUPLICATE KEY UPDATE 
         jam_absen=VALUES(jam_absen), jam_masuk=VALUES(jam_masuk), jam_pulang=VALUES(jam_pulang), 
         jenis_tugas=VALUES(jenis_tugas), total_aktual_titik=VALUES(total_aktual_titik), 
         target_titik=VALUES(target_titik), is_hadir=VALUES(is_hadir), is_late=VALUES(is_late), 
         menit_terlambat=VALUES(menit_terlambat), insentif_titik=VALUES(insentif_titik), 
         denda_telat=VALUES(denda_telat), uang_makan=VALUES(uang_makan), uang_lembur=VALUES(uang_lembur), 
-        grand_total_harian=VALUES(grand_total_harian), is_cuti=VALUES(is_cuti), keterangan_cuti=VALUES(keterangan_cuti), 
+        grand_total_harian=VALUES(grand_total_harian), is_cuti=VALUES(is_cuti), is_sakit=VALUES(is_sakit), keterangan_cuti=VALUES(keterangan_cuti), 
         lembur_operasional=VALUES(lembur_operasional), lembur_ambil_barang=VALUES(lembur_ambil_barang), lembur_lainnya=VALUES(lembur_lainnya), 
         updated_at=NOW()";
     $insert_absensi_stmt = mysqli_prepare($conn, $insert_absensi_sql);
@@ -318,6 +318,7 @@ try {
                 'hari_hadir' => 0,
                 'hari_alpha' => 0,
                 'hari_cuti' => 0,
+                'hari_sakit' => 0,
                 'hari_telat' => 0,
                 'total_menit_telat' => 0,
                 'total_lembur' => 0,
@@ -373,6 +374,13 @@ try {
         if (count($cuti_keterangan_array) > 0) {
             $is_cuti = 1;
             $keterangan_cuti = implode('; ', $cuti_keterangan_array);
+            // Detect if this cuti is sickness-related (keterangan contains 'sakit')
+            $is_sakit = 0;
+            foreach ($cuti_keterangan_array as $ck) {
+                if (stripos($ck, 'sakit') !== false) { $is_sakit = 1; break; }
+            }
+        } else {
+            $is_sakit = 0;
         }
 
         // === DATABASE-DRIVEN: Query lembur from database (not from Excel) ===
@@ -470,7 +478,7 @@ try {
         $jam_absen_str = $jam_raw; // Keep original format from Excel
         mysqli_stmt_bind_param(
             $insert_absensi_stmt,
-            'ssssssiiiiidddddisiii',
+            'ssssssiiiiidddddiisiii',
             $npp,
             $tanggal,
             $jam_absen_str,
@@ -488,6 +496,7 @@ try {
             $uang_lembur_harian,
             $grand_total_harian,
             $is_cuti,
+            $is_sakit,
             $keterangan_cuti,
             $lembur_operasional,
             $lembur_ambil,
@@ -520,6 +529,9 @@ try {
             }
         } elseif ($is_cuti) {
             $monthly_data[$key]['hari_cuti']++;
+            if (isset($is_sakit) && $is_sakit) {
+                $monthly_data[$key]['hari_sakit']++;
+            }
         } else {
             // alpha diabaikan (diminta hilangkan logika hari alpha)
         }
@@ -530,13 +542,13 @@ try {
 
     // STEP 3b: Calculate monthly bonus and insert aggregated records (single upsert)
     $upsert_sql = "INSERT INTO transaksi_insentif_kurir 
-        (npp, periode, total_titik, target_titik, bonus_insentif_titik, bonus_insentif_full_masuk, denda_telat, akumulasi_telat, potongan_makan, uang_makan, uang_lembur, jumlah_dibayarkan, hari_hadir, hari_telat, hari_cuti, hari_alpha, created_at, updated_at) 
+        (npp, periode, total_titik, target_titik, bonus_insentif_titik, bonus_insentif_full_masuk, denda_telat, akumulasi_telat, potongan_makan, uang_makan, uang_lembur, jumlah_dibayarkan, hari_hadir, hari_telat, hari_cuti, hari_sakit, hari_alpha, created_at, updated_at) 
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         ON DUPLICATE KEY UPDATE 
         total_titik=VALUES(total_titik), target_titik=VALUES(target_titik), bonus_insentif_titik=VALUES(bonus_insentif_titik),
         bonus_insentif_full_masuk=VALUES(bonus_insentif_full_masuk), denda_telat=VALUES(denda_telat), akumulasi_telat=VALUES(akumulasi_telat),
         potongan_makan=VALUES(potongan_makan), uang_makan=VALUES(uang_makan), uang_lembur=VALUES(uang_lembur),
-        jumlah_dibayarkan=VALUES(jumlah_dibayarkan), hari_hadir=VALUES(hari_hadir), hari_telat=VALUES(hari_telat), hari_cuti=VALUES(hari_cuti), hari_alpha=VALUES(hari_alpha), updated_at=NOW()";
+        jumlah_dibayarkan=VALUES(jumlah_dibayarkan), hari_hadir=VALUES(hari_hadir), hari_telat=VALUES(hari_telat), hari_cuti=VALUES(hari_cuti), hari_sakit=VALUES(hari_sakit), hari_alpha=VALUES(hari_alpha), updated_at=NOW()";
     $upsert_stmt = mysqli_prepare($conn, $upsert_sql);
     if (!$upsert_stmt)
         throw new Exception('Prepare insert failed: ' . mysqli_error($conn));
@@ -556,6 +568,7 @@ try {
         $hari_hadir = intval($data['hari_hadir']);
         $hari_telat = intval($data['hari_telat']);
         $hari_cuti = intval($data['hari_cuti']);
+        $hari_sakit = intval($data['hari_sakit'] ?? 0);
         // hari_alpha tidak lagi dipakai (diminta dihilangkan), tetap 0 untuk kompatibilitas kolom
         $hari_alpha = 0;
         $akumulasi_menit_telat = isset($data['total_menit_telat']) ? intval($data['total_menit_telat']) : 0;
@@ -632,7 +645,9 @@ try {
         }
 
         $potongan_makan = abs($total_makan);
-        $uang_makan_final = $uang_makan_base + $total_makan;
+        // Cap potongan_makan tidak boleh lebih dari uang_makan_base
+        if ($potongan_makan > $uang_makan_base) $potongan_makan = $uang_makan_base;
+        $uang_makan_final = $uang_makan_base - $potongan_makan;
         $total_makan = $uang_makan_final;
 
         // Calculate total payment using business rule:
@@ -641,14 +656,15 @@ try {
         $bonus_insentif = $bonus_titik + $bonus_full_hadir;
         $insentif_total = intval($bonus_insentif) + intval($total_lembur);
         $jumlah_dibayarkan = intval($uang_makan_final) + $insentif_total - intval($total_denda);
-        // optional: keep as integer
+        // Clamp negatif jadi 0
+        if ($jumlah_dibayarkan < 0) $jumlah_dibayarkan = 0;
         $jumlah_dibayarkan = intval($jumlah_dibayarkan);
 
         // Bind and execute
         if (
             !mysqli_stmt_bind_param(
                 $upsert_stmt,
-                'ssiiiiiiiiiiiiii',
+                'ssiiiiiiiiiiiiiii',
                 $npp,
                 $periode,
                 $total_titik,
@@ -664,6 +680,7 @@ try {
                 $hari_hadir,
                 $hari_telat,
                 $hari_cuti,
+                $hari_sakit,
                 $hari_alpha
             )
         ) {

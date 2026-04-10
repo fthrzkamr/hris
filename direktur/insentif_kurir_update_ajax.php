@@ -58,7 +58,8 @@ $raw_bonus = $eligible_count * $rate;
 $bonus_titik = ($amount_cap > 0) ? min($raw_bonus, $amount_cap) : $raw_bonus;
 
 // Recalculate jumlah_dibayarkan: sum components (simplified)
-$jumlah = $bonus_titik + $bonus_full + $uang_lembur + $uang_makan - $denda_telat;
+$jumlah = intval($bonus_titik + $bonus_full + $uang_lembur + $uang_makan - $denda_telat);
+if ($jumlah < 0) $jumlah = 0;
 
 // Update DB
 $upd = mysqli_prepare($conn, "UPDATE transaksi_insentif_kurir SET total_titik = ?, target_titik = ?, bonus_insentif_titik = ?, jumlah_dibayarkan = ?, updated_at = NOW() WHERE npp = ? AND periode = ?");

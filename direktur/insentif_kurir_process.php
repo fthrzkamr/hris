@@ -474,13 +474,15 @@ try {
         // Jadi: final_makan = 300,000 + total_makan (karena total_makan negatif)
         $uang_makan_base = intval($settings['UANG_MAKAN_BULANAN']); // 300,000
         $potongan_makan = abs($total_makan); // Potongan absolut (positif untuk display)
-        $uang_makan_final = $uang_makan_base + $total_makan; // Base - Potongan
+        if ($potongan_makan > $uang_makan_base) $potongan_makan = $uang_makan_base;
+        $uang_makan_final = $uang_makan_base - $potongan_makan; // Base - Potongan
         
         // Untuk disimpan di DB, kita simpan nilai final yang sudah dipotong
         $total_makan = $uang_makan_final;
 
         // Calculate total payment
         $jumlah_dibayarkan = $total_makan + $bonus_insentif + $total_lembur - $total_denda;
+        if ($jumlah_dibayarkan < 0) $jumlah_dibayarkan = 0;
         
         // Get total menit keterlambatan from monthly data
         $akumulasi_menit_telat = isset($data['total_menit_telat']) ? $data['total_menit_telat'] : 0;

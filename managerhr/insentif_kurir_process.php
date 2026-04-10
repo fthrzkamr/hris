@@ -608,21 +608,18 @@ try {
         }
 
         $potongan_makan = abs($total_makan);
-        $uang_makan_final = $uang_makan_base + $total_makan;
+        // Cap potongan_makan tidak boleh lebih dari uang_makan_base
+        if ($potongan_makan > $uang_makan_base) $potongan_makan = $uang_makan_base;
+        $uang_makan_final = $uang_makan_base - $potongan_makan;
         $total_makan = $uang_makan_final;
 
         // Calculate total payment
         $bonus_insentif = $bonus_titik + $bonus_full_hadir;
-        // Policy: if employee has any hadir days, always pay the monthly uang makan (guaranteed).
-        // Apply denda only against other components (bonus + lembur). This prevents denda from
-        // reducing the guaranteed uang makan to negative.
-        if ($hari_hadir > 0) {
-            $other_net = $bonus_insentif + $total_lembur - $total_denda;
-            $jumlah_dibayarkan = $uang_makan_final + max(0, $other_net);
-        } else {
-            // If no hadir days, keep previous behavior
-            $jumlah_dibayarkan = $total_makan + $bonus_insentif + $total_lembur - $total_denda;
-        }
+        $insentif_total = intval($bonus_insentif) + intval($total_lembur);
+        $jumlah_dibayarkan = intval($uang_makan_final) + $insentif_total - intval($total_denda);
+        // Clamp negatif jadi 0
+        if ($jumlah_dibayarkan < 0) $jumlah_dibayarkan = 0;
+        $jumlah_dibayarkan = intval($jumlah_dibayarkan);
 
         // Bind and execute
         if (

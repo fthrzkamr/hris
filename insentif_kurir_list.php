@@ -16,9 +16,31 @@ $current_page = isset($_GET['page']) && is_numeric($_GET['page']) && $_GET['page
 $offset = ($current_page - 1) * $records_per_page;
 
 // Build query: select records from transaksi_insentif_kurir and join employee for metadata
+// Fetch lembur rates from settings so list can compute lembur amounts directly from `lembur` table
+$rs_lembur = mysqli_query($conn, "SELECT nama_variabel, nominal_rp FROM pengaturan_insentif_kurir WHERE kategori='LEMBUR' AND is_active=1");
+$rates = array('RATE_LEMBUR_OPERASIONAL' => 0, 'RATE_LEMBUR_AMBIL_BARANG' => 0, 'RATE_LEMBUR_LAINNYA' => 0);
+if ($rs_lembur) {
+    while ($rle = mysqli_fetch_assoc($rs_lembur)) {
+        $rates[$rle['nama_variabel']] = floatval($rle['nominal_rp']);
+    }
+}
+$rate_op = floatval($rates['RATE_LEMBUR_OPERASIONAL']);
+$rate_ambil = floatval($rates['RATE_LEMBUR_AMBIL_BARANG']);
+$rate_lain = floatval($rates['RATE_LEMBUR_LAINNYA']);
+
+// Build base SQL and LEFT JOIN aggregated lembur amounts per npp+periode (Approved only)
 $sql_base = "FROM transaksi_insentif_kurir t
         LEFT JOIN employee e ON t.npp = e.npp
         LEFT JOIN bagian b ON e.nama_bagian = b.id_bagian
+        LEFT JOIN (
+            SELECT l.npp, DATE_FORMAT(l.tgl_lembur, '%Y-%m') AS periode,
+                SUM(CASE WHEN LOWER(l.tujuan_lembur) LIKE '%operasional%' THEN (l.jumlah * {$rate_op}) ELSE 0 END) AS lembur_operasional_amt,
+                SUM(CASE WHEN LOWER(l.tujuan_lembur) LIKE '%ambil%' OR LOWER(l.tujuan_lembur) LIKE '%pickup%' THEN (l.jumlah * {$rate_ambil}) ELSE 0 END) AS lembur_ambil_amt,
+                SUM(CASE WHEN LOWER(l.tujuan_lembur) LIKE '%lain%' OR LOWER(l.tujuan_lembur) LIKE '%lainnya%' THEN (l.jumlah * {$rate_lain}) ELSE 0 END) AS lembur_lain_amt
+            FROM lembur l
+            WHERE l.status = 'Approved'
+            GROUP BY l.npp, DATE_FORMAT(l.tgl_lembur, '%Y-%m')
+        ) lb ON lb.npp = t.npp AND lb.periode = t.periode
         WHERE 1=1";
 
 $filter_periode_escaped = mysqli_real_escape_string($conn, $filter_periode);
@@ -50,7 +72,12 @@ if (!in_array($sort_column, $allowed_sorts)) {
     $sort_column = 'periode';
 }
 
-$sql = "SELECT t.*, t.hari_hadir, t.hari_telat, t.hari_cuti, e.nama_emp, b.nama_bagian, e.cabang " 
+$sql = "SELECT t.*, 
+    COALESCE(lb.lembur_operasional_amt, t.lembur_operasional) AS lembur_operasional, 
+    COALESCE(lb.lembur_ambil_amt, t.lembur_ambil_barang) AS lembur_ambil_barang, 
+    COALESCE(lb.lembur_lain_amt, t.lembur_lainnya) AS lembur_lainnya, 
+    COALESCE((COALESCE(lb.lembur_operasional_amt,0) + COALESCE(lb.lembur_ambil_amt,0) + COALESCE(lb.lembur_lain_amt,0)), t.uang_lembur) AS uang_lembur,
+    t.hari_hadir, t.hari_telat, t.hari_cuti, e.nama_emp, b.nama_bagian, e.cabang " 
     . $sql_base 
     . " ORDER BY t." . $sort_column . " " . $sort_order . ", t.npp ASC"
     . " LIMIT " . $records_per_page . " OFFSET " . $offset;
@@ -1638,6 +1665,7 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
             var idx_denda          = 21;
             var idx_pot_makan      = 22; // tidak ikut ke total, hanya info
             var idx_uang_makan     = 23;
+            var idx_hadir          = 11;
             var idx_total          = 24;
 
             var bonusTitik  = parseCellNumber($row.find('td').eq(idx_bonus_titik));
@@ -1648,10 +1676,22 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
             var lemburTotal = parseCellNumber($row.find('td').eq(idx_lembur_total));
             var denda       = parseCellNumber($row.find('td').eq(idx_denda));
             var uangMakan   = parseCellNumber($row.find('td').eq(idx_uang_makan));
+            var hadir       = parseCellNumber($row.find('td').eq(idx_hadir));
 
             // pakai nilai Total Lembur dari DB jika ada; fallback dari penjumlahan kategori
             var lembur = (lemburTotal !== 0) ? lemburTotal : (lemburOp + lemburAmb + lemburLain);
-            var total  = uangMakan + bonusTitik + bonusFull + lembur - denda;
+
+            var total;
+            if (hadir > 0) {
+                // Jika ada hari hadir, jangan biarkan denda mengurangi uang makan yang dijamin.
+                var other_net = bonusTitik + bonusFull + lembur - denda;
+                total = uangMakan + Math.max(0, other_net);
+            } else {
+                total = uangMakan + bonusTitik + bonusFull + lembur - denda;
+            }
+
+            total = parseInt(total, 10) || 0;
+            if (total < 0) total = 0;
 
             var $totalCell = $row.find('td').eq(idx_total);
             $totalCell.text(numberWithCommas(total));
@@ -1659,7 +1699,7 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
             if (total > 0) {
                 $totalCell.addClass('bg-success').css({'color': 'white'});
             } else {
-                $totalCell.removeClass('bg-success').css({'color': total < 0 ? '#a94442' : ''});
+                $totalCell.removeClass('bg-success').css({'color': ''});
             }
         }
 

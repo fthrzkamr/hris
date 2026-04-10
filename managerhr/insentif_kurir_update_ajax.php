@@ -67,14 +67,11 @@ try {
     $raw_bonus = $eligible_count * $rate;
     $bonus_titik = ($amount_cap > 0) ? min($raw_bonus, $amount_cap) : $raw_bonus;
 
-    // Recalculate jumlah_dibayarkan
-    $other_net = $bonus_titik + $bonus_full + $uang_lembur - $denda_telat;
-    
-    if ($hari_hadir > 0) {
-        $jumlah = $uang_makan + max(0, $other_net);
-    } else {
-        $jumlah = $uang_makan + $other_net;
-    }
+    // Recalculate jumlah_dibayarkan sesuai frontend formula:
+    // total = uang_makan + bonus_titik + bonus_full + uang_lembur - denda_telat
+    $jumlah = intval($uang_makan + $bonus_titik + $bonus_full + $uang_lembur - $denda_telat);
+    // Clamp negatif jadi 0
+    if ($jumlah < 0) $jumlah = 0;
 
     // Update DB
     $update_query = "UPDATE transaksi_insentif_kurir 

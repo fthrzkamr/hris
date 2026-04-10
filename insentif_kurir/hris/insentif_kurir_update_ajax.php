@@ -12,6 +12,8 @@ try {
         $npp = isset($input['npp']) ? trim($input['npp']) : '';
         $periode = isset($input['periode']) ? trim($input['periode']) : '';
         $jumlah_dibayarkan = isset($input['jumlah_dibayarkan']) ? intval($input['jumlah_dibayarkan']) : 0;
+        // Clamp manual override supaya tidak negatif
+        if ($jumlah_dibayarkan < 0) $jumlah_dibayarkan = 0;
 
         if ($npp === '' || $periode === '') {
             echo json_encode(['success' => false, 'message' => 'Parameter tidak lengkap']);
@@ -83,7 +85,8 @@ try {
         // Recalculate jumlah_dibayarkan sesuai frontend formula:
         // total = uang_makan + bonus_titik + bonus_full + uang_lembur - denda_telat
         $jumlah = intval($uang_makan + $bonus_titik + $bonus_full + $uang_lembur - $denda_telat);
-        if ($jumlah < 0) $jumlah = $jumlah; // tetap boleh negatif jika sesuai kebijakan
+        // Clamp negatif jadi 0
+        if ($jumlah < 0) $jumlah = 0;
 
         // Update database (prepared statement)
         $update_sql = "UPDATE transaksi_insentif_kurir
@@ -212,6 +215,7 @@ try {
         // jumlah_dibayarkan = uang_makan + (bonus_titik + bonus_full + uang_lembur) - denda_telat
         $insentif_total = $bonus_titik + $bonus_full + $uang_lembur;
         $jumlah = intval($uang_makan + $insentif_total - $denda_telat);
+        if ($jumlah < 0) $jumlah = 0;
 
         // Update transaksi_insentif_kurir: akumulasi_telat, hari_telat, denda_telat, bonus_full_hadir, jumlah_dibayarkan
         $update_sql = "UPDATE transaksi_insentif_kurir 
@@ -359,6 +363,8 @@ try {
         // HITUNG OTOMATIS UANG MAKAN BERDASARKAN CUTI + SAKIT
         $total_hari_tidak_hadir = $hari_cuti + $hari_sakit;
         $potongan_makan = $total_hari_tidak_hadir * $potongan_per_hari;
+        // Cap potongan supaya tidak melebihi uang_makan_base_employee
+        if ($potongan_makan > $uang_makan_base_employee) $potongan_makan = $uang_makan_base_employee;
         $uang_makan_final = $uang_makan_base_employee - $potongan_makan;
         
         // Untuk NPP yang exempt dari uang makan, pastikan tidak pernah negatif
@@ -370,6 +376,7 @@ try {
         // jumlah_dibayarkan = uang_makan_final + (bonus_titik + bonus_full + uang_lembur) - denda_telat
         $insentif_total = $bonus_titik + $bonus_full + $uang_lembur;
         $jumlah = intval($uang_makan_final + $insentif_total - $denda_telat);
+        if ($jumlah < 0) $jumlah = 0;
 
         // update transaksi_insentif_kurir: hari_cuti, hari_sakit, bonus_full_hadir, potongan_makan, uang_makan, jumlah_dibayarkan
         $update_sql = "UPDATE transaksi_insentif_kurir 
@@ -497,8 +504,10 @@ try {
         $insentif_total = $bonus_titik + $bonus_full + $uang_lembur_total;
         if ($hari_hadir > 0) {
             $jumlah = intval($uang_makan + max(0, $insentif_total - $denda_telat));
+            if ($jumlah < 0) $jumlah = 0;
         } else {
             $jumlah = intval($uang_makan + $insentif_total - $denda_telat);
+            if ($jumlah < 0) $jumlah = 0;
         }
 
         // update transaksi: simpan per-kategori amounts (and total uang_lembur)

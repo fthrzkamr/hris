@@ -676,7 +676,9 @@ try {
         }
 
         $potongan_makan = abs($total_makan);
-        $uang_makan_final = $uang_makan_base + $total_makan;
+        // Cap potongan_makan tidak boleh lebih dari uang_makan_base
+        if ($potongan_makan > $uang_makan_base) $potongan_makan = $uang_makan_base;
+        $uang_makan_final = $uang_makan_base - $potongan_makan;
         $total_makan = $uang_makan_final;
 
         // Calculate total payment using business rule:
@@ -685,7 +687,8 @@ try {
         $bonus_insentif = $bonus_titik + $bonus_full_hadir;
         $insentif_total = intval($bonus_insentif) + intval($total_lembur);
         $jumlah_dibayarkan = intval($uang_makan_final) + $insentif_total - intval($total_denda);
-        // optional: keep as integer
+        // Clamp negatif jadi 0
+        if ($jumlah_dibayarkan < 0) $jumlah_dibayarkan = 0;
         $jumlah_dibayarkan = intval($jumlah_dibayarkan);
 
         // Bind and execute

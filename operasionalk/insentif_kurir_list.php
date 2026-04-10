@@ -15,10 +15,31 @@ $current_page = isset($_GET['page']) && is_numeric($_GET['page']) && $_GET['page
 $offset = ($current_page - 1) * $records_per_page;
 
 // Build query: select records from transaksi_insentif_kurir and join employee for metadata
-// Filter by logged-in manager's NPP only
+// Fetch lembur rates from settings so list can compute lembur amounts directly from `lembur` table
+$rs_lembur = mysqli_query($conn, "SELECT nama_variabel, nominal_rp FROM pengaturan_insentif_kurir WHERE kategori='LEMBUR' AND is_active=1");
+$rates = array('RATE_LEMBUR_OPERASIONAL' => 0, 'RATE_LEMBUR_AMBIL_BARANG' => 0, 'RATE_LEMBUR_LAINNYA' => 0);
+if ($rs_lembur) {
+    while ($rle = mysqli_fetch_assoc($rs_lembur)) {
+        $rates[$rle['nama_variabel']] = floatval($rle['nominal_rp']);
+    }
+}
+$rate_op = floatval($rates['RATE_LEMBUR_OPERASIONAL']);
+$rate_ambil = floatval($rates['RATE_LEMBUR_AMBIL_BARANG']);
+$rate_lain = floatval($rates['RATE_LEMBUR_LAINNYA']);
+
+// Build base SQL and LEFT JOIN aggregated lembur amounts per npp+periode (Approved only)
 $sql_base = "FROM transaksi_insentif_kurir t
         LEFT JOIN employee e ON t.npp = e.npp
         LEFT JOIN bagian b ON e.nama_bagian = b.id_bagian
+        LEFT JOIN (
+            SELECT l.npp, DATE_FORMAT(l.tgl_lembur, '%Y-%m') AS periode,
+                SUM(CASE WHEN LOWER(l.tujuan_lembur) LIKE '%operasional%' THEN (l.jumlah * {$rate_op}) ELSE 0 END) AS lembur_operasional_amt,
+                SUM(CASE WHEN LOWER(l.tujuan_lembur) LIKE '%ambil%' OR LOWER(l.tujuan_lembur) LIKE '%pickup%' THEN (l.jumlah * {$rate_ambil}) ELSE 0 END) AS lembur_ambil_amt,
+                SUM(CASE WHEN LOWER(l.tujuan_lembur) LIKE '%lain%' OR LOWER(l.tujuan_lembur) LIKE '%lainnya%' THEN (l.jumlah * {$rate_lain}) ELSE 0 END) AS lembur_lain_amt
+            FROM lembur l
+            WHERE l.status = 'Approved'
+            GROUP BY l.npp, DATE_FORMAT(l.tgl_lembur, '%Y-%m')
+        ) lb ON lb.npp = t.npp AND lb.periode = t.periode
         WHERE t.npp = '" . mysqli_real_escape_string($conn, $sess_mngid) . "'";
 
 $filter_periode_escaped = mysqli_real_escape_string($conn, $filter_periode);
@@ -37,7 +58,7 @@ if ($count_result) {
 $total_pages = ceil($total_records / $records_per_page);
 
 // Fetch all records for DataTables client-side processing
-$sql = "SELECT t.*, t.hari_hadir, t.hari_telat, t.hari_cuti, e.nama_emp, b.nama_bagian, e.cabang " . $sql_base . " ORDER BY t.periode DESC, t.npp ASC";
+$sql = "SELECT t.*, COALESCE(lb.lembur_operasional_amt, t.lembur_operasional) AS lembur_operasional, COALESCE(lb.lembur_ambil_amt, t.lembur_ambil_barang) AS lembur_ambil_barang, COALESCE(lb.lembur_lain_amt, t.lembur_lainnya) AS lembur_lainnya, COALESCE((COALESCE(lb.lembur_operasional_amt,0) + COALESCE(lb.lembur_ambil_amt,0) + COALESCE(lb.lembur_lain_amt,0)), t.uang_lembur) AS uang_lembur, t.hari_hadir, t.hari_telat, t.hari_cuti, e.nama_emp, b.nama_bagian, e.cabang " . $sql_base . " ORDER BY t.periode DESC, t.npp ASC";
 
 $query = mysqli_query($conn, $sql);
 // Load titik cap from settings (fallback to 25)
@@ -265,7 +286,6 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                                     <th colspan="9" class="text-center">Performa</th>
                                     <th colspan="6" class="text-center">Komponen Pembayaran</th>
                                     <th rowspan="2" class="bg-success">Total Dibayarkan</th>
-                                    <th rowspan="2">Status</th>
                                     <!-- <th rowspan="2">Tgl Update</th>
                                     <th rowspan="2">Aksi</th> -->
                                 </tr>
@@ -278,7 +298,7 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                                     <th title="Jumlah hari hadir dalam periode">Hadir</th>
                                     <th title="Jumlah hari telat dalam periode">Telat</th>
                                     <th title="Jumlah hari cuti dalam periode">Cuti</th>
-                                    <th title="Alpha tidak dipakai lagi">Alpha</th>
+                                    <th title="Jumlah hari sakit dalam periode">Sakit</th>
                                     <th title="Bonus dari kelebihan titik (max 500rb/bulan)">Bonus Titik</th>
                                     <th title="Bonus full kehadiran (jika 0 cuti & 0 telat)">Bonus Full Hadir</th>
                                     <th>Uang Lembur</th>
@@ -364,7 +384,7 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                                         <td class="text-center"><?php echo intval($row['hari_hadir'] ?? 0); ?></td>
                                         <td class="text-center"><?php echo intval($row['hari_telat'] ?? 0); ?></td>
                                         <td class="text-center"><?php echo intval($row['hari_cuti'] ?? 0); ?></td>
-                                        <td class="text-center"><?php echo 0; ?></td>
+                                        <td class="text-center"><?php echo intval($row['hari_sakit'] ?? 0); ?></td>
                                         <td class="text-right" style="<?php echo $bonus_titik_style; ?>">
                                             <?php echo number_format($row['bonus_insentif_titik'] ?? 0); ?>
                                         </td>
@@ -382,16 +402,7 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                                         <td class="text-right bg-success" style="font-weight: bold; font-size: 14px;">
                                             <?php echo number_format($row['jumlah_dibayarkan'] ?? 0); ?>
                                         </td>
-                                        <td class="text-center">
-                                            <span class="label label-<?php echo $status_class; ?>"
-                                                style="font-size: 11px; padding: 5px 10px;">
-                                                <?php if ($status == 'Tercapai'): ?>
-                                                    <i class="fa fa-check-circle"></i> <?php echo $status; ?>
-                                                <?php else: ?>
-                                                    <i class="fa fa-times-circle"></i> <?php echo $status; ?>
-                                                <?php endif; ?>
-                                            </span>
-                                        </td>
+
 
                                         <!-- <td><?php echo date('d-m-Y H:i', strtotime($row['updated_at'])); ?></td>
                                         <td>
@@ -438,7 +449,7 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
             order: [[5, 'desc']], // Sort by periode column (descending)
             columnDefs: [
                 { orderable: false, targets: [0] }, // Disable sorting on "No"
-                { className: "text-center", targets: [0, 4, 22] }, // center: No, Cabang, Status (updated index)
+                { className: "text-center", targets: [0, 4] }, // center: No, Cabang
                 { className: "text-right", targets: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20] } // numeric columns (updated range)
             ],
             drawCallback: function () {
