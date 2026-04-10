@@ -41,7 +41,7 @@ if ($count_result) {
 $total_pages = ceil($total_records / $records_per_page);
 
 // Fetch all records for DataTables client-side processing
-$sql = "SELECT t.*, t.hari_hadir, t.hari_telat, t.hari_cuti, t.hari_alpha, e.nama_emp, b.nama_bagian, e.cabang " . $sql_base . " ORDER BY t.periode DESC, t.npp ASC";
+$sql = "SELECT t.*, t.hari_hadir, t.hari_telat, t.hari_cuti, e.nama_emp, b.nama_bagian, e.cabang " . $sql_base . " ORDER BY t.periode DESC, t.npp ASC";
 
 $query = mysqli_query($conn, $sql);
 // Load titik cap from settings (fallback to 25)
@@ -303,9 +303,9 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                                     <th title="Jumlah hari hadir dalam periode">Hadir</th>
                                     <th title="Jumlah hari telat dalam periode">Telat</th>
                                     <th title="Jumlah hari cuti dalam periode">Cuti</th>
-                                    <th title="Jumlah hari alpha dalam periode">Alpha</th>
+                                    <th title="Alpha tidak dipakai lagi">Alpha</th>
                                     <th title="Bonus dari kelebihan titik (max 500rb/bulan)">Bonus Titik</th>
-                                    <th title="Bonus full kehadiran (250rb jika 0 alpha)">Bonus Full Hadir</th>
+                                    <th title="Bonus full kehadiran (jika 0 cuti & 0 telat)">Bonus Full Hadir</th>
                                     <th>Uang Lembur</th>
                                     <th>Denda Telat</th>
                                     <th title="Potongan absolut dari ketidakhadiran">Potongan Makan</th>
@@ -399,7 +399,7 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                                         <td class="text-center"><?php echo intval($row['hari_hadir'] ?? 0); ?></td>
                                         <td class="text-center"><?php echo intval($row['hari_telat'] ?? 0); ?></td>
                                         <td class="text-center"><?php echo intval($row['hari_cuti'] ?? 0); ?></td>
-                                        <td class="text-center"><?php echo intval($row['hari_alpha'] ?? 0); ?></td>
+                                        <td class="text-center"><?php echo 0; ?></td>
                                         <td class="text-right" style="<?php echo $bonus_titik_style; ?>">
                                             <?php echo number_format($row['bonus_insentif_titik'] ?? 0); ?>
                                         </td>

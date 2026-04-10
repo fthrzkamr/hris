@@ -148,7 +148,7 @@ try {
         $npp_esc = mysqli_real_escape_string($conn, $npp);
         $periode_esc = mysqli_real_escape_string($conn, $periode);
         
-        $query_current = "SELECT bonus_insentif_titik, uang_lembur, uang_makan, hari_cuti, hari_alpha
+        $query_current = "SELECT bonus_insentif_titik, uang_lembur, uang_makan, hari_cuti, hari_sakit
                           FROM transaksi_insentif_kurir 
                           WHERE npp = '$npp_esc' AND periode = '$periode_esc' 
                           LIMIT 1";
@@ -171,7 +171,7 @@ try {
         $uang_lembur = floatval($current['uang_lembur'] ?? 0);
         $uang_makan = floatval($current['uang_makan'] ?? 0);
         $hari_cuti = intval($current['hari_cuti'] ?? 0);
-        $hari_sakit = intval($current['hari_alpha'] ?? 0);
+        $hari_sakit = intval($current['hari_sakit'] ?? 0);
 
         // HITUNG OTOMATIS BONUS FULL HADIR BERDASARKAN CUTI + SAKIT + TELAT
         $bonus_full_hadir_calculated = 0;
@@ -248,11 +248,11 @@ try {
     }
     
     if ($action === 'update_cuti_sakit_makan') {
-        // map sakit -> hari_alpha in transaksi_insentif_kurir
+        // Update hari_cuti & hari_sakit di transaksi_insentif_kurir
         $npp = isset($input['npp']) ? trim($input['npp']) : '';
         $periode = isset($input['periode']) ? trim($input['periode']) : '';
         $hari_cuti = isset($input['hari_cuti']) ? intval($input['hari_cuti']) : 0;
-        $hari_sakit = isset($input['hari_sakit']) ? intval($input['hari_sakit']) : 0; // will store to hari_alpha
+        $hari_sakit = isset($input['hari_sakit']) ? intval($input['hari_sakit']) : 0;
 
         if ($npp === '' || $periode === '') {
             echo json_encode(['success' => false, 'message' => 'Parameter tidak lengkap']);
@@ -371,10 +371,10 @@ try {
         $insentif_total = $bonus_titik + $bonus_full + $uang_lembur;
         $jumlah = intval($uang_makan_final + $insentif_total - $denda_telat);
 
-        // update transaksi_insentif_kurir: hari_cuti, hari_alpha (sakit), bonus_full_hadir, potongan_makan, uang_makan, jumlah_dibayarkan
+        // update transaksi_insentif_kurir: hari_cuti, hari_sakit, bonus_full_hadir, potongan_makan, uang_makan, jumlah_dibayarkan
         $update_sql = "UPDATE transaksi_insentif_kurir 
                        SET hari_cuti = ?, 
-                           hari_alpha = ?, 
+                           hari_sakit = ?, 
                            bonus_insentif_full_masuk = ?,
                            potongan_makan = ?,
                            uang_makan = ?, 

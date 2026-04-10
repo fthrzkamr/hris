@@ -350,9 +350,10 @@ try {
                 $is_hadir = 0;
                 $uang_makan_harian = -intval($settings['POTONGAN_MAKAN_PER_HARI']); // Penalty (negative) for cuti
             } else {
-                // ALPHA (absent without leave): apply penalty
+                // Tidak masuk tanpa cuti/sakit (alpha) -> LOGIKA ALPHA DIHILANGKAN
+                // tidak ada potongan/uang makan otomatis, dan tidak dihitung ke hari apapun
                 $is_hadir = 0;
-                $uang_makan_harian = -intval($settings['POTONGAN_MAKAN_PER_HARI']); // Penalty (negative)
+                $uang_makan_harian = 0;
             }
         }
 
@@ -404,7 +405,7 @@ try {
         } elseif ($is_cuti) {
             $monthly_data[$key]['hari_cuti']++;
         } else {
-            $monthly_data[$key]['hari_alpha']++;
+            // alpha diabaikan (diminta hilangkan logika hari alpha)
         }
     }
 
@@ -454,9 +455,11 @@ try {
         //    Hanya diberikan jika TIDAK ADA alpha DAN TIDAK ADA keterlambatan sebulan
         //    Ini TERPISAH dari bonus titik di atas
         $bonus_full_hadir = 0;
-        $hari_alpha = $data['hari_alpha'];
+        // hari_alpha tidak lagi dipakai (diminta dihilangkan)
+        $hari_alpha = 0;
+        $hari_cuti = isset($data['hari_cuti']) ? $data['hari_cuti'] : 0;
         $hari_telat = isset($data['hari_telat']) ? $data['hari_telat'] : 0;
-        if ($hari_alpha == 0 && $hari_telat == 0) {
+        if ($hari_cuti == 0 && $hari_telat == 0) {
             $bonus_full_hadir = intval($settings['BONUS_FULL_HADIR']); // 250,000
         }
         
@@ -510,7 +513,8 @@ try {
         } else {
             $success_count++;
             $hari_kerja = count($data['dates']);
-            $hari_alpha = $data['hari_alpha'];
+            // hari_alpha tidak dipakai lagi
+            $hari_alpha = 0;
             $hari_cuti = $data['hari_cuti'];
             
             // Format bonus info to clearly show independent calculations
@@ -531,9 +535,9 @@ try {
             // Format uang makan: Base - Potongan = Final
             $makan_info = number_format($uang_makan_base);
             if ($potongan_makan > 0) {
-                $makan_info .= " - " . number_format($potongan_makan) . " ({$hari_alpha} alpha" . ($hari_cuti > 0 ? " + {$hari_cuti} cuti" : "") . ") = " . number_format($total_makan);
+                $makan_info .= " - " . number_format($potongan_makan) . " (" . ($hari_cuti > 0 ? "{$hari_cuti} cuti" : "") . ") = " . number_format($total_makan);
             }
-            $error_messages[] = "✓ NPP $npp periode $periode: {$hari_kerja} hari | Hadir={$data['hari_hadir']} Telat={$data['hari_telat']} Alpha={$hari_alpha} Cuti={$hari_cuti} | Titik Aktual={$total_titik} Target={$target_titik} | Makan={$makan_info} | {$bonus_info} | TOTAL BAYAR=" . number_format($jumlah_dibayarkan);
+            $error_messages[] = "✓ NPP $npp periode $periode: {$hari_kerja} hari | Hadir={$data['hari_hadir']} Telat={$data['hari_telat']} Cuti={$hari_cuti} | Titik Aktual={$total_titik} Target={$target_titik} | Makan={$makan_info} | {$bonus_info} | TOTAL BAYAR=" . number_format($jumlah_dibayarkan);
         }
     }
 

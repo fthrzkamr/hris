@@ -282,7 +282,7 @@ $query = mysqli_query($conn, $sql);
                                     <th>Kelebihan</th>
                                     <th title="Total menit keterlambatan dalam periode">Akumulasi Telat (menit)</th>
                                     <th title="Bonus dari kelebihan titik (max 500rb/bulan)">Bonus Titik</th>
-                                    <th title="Bonus full kehadiran (250rb jika 0 alpha)">Bonus Full Hadir</th>
+                                    <th title="Bonus full kehadiran (jika 0 cuti & 0 telat)">Bonus Full Hadir</th>
                                     <th>Uang Lembur</th>
                                     <th>Denda Telat</th>
                                     <th title="Potongan absolut dari ketidakhadiran">Potongan Makan</th>

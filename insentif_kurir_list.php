@@ -50,7 +50,7 @@ if (!in_array($sort_column, $allowed_sorts)) {
     $sort_column = 'periode';
 }
 
-$sql = "SELECT t.*, t.hari_hadir, t.hari_telat, t.hari_cuti, t.hari_alpha, e.nama_emp, b.nama_bagian, e.cabang " 
+$sql = "SELECT t.*, t.hari_hadir, t.hari_telat, t.hari_cuti, e.nama_emp, b.nama_bagian, e.cabang " 
     . $sql_base 
     . " ORDER BY t." . $sort_column . " " . $sort_order . ", t.npp ASC"
     . " LIMIT " . $records_per_page . " OFFSET " . $offset;
@@ -564,7 +564,7 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                                     <th rowspan="2" class="sortable" data-sort="cabang">Cabang</th>
                                     <th rowspan="2" class="sortable" data-sort="periode">Periode</th>
                                     <th colspan="9" class="text-center">Performa</th>
-                                    <th colspan="8" class="text-center">Komponen Pembayaran</th>
+                                    <th colspan="9" class="text-center">Komponen Pembayaran</th>
                                     <th rowspan="2" class="bg-success sortable" data-sort="jumlah_dibayarkan">Total Dibayarkan</th>
                                     <!-- <th rowspan="2">Status</th> -->
                                 </tr>
@@ -579,10 +579,11 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                                     <th title="Jumlah hari cuti dalam periode">Cuti</th>
                                     <th title="Jumlah hari sakit dalam periode">Sakit</th>
                                     <th title="Bonus dari kelebihan titik (max 500rb/bulan)">Bonus Titik</th>
-                                    <th title="Bonus full kehadiran (250rb jika 0 alpha)">Bonus Full Hadir</th>
+                                    <th title="Bonus full kehadiran (jika 0 cuti/sakit/telat)">Bonus Full Hadir</th>
                                     <th title="Nominal lembur operasional">Lembur Operasional</th>
                                     <th title="Nominal lembur ambil barang">Lembur Ambil Barang</th>
                                     <th title="Nominal lembur kategori lainnya">Lembur Lainnya</th>
+                                    <th title="Total lembur (kolom uang_lembur)">Total Lembur</th>
                                     <th class="sortable" data-sort="denda_telat">Denda Telat</th>
                                     <th title="Potongan absolut dari ketidakhadiran">Potongan Makan</th>
                                     <th title="Uang makan final bulanan setelah potongan">Uang Makan</th>
@@ -692,7 +693,7 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                                             data-npp="<?php echo htmlspecialchars($row['npp']); ?>"
                                             data-periode="<?php echo $row['periode']; ?>"
                                             data-cuti="<?php echo intval($row['hari_cuti'] ?? 0); ?>"
-                                            data-sakit="<?php echo intval($row['hari_alpha'] ?? 0); ?>"
+                                            data-sakit="<?php echo intval($row['hari_sakit'] ?? 0); ?>"
                                             data-uangmakan="<?php echo intval($row['uang_makan'] ?? 0); ?>"
                                             data-bonusfull="<?php echo intval($row['bonus_insentif_full_masuk'] ?? 0); ?>"
                                             title="Klik untuk edit">
@@ -703,11 +704,11 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                                             data-npp="<?php echo htmlspecialchars($row['npp']); ?>"
                                             data-periode="<?php echo $row['periode']; ?>"
                                             data-cuti="<?php echo intval($row['hari_cuti'] ?? 0); ?>"
-                                            data-sakit="<?php echo intval($row['hari_alpha'] ?? 0); ?>"
+                                            data-sakit="<?php echo intval($row['hari_sakit'] ?? 0); ?>"
                                             data-uangmakan="<?php echo intval($row['uang_makan'] ?? 0); ?>"
                                             data-bonusfull="<?php echo intval($row['bonus_insentif_full_masuk'] ?? 0); ?>"
                                             title="Klik untuk edit">
-                                            <?php echo intval($row['hari_alpha'] ?? 0); ?>
+                                            <?php echo intval($row['hari_sakit'] ?? 0); ?>
                                         </td>
                                         <!-- Bonus Titik -->
                                         <td class="text-right" style="<?php echo $bonus_titik_style; ?>">
@@ -736,6 +737,12 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                                             data-lembur-lain="<?php echo intval($row['lembur_lainnya'] ?? 0); ?>">
                                             <?php echo number_format($row['lembur_lainnya'] ?? 0); ?>
                                         </td>
+                                        <td class="text-right lembur-total"
+                                            data-npp="<?php echo htmlspecialchars($row['npp']); ?>"
+                                            data-periode="<?php echo $row['periode']; ?>"
+                                            data-lembur-total="<?php echo intval($row['uang_lembur'] ?? 0); ?>">
+                                            <?php echo number_format($row['uang_lembur'] ?? 0); ?>
+                                        </td>
                                          <td class="text-right" style="<?php echo $denda_style; ?>">
                                              <?php echo number_format($row['denda_telat'] ?? 0); ?>
                                          </td>
@@ -746,7 +753,7 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                                             data-npp="<?php echo htmlspecialchars($row['npp']); ?>"
                                             data-periode="<?php echo $row['periode']; ?>"
                                             data-cuti="<?php echo intval($row['hari_cuti'] ?? 0); ?>"
-                                            data-sakit="<?php echo intval($row['hari_alpha'] ?? 0); ?>"
+                                            data-sakit="<?php echo intval($row['hari_sakit'] ?? 0); ?>"
                                             data-uangmakan="<?php echo intval($row['uang_makan'] ?? 0); ?>"
                                             data-bonusfull="<?php echo intval($row['bonus_insentif_full_masuk'] ?? 0); ?>"
                                             title="Klik untuk edit">
@@ -1319,7 +1326,8 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                     
                     // Update Bonus Full Hadir if returned
                     if (typeof res.bonus_full_hadir !== 'undefined') {
-                        $row.find('td').eq(14).text(numberWithCommas(res.bonus_full_hadir)); // Column Bonus Full
+                        // Bonus Full Hadir berada di kolom index 16 (0-based)
+                        $row.find('td').eq(16).text(numberWithCommas(res.bonus_full_hadir));
                     }
                     
                     // Update Total Dibayarkan
@@ -1493,11 +1501,11 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                 if (res && res.success) {
                     var row = $('.editable-cuti-sakit-makan[data-npp="' + res.npp + '"][data-periode="' + res.periode + '"]').first().closest('tr');
                     if (row.length) {
-                        row.find('td').eq(12).text(res.hari_cuti);
-                        row.find('td').eq(13).text(res.hari_sakit);
+                        row.find('td').eq(13).text(res.hari_cuti);
+                        row.find('td').eq(14).text(res.hari_sakit);
                         row.find('td').eq(16).text(numberWithCommas(res.bonus_full_hadir));
-                        row.find('td').eq(19).text(numberWithCommas(res.potongan_makan));
-                        row.find('td').eq(20).text(numberWithCommas(res.uang_makan));
+                        row.find('td').eq(22).text(numberWithCommas(res.potongan_makan));
+                        row.find('td').eq(23).text(numberWithCommas(res.uang_makan));
                         row.find('.editable-cuti-sakit-makan').data('cuti', res.hari_cuti).data('sakit', res.hari_sakit);
                         computeRowTotal(row);
                     }
@@ -1530,6 +1538,7 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                         row.find('.lembur-operasional').data('lembur-operasional', res.lembur_operasional_amt).text(numberWithCommas(res.lembur_operasional_amt));
                         row.find('.lembur-ambil').data('lembur-ambil', res.lembur_ambil_amt).text(numberWithCommas(res.lembur_ambil_amt));
                         row.find('.lembur-lain').data('lembur-lain', res.lembur_lain_amt).text(numberWithCommas(res.lembur_lain_amt));
+                        row.find('.lembur-total').data('lembur-total', res.uang_lembur).text(numberWithCommas(res.uang_lembur));
                         
                         // recompute total dibayarkan in frontend
                         computeRowTotal(row);
@@ -1619,25 +1628,29 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
         function computeRowTotal($row) {
             if (!$row || !$row.length) return;
             // index kolom (0-based) sesuai struktur tabel saat ini
-            var idx_bonus_titik   = 15;
-            var idx_bonus_full    = 16;
-            var idx_lembur_op     = 17;
-            var idx_lembur_ambil  = 18;
-            var idx_lembur_lain   = 19;
-            var idx_denda         = 20;
-            var idx_pot_makan     = 21; // tidak ikut ke total, hanya info
-            var idx_uang_makan    = 22;
-            var idx_total         = 23;
+            // (setelah penambahan kolom "Total Lembur")
+            var idx_bonus_titik    = 15;
+            var idx_bonus_full     = 16;
+            var idx_lembur_op      = 17;
+            var idx_lembur_ambil   = 18;
+            var idx_lembur_lain    = 19;
+            var idx_lembur_total   = 20;
+            var idx_denda          = 21;
+            var idx_pot_makan      = 22; // tidak ikut ke total, hanya info
+            var idx_uang_makan     = 23;
+            var idx_total          = 24;
 
-            var bonusTitik = parseCellNumber($row.find('td').eq(idx_bonus_titik));
-            var bonusFull  = parseCellNumber($row.find('td').eq(idx_bonus_full));
-            var lemburOp   = parseCellNumber($row.find('td').eq(idx_lembur_op));
-            var lemburAmb  = parseCellNumber($row.find('td').eq(idx_lembur_ambil));
-            var lemburLain = parseCellNumber($row.find('td').eq(idx_lembur_lain));
-            var denda      = parseCellNumber($row.find('td').eq(idx_denda));
-            var uangMakan  = parseCellNumber($row.find('td').eq(idx_uang_makan));
+            var bonusTitik  = parseCellNumber($row.find('td').eq(idx_bonus_titik));
+            var bonusFull   = parseCellNumber($row.find('td').eq(idx_bonus_full));
+            var lemburOp    = parseCellNumber($row.find('td').eq(idx_lembur_op));
+            var lemburAmb   = parseCellNumber($row.find('td').eq(idx_lembur_ambil));
+            var lemburLain  = parseCellNumber($row.find('td').eq(idx_lembur_lain));
+            var lemburTotal = parseCellNumber($row.find('td').eq(idx_lembur_total));
+            var denda       = parseCellNumber($row.find('td').eq(idx_denda));
+            var uangMakan   = parseCellNumber($row.find('td').eq(idx_uang_makan));
 
-            var lembur = lemburOp + lemburAmb + lemburLain;
+            // pakai nilai Total Lembur dari DB jika ada; fallback dari penjumlahan kategori
+            var lembur = (lemburTotal !== 0) ? lemburTotal : (lemburOp + lemburAmb + lemburLain);
             var total  = uangMakan + bonusTitik + bonusFull + lembur - denda;
 
             var $totalCell = $row.find('td').eq(idx_total);
