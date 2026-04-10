@@ -290,6 +290,18 @@ try {
             }
         }
 
+        // Normalize "zero" time values to NULL.
+        // Many attendance exports mark absence with 0 / 00:00 / 00:00:00 which would otherwise be treated as present.
+        $jam_raw_norm = trim((string) $jam_raw);
+        if (
+            $jam_raw_norm === '0' || $jam_raw_norm === '0.0' ||
+            $jam_raw_norm === '00:00' || $jam_raw_norm === '00:00:00' ||
+            $jam_raw_norm === '00:00 00:00' ||
+            $jam_masuk === '00:00:00'
+        ) {
+            $jam_masuk = null;
+        }
+
         // Parse numeric titik
         $aktual = intval($aktual_raw);
         $target = intval($target_raw);
@@ -362,8 +374,10 @@ try {
         if ($cuti_rs) {
             while ($cuti_row = mysqli_fetch_assoc($cuti_rs)) {
                 // debug: uncomment to collect details $_SESSION['debug'][] = $cuti_row;
-                if (!empty($cuti_row['keterangan'])) $cuti_keterangan_array[] = trim($cuti_row['keterangan']);
-                else $cuti_keterangan_array[] = '(' . ($cuti_row['stt_cuti'] ?? 'Unknown') . ')';
+                if (!empty($cuti_row['keterangan']))
+                    $cuti_keterangan_array[] = trim($cuti_row['keterangan']);
+                else
+                    $cuti_keterangan_array[] = '(' . ($cuti_row['stt_cuti'] ?? 'Unknown') . ')';
             }
             mysqli_free_result($cuti_rs);
         } else {
