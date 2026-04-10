@@ -1,9 +1,9 @@
 <?php
 // Export Absensi Kurir to Excel with merged header rows
-include("sess_check.php");
-include("../dist/config/koneksi.php");
+include(__DIR__ . '/sess_check.php');
+include(__DIR__ . '/../dist/config/koneksi.php');
 
-require_once '../vendor/autoload.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -101,14 +101,16 @@ if ($res && mysqli_num_rows($res) > 0) {
         $jam_pulang = $r['jam_pulang'] ? date('H:i', strtotime($r['jam_pulang'])) : '-';
 
         // Status
-        if ($r['is_cuti']) {
+        $is_cuti = !empty($r['is_cuti']);
+        $is_sakit = !empty($r['is_sakit']);
+        if ($is_cuti) {
             $hadir = '-';
             $telat = '-';
-            $cuti = 'Cuti';
+            $cuti = $is_sakit ? 'Sakit' : 'Cuti';
         } else {
-            $hadir = $r['is_hadir'] ? 'Hadir' : 'Tidak';
-            $telat = $r['is_late'] ? ($r['menit_terlambat'] . ' mnt') : 'Tepat Waktu';
-            $cuti = $r['is_cuti'] ? 'Cuti' : '-';
+            $hadir = !empty($r['is_hadir']) ? 'Hadir' : 'Tidak';
+            $telat = !empty($r['is_late']) ? (($r['menit_terlambat'] ?? 0) . ' mnt') : 'Tepat Waktu';
+            $cuti = '-';
         }
 
         // Financial columns: match list view (bonus columns shown as '-'; makan shows negative only)
