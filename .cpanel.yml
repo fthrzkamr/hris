@@ -1,0 +1,5 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/u9621710/public_html/hris/
+    - /usr/bin/rsync -rlptDv --exclude='.git/' --exclude='.gitignore' --exclude='.cpanel.yml' --exclude='*/uploads/' --exclude='foto/karyawan/' ./ $DEPLOYPATH
