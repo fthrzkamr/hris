@@ -1,0 +1,4 @@
+# Folder upload dokumen/foto milik karyawan (reimburse, kacamata, dll)
+# Sengaja tidak di-commit supaya tidak bentrok saat deploy ke hosting
+*/uploads/
+foto/karyawan/
