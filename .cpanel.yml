@@ -3,3 +3,5 @@ deployment:
   tasks:
     - export DEPLOYPATH=/home/u9621710/public_html/hris/
     - /usr/bin/rsync -rlptDv --exclude='.git/' --exclude='.gitignore' --exclude='.cpanel.yml' --exclude='*/uploads/' --exclude='foto/karyawan/' --exclude='dist/config/koneksi.php' ./ $DEPLOYPATH
+    - /usr/bin/find $DEPLOYPATH -type d -exec chmod 755 {} \;
+    - /usr/bin/find $DEPLOYPATH -type f -exec chmod 644 {} \;
