@@ -7,6 +7,11 @@
 	include("dist/function/format_tanggal.php");
 	include("dist/function/format_rupiah.php");
 	$id = $sess_mngid;
+	
+	// Cari id_koordinator berdasarkan NPP yang sedang login
+	$k_query = mysqli_query($conn, "SELECT id_koordinator FROM koordinator WHERE npp='$id'");
+	$k_row = mysqli_fetch_array($k_query);
+	$id_koor = $k_row ? $k_row['id_koordinator'] : '-1';
 
 ?>
 <!-- top of file -->
@@ -29,7 +34,7 @@
 							<div class="panel-body">
 						<?php
 								$Sql = "SELECT cuti.*, employee.* FROM cuti, employee WHERE cuti.npp=employee.npp AND 
-										cuti.stt_cuti='Menunggu Approval Koordinator' AND employee.nama_koordinator='3' ORDER BY cuti.tgl_pengajuan DESC";
+										cuti.stt_cuti LIKE '%Menunggu Approval%' AND employee.nama_koordinator='$id_koor' ORDER BY cuti.tgl_pengajuan DESC";
 								$Qry = mysqli_query($conn, $Sql);
 								
 							?>						

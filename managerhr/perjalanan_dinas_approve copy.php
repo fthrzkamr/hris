@@ -1,6 +1,6 @@
 <?php
 include("sess_check.php");
-include('dist/config/koneksi.php');
+include(__DIR__ . '/../dist/config/koneksi.php');
 
 // Get ID early for POST processing
 $id = isset($_GET['id']) ? intval($_GET['id']) : (isset($_POST['id']) ? intval($_POST['id']) : 0);

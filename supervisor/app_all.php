@@ -4,6 +4,13 @@
 	// deskripsi halaman
 	$pagedesc = "Semua Data";
 	include("layout_top.php");
+
+	// Get dynamic koordinator
+	$id = $sess_mngid;
+	$k_query = mysqli_query($conn, "SELECT id_koordinator FROM koordinator WHERE npp='$id'");
+	$k_row = mysqli_fetch_array($k_query);
+	$id_koor = $k_row ? $k_row['id_koordinator'] : '-1';
+
 	include("dist/function/format_tanggal.php");
 	include("dist/function/format_rupiah.php");
 	$id = $sess_admid;
@@ -28,7 +35,7 @@
 							<div class="panel-body">
 						<?php
 								$Sql = "SELECT cuti.*, employee.* FROM cuti, employee WHERE cuti.npp=employee.npp AND 
-										employee.nama_koordinator='22' ORDER BY cuti.tgl_pengajuan DESC";
+										employee.nama_koordinator='$id_koor' ORDER BY cuti.tgl_pengajuan DESC";
 								$Qry = mysqli_query($conn, $Sql);
 								
 							?>						

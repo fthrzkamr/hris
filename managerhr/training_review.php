@@ -102,6 +102,14 @@ $QryRincian = mysqli_query($conn, $SqlRincian);
                             <hr>
 
                             <div class="form-group">
+                                <label class="control-label col-sm-3">Jenis Training</label>
+                                <div class="col-sm-8">
+                                    <input type="text" class="form-control"
+                                        value="<?php echo $data['jenis_training']; ?>" readonly>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
                                 <label class="control-label col-sm-3">Judul Training</label>
                                 <div class="col-sm-8">
                                     <input type="text" class="form-control"

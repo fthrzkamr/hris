@@ -1,6 +1,6 @@
 <?php
 include("sess_check.php");
-include("dist/config/koneksi.php");
+include(__DIR__ . "/../dist/config/koneksi.php");
 header('Content-Type: application/json');
 
 try {

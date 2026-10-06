@@ -27,22 +27,26 @@
 						<div class="panel panel-default">
 							<div class="panel-body">
 						<?php
-								$Sql = "SELECT lembur.*, employee.* FROM lembur, employee WHERE lembur.npp=employee.npp AND lembur.npp='$id' ORDER BY lembur.tgl_lembur DESC";
+								$Sql = "SELECT lembur.*, employee.nama_emp, koordinator.nama_koordinator AS nama_koor 
+										FROM lembur 
+										INNER JOIN employee ON lembur.npp=employee.npp 
+										LEFT JOIN koordinator ON employee.nama_koordinator=koordinator.id_koordinator 
+										WHERE lembur.npp='$id' 
+										ORDER BY lembur.tgl_lembur DESC";
 								$Qry = mysqli_query($conn, $Sql);
-								
 							?>						
 								<table class="table table-striped table-bordered table-hover" id="tabel-data">
 									<thead>
 										<tr>
 											<th width="1%">No</th>
 											<th width="10%">Nama Karyawan</th>
-											<th width="10%">Tujuan Lembur</th>
+											<th width="5%">Tujuan Lembur</th>
 											<th width="5%">Tgl Lembur</th>
 											<th width="5%">Jam Mulai Lembur</th>
 											<th width="5%">Jam Berakhir Lembur</th>
-											<th width="10%">Nama Koordinator</th>
-											<th width="10%">status</th>
-											<th width="10%">Opsi</th>
+											<th width="5%">Nama Koordinator</th>
+											<th width="5%">status</th>
+											<th width="5%">Opsi</th>
 										</tr>
 									</thead>
 									<tbody>
@@ -51,12 +55,12 @@
 											while($data = mysqli_fetch_array($Qry)){
 												echo '<tr>';
 												echo '<td class="text-center">'. $i .'</td>';
-												echo '<td class="text-center">'. $data['nama_karyawan'] .'</td>';
+												echo '<td class="text-center">'. $data['nama_emp'] .'</td>';
 												echo '<td class="text-center">'. $data['tujuan_lembur'] .'</td>';
 												echo '<td class="text-center">'. IndonesiaTgl($data['tgl_lembur']) .'</td>';
 												echo '<td class="text-center">'. $data['jam_mulai_lembur'] .'</td>';
 												echo '<td class="text-center">'. $data['jam_berakhir_lembur'] .'</td>';
-												echo '<td class="text-center">'. $data['nama_koordinator'] .'</td>';
+												echo '<td class="text-center">'. $data['nama_koor'] .'</td>';
 												echo '<td class="text-center">'. $data['status'] .'</td>';
 												echo '<td class="text-center">
 													  <a href="#myModal" data-toggle="modal" data-load-code="'.$data['id_lmbr'].'" data-remote-target="#myModal .modal-body" class="btn btn-primary btn-xs">Detail</a>';?>

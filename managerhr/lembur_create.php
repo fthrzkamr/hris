@@ -77,7 +77,7 @@ $(document).ready(function() {
                                     <div class="form-group">
 										<label class="control-label col-sm-3">Tanggal Lembur</label>
 										<div class="col-sm-4">
-											<input type="date" name="tgl_lembur" class="form-control" required>
+											<input type="date" name="tgl_lembur" class="form-control" required min="<?php echo date('Y-m-d'); ?>">
 										</div>
 									</div>
 

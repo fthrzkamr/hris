@@ -31,11 +31,31 @@ $id = $sess_mngid;
 </head>
 <body>
     <div id="wrapper">
-        <nav class="navbar navbar-default navbar-static-top" role="navigation">
+                <nav class="navbar navbar-default navbar-static-top" role="navigation" style="margin-bottom: 0">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand hidden-xs" href="index.php">
+                    <img src="../libs/images/dua.png" alt="brand" width="32" class="float-left image-brand">
+                    <div class="float-right">&nbsp;<strong>DF Group </strong></div>
+                    <div class="clear-both"></div>
+                </a>
+            </div><!-- /.navbar-header -->
+
             <ul class="nav navbar-top-links navbar-right">
                 <li class="dropdown">
                     <a class="dropdown-toggle" data-toggle="dropdown" href="#">
-                        <img src="../foto/<?php echo $res['foto_emp']; ?>" width="20px">&nbsp;<?php echo ucfirst($sess_mngname); ?>&nbsp;<i class="fa fa-caret-down"></i>
+                        <?php if(!empty($row_sess['foto_emp'])): ?>
+                            <img src="../foto/<?php echo htmlspecialchars($row_sess['foto_emp']); ?>" width="20px" style="border-radius:50%; vertical-align:middle;" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                            <i class="fa fa-user-circle" style="font-size:20px; vertical-align:middle; display:none; color:#aaa;"></i>
+                        <?php else: ?>
+                            <i class="fa fa-user-circle" style="font-size:20px; vertical-align:middle; color:#aaa;"></i>
+                        <?php endif; ?>
+                        &nbsp;<?php echo ucfirst($sess_mngname); ?>&nbsp;<i class="fa fa-caret-down"></i>
                     </a>
                     <ul class="dropdown-menu dropdown-user">
                         <li><a href="pengaturan.php"><i class="fa fa-gear fa-fw"></i> Pengaturan Akun</a></li>
@@ -46,6 +66,7 @@ $id = $sess_mngid;
                     </ul>
                 </li>
             </ul>
+
             <div class="navbar-default sidebar" role="navigation">
                 <div class="sidebar-nav navbar-collapse">
                     <ul class="nav" id="side-menu">
@@ -77,21 +98,29 @@ $id = $sess_mngid;
                                 </li>
                             </ul>
                         </li>
-                        
-                        <!-- <li>
-                            <a href="#"><i class="fa fa-download fa-fw"></i> Persetujuan Cuti<span class="fa arrow"></span></a>
+
+                        <!-- Training Menu -->
+                        <?php
+                        if (isset($menuparent) && $menuparent == "training") {
+                            echo '<li class="active">';
+                        } else {
+                            echo '<li>';
+                        }
+                        ?>
+                            <a href="#"><i class="fa fa-graduation-cap fa-fw"></i> Pengajuan Training<span class="fa arrow"></span></a>
                             <ul class="nav nav-second-level">
-                                <li><a href="app_wait.php">Menunggu Approval</a></li>
-                                <li><a href="app.php">Approved</a></li>
-                                <li><a href="app_all.php">Semua Data</a></li>
+                                <li>
+                                    <a href="form_pengajuan_training.php">
+                                        <i class="fa fa-plus fa-fw"></i> Buat Pengajuan Baru
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="training_status.php">
+                                        <i class="fa fa-list fa-fw"></i> Status Pengajuan Saya
+                                    </a>
+                                </li>
                             </ul>
                         </li>
-                        <li>
-                            <a href="#"><i class="fa fa-download fa-fw"></i> Persetujuan Lembur<span class="fa arrow"></span></a>
-                            <ul class="nav nav-second-level">
-                                <li><a href="lembur_wait.php">Menunggu Approval</a></li>
-                            </ul>
-                        </li> -->
                         
                         <!-- Menu Request Slip Gaji -->
                         <?php
@@ -116,8 +145,19 @@ $id = $sess_mngid;
                             </ul>
                         </li>
                         
-                        <li>
-                            <a href="gaji.php"><i class="fa fa-money fa-fw"></i> Informasi Gaji</a>
+                        <?php if (isset($row_sess['status_karyawan']) && $row_sess['status_karyawan'] != 'Magang'): ?>
+<li>
+                            <a href="pinjaman.php"><i class="fa fa-money fa-fw"></i> Pinjaman</a>
+                        </li>
+<?php endif; ?>
+                        <?php
+                        if (isset($pagedesc) && $pagedesc == "Peminjaman Mobil") {
+                            echo '<li><a href="peminjaman_mobil.php" class="active"><i class="fa fa-car fa-fw"></i> Peminjaman Mobil</a>';
+                        } else {
+                            echo '<li><a href="peminjaman_mobil.php"><i class="fa fa-car fa-fw"></i> Peminjaman Mobil</a>';
+                        }
+                        ?>
+                        </li>
                         </li>
                         <?php if($sess_jabatan == 'Manager' || $sess_jabatan == 'Leader'): ?>
                         <li>

@@ -32,7 +32,7 @@
 									</div>
 									<div class="col-sm-4">
 										<label>Tanggal Akhir Cuti</label>
-										<input type="date" class="form-control" name="akhir" placeholder="To Date(dd/mm/yyyy)" required>
+										<input type="date" class="form-control" name="akhir" placeholder="To Date(dd/mm/yyyy)" required min="<?php echo date('Y-m-d'); ?>">
 									</div>
 									<div class="col-sm-4">
 										<label>&nbsp;</label><br/>

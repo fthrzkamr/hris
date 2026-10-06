@@ -59,6 +59,31 @@ if (empty($departemen_user) || is_numeric($departemen_user)) {
     </div>
 <?php endif; ?>
 
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="alert alert-info">
+                <h4><i class="fa fa-info-circle"></i> <strong>Syarat dan Ketentuan Perjalanan Dinas (Upcountry)</strong></h4>
+                <ol style="margin-left: -20px; margin-bottom: 0;">
+                    <li>Perjalanan dinas dilakukan berdasarkan pengajuan atau penugasan dari atasan yang berwenang.</li>
+                    <li>Perjalanan dinas dikategorikan sebagai <em>Upcountry</em> apabila memenuhi salah satu kriteria berikut:
+                        <ul>
+                            <li>Jarak tempuh minimal 120 km (satu kali jalan) dari lokasi kerja/cabang asal; dan/atau</li>
+                            <li>Waktu tempuh minimal 3 (tiga) jam perjalanan satu kali jalan.</li>
+                        </ul>
+                    </li>
+                    <li>Perjalanan dinas dapat dilaksanakan selama 1 (satu) hari atau lebih sesuai kebutuhan operasional.</li>
+                    <li>Pengajuan perjalanan dinas diajukan minimal 3 (tiga) hari kerja sebelum keberangkatan. Dalam kondisi mendesak, pengajuan dapat dilakukan atas persetujuan atasan.</li>
+                    <li>Karyawan wajib mengajukan Form Perjalanan Dinas melalui HRIS.</li>
+                    <li>Biaya yang dapat diajukan meliputi transportasi, akomodasi/penginapan, biaya luar kota, dan biaya operasional lain yang telah disetujui.</li>
+                    <li>Perpanjangan perjalanan dinas harus mendapat persetujuan atasan yang berwenang.</li>
+                    <li>Laporan pertanggungjawaban perjalanan dinas wajib disampaikan maksimal 3 (tiga) hari kerja setelah perjalanan dinas selesai dengan disertai bukti yang sah.</li>
+                    <li>Perusahaan berhak menolak penggantian biaya yang tidak sesuai ketentuan, tidak didukung bukti yang sah, atau tidak berkaitan dengan kepentingan dinas.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+
 <div class="row">
     <div class="col-lg-12">
         <div class="panel panel-default">
@@ -75,7 +100,7 @@ if (empty($departemen_user) || is_numeric($departemen_user)) {
                                 <input type="text" name="nama" class="form-control"
                                     value="<?php echo htmlspecialchars($nama_user); ?>" readonly
                                     style="background-color: #f5f5f5; cursor: not-allowed;">
-                                <p class="help-block">Nama diambil dari akun yang sedang login</p>
+
                             </div>
                         </div>
                     </div>
@@ -87,7 +112,7 @@ if (empty($departemen_user) || is_numeric($departemen_user)) {
                                 <input type="text" name="departemen" class="form-control"
                                     value="<?php echo htmlspecialchars($departemen_user); ?>" readonly
                                     style="background-color: #f5f5f5; cursor: not-allowed;">
-                                <p class="help-block">Departemen diambil dari data kepegawaian Anda</p>
+
                             </div>
                         </div>
                     </div>
@@ -97,7 +122,7 @@ if (empty($departemen_user) || is_numeric($departemen_user)) {
                             <div class="form-group">
                                 <label>Tanggal Perjalanan</label>
                                 <input type="date" name="tanggal_perjalanan" class="form-control">
-                                <p class="help-block">Kosongkan jika tanggal fleksibel</p>
+
                             </div>
                         </div>
                         <div class="col-lg-6 col-md-6 col-sm-6">
@@ -105,7 +130,7 @@ if (empty($departemen_user) || is_numeric($departemen_user)) {
                                 <label>Jumlah Hari <span class="text-danger">*</span></label>
                                 <input type="number" name="jumlah_hari" class="form-control" min="1"
                                     placeholder="Jumlah hari perjalanan" required>
-                                <p class="help-block">Termasuk hari menginap</p>
+
                             </div>
                         </div>
                     </div>

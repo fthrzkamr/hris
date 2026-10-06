@@ -10,8 +10,15 @@ $tujuan = $_POST['tipe_cuti'];
 
 $start  = new DateTime($mulai);
 $finish = new DateTime($akhir);
-$int    = $start->diff($finish);
-$durasi = $int->days + 1; // Tambah 1 agar inklusif
+// Menghitung durasi tanpa hari Minggu
+$durasi = 0;
+$current = clone $start;
+while ($current <= $finish) {
+    if ($current->format('w') != 0) { // 0 = Minggu
+        $durasi++;
+    }
+    $current->modify('+1 day');
+}
 
 $stt    = "Menunggu Approval";
 $id     = date('dmYHis');

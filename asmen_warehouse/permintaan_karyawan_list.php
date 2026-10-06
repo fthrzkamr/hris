@@ -89,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Fetch list - only show own records
-$sql = "SELECT * FROM permintaan_karyawan WHERE created_by = ? ORDER BY id DESC";
+$sql = "SELECT p.*, (SELECT status FROM permintaan_pengajuan WHERE id_permintaan = p.id ORDER BY id DESC LIMIT 1) AS status FROM permintaan_karyawan p WHERE p.created_by = ? ORDER BY p.id DESC";
 $stmt = mysqli_prepare($conn, $sql);
 if ($stmt === false) {
     die('Database error: ' . mysqli_error($conn));
@@ -129,6 +129,12 @@ $res = mysqli_stmt_get_result($stmt);
         margin-right: 3px;
         margin-bottom: 3px;
     }
+
+    .status-badge { padding: 4px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; display: inline-block; }
+    .status-diajukan { background: #fcf8e3; color: #8a6d3b; border: 1px solid #faebcc; }
+    .status-disetujui { background: #dff0d8; color: #3c763d; border: 1px solid #d6e9c6; }
+    .status-ditolak { background: #f2dede; color: #a94442; border: 1px solid #ebccd1; }
+    .status-belum { background: #d9edf7; color: #31708f; border: 1px solid #bce8f1; }
 
     @media screen and (max-width: 767px) {
         #dataTables {
@@ -200,6 +206,7 @@ $res = mysqli_stmt_get_result($stmt);
                                     <th>Tanggal Dokumen</th>
                                     <th>Jumlah Dibutuhkan</th>
                                     <th>Untuk</th>
+                                    <th>Status</th>
                                     <th>Aksi</th>
                                 </tr>
                             </thead>
@@ -215,6 +222,18 @@ $res = mysqli_stmt_get_result($stmt);
                                         <td><?php echo date('d-m-Y', strtotime($row['tanggal_dokumen'])); ?></td>
                                         <td><?php echo htmlspecialchars($row['jumlah_dibutuhkan']); ?> orang</td>
                                         <td><?php echo htmlspecialchars($row['untuk']); ?></td>
+                                        <td>
+                                            <?php 
+                                            $status = $row['status'] ?? 'BELUM DIAJUKAN';
+                                            $badge_class = 'status-belum';
+                                            if ($status == 'DIAJUKAN') $badge_class = 'status-diajukan';
+                                            if ($status == 'DISETUJUI') $badge_class = 'status-disetujui';
+                                            if ($status == 'DITOLAK') $badge_class = 'status-ditolak';
+                                            ?>
+                                            <span class="status-badge <?php echo $badge_class; ?>">
+                                                <?php echo htmlspecialchars($status); ?>
+                                            </span>
+                                        </td>
                                         <td class="btn-group-action">
                                             <a class="btn btn-info btn-sm" href="permintaan_karyawan_detail.php?id=<?php echo $row['id']; ?>">
                                                 <i class="fa fa-eye"></i> Lihat
@@ -263,8 +282,8 @@ $res = mysqli_stmt_get_result($stmt);
             },
             order: [[3, 'desc']], // Sort by Tanggal Dokumen (descending)
             columnDefs: [
-                { orderable: false, targets: [0, 6] }, // Disable sorting on No and Aksi
-                { className: "text-center", targets: [0, 4, 6] } // Center align
+                { orderable: false, targets: [0, 7] }, // Disable sorting on No and Aksi
+                { className: "text-center", targets: [0, 4, 6, 7] } // Center align
             ],
             dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>' +
                 '<"row"<"col-sm-12"tr>>' +

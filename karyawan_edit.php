@@ -1,8 +1,8 @@
-<?php
+﻿<?php
 	include("sess_check.php");
 	
 	if(isset($_GET['npp'])) {
-		$sql = "SELECT * FROM employee AS A 
+		$sql = "SELECT A.*, A.npp AS npp_auth, B.*, C.*, D.* FROM employee AS A 
         LEFT JOIN koordinator AS B ON A.nama_koordinator = B.id_koordinator 
         LEFT JOIN bagian AS C ON A.nama_bagian = C.id_bagian
         LEFT JOIN manager AS D ON A.nama_manager = D.id_manager
@@ -73,7 +73,7 @@ $(document).ready(function() {
 									<div class="form-group">
 										<label class="control-label col-sm-4">Id Karyawan</label>
 										<div class="col-sm-4">
-											<input type="text" name="npplama" class="form-control" placeholder="NPP" value="<?php echo $data['npp'] ?>" readonly>
+											<input type="text" name="npplama" class="form-control" placeholder="NPP" value="<?php echo $data['npp_auth'] ?>" readonly>
 										</div>
 									</div>
 									<div class="form-group">
@@ -86,13 +86,13 @@ $(document).ready(function() {
 									<div class="form-group">
 										<label class="control-label col-sm-4">Nama Lengkap</label>
 										<div class="col-sm-4">
-											<input type="text" name="nama" class="form-control" placeholder="Nama Lengkap" value="<?php echo $data['nama_emp'] ?>" required>
+											<input type="text" name="nama" class="form-control" placeholder="Nama Lengkap" value="<?php echo $data['nama_emp'] ?>">
 										</div>
 									</div>
 									<div class="form-group">
         									<label class="control-label col-sm-4">Jabatan</label>
                                             <div class="col-sm-4">
-        										<select name="jabatan" id="jabatan" class="form-control"  required>
+        										<select name="jabatan" id="jabatan" class="form-control" >
         											<option value="<?php echo $data['jabatan'] ?>" selected><?php echo $data['jabatan'] ?></option>
         											<option value="Staff">Staff</option>
         											<option value="Officer">Officer</option>
@@ -105,7 +105,7 @@ $(document).ready(function() {
         							<div class="form-group">
         									<label class="control-label col-sm-4">Status PTKP</label>
                                             <div class="col-sm-4">
-        										<select name="status_ptkp" id="status_ptkp" class="form-control"  required>
+        										<select name="status_ptkp" id="status_ptkp" class="form-control" >
         											<option value="<?php echo $data['status_ptkp'] ?>" selected><?php echo $data['status_ptkp'] ?></option>
                                                     <option value="TK/0">TK/0</option>
                                                     <option value="TK/1">TK/1</option>
@@ -122,19 +122,19 @@ $(document).ready(function() {
         							<div class="form-group">
 										<label class="control-label col-sm-4">Nomor NPWP</label>
 										<div class="col-sm-4">
-										<input type="text" name="nomor_npwp" class="form-control" value="<?php echo $data['nomor_npwp'] ?>"required>
+										<input type="text" name="nomor_npwp" class="form-control" value="<?php echo $data['nomor_npwp'] ?>">
 										</div>
 									</div>
 									<div class="form-group">
 										<label class="control-label col-sm-4">Tanggal Masuk Karyawan</label>
 										<div class="col-sm-4">
-										<input type="date" name="tanggal_masuk_karyawan" class="form-control" value="<?php echo $data['tanggal_masuk_karyawan'] ?>"required>
+										<input type="date" name="tanggal_masuk_karyawan" class="form-control" value="<?php echo $data['tanggal_masuk_karyawan'] ?>">
 										</div>
 									</div>
 									<div class="form-group">
 										<label class="control-label col-sm-4">Tanggal Lahir</label>
 										<div class="col-sm-4">
-											<input type="date" name="tanggal_lahir" class="form-control" value="<?php echo $data['tanggal_lahir'] ?>"required>
+											<input type="date" name="tanggal_lahir" class="form-control" value="<?php echo $data['tanggal_lahir'] ?>">
 										</div>
 									</div>
                                     <div class="form-group">
@@ -142,49 +142,49 @@ $(document).ready(function() {
                                         <div class="col-sm-4">
                                             <input type="text" name="nomor_kk" class="form-control" 
                                                    value="<?php echo htmlspecialchars($data['nomor_kk']); ?>" 
-                                                   pattern="\d{16}" title="Masukkan 16 digit angka" inputmode="numeric" required>
+                                                   pattern="\d{16}" title="Masukkan 16 digit angka" inputmode="numeric">
                                         </div>
                                     </div>
 									<div class="form-group">
 										<label class="control-label col-sm-4">Nomor KTP</label>
 										<div class="col-sm-4">
-											<input type="text" name="nomor_ktp"  class="form-control" value="<?php echo $data['nomor_ktp'] ?>"required>
+											<input type="text" name="nomor_ktp"  class="form-control" value="<?php echo $data['nomor_ktp'] ?>">
 										</div>
 									</div>
 									<div class="form-group">
 										<label class="control-label col-sm-4">Alamat KTP</label>
 										<div class="col-sm-4">
-											<textarea name="alamat" class="form-control" placeholder="Alamat Sesuai KTP" required rows="3"><?php echo $data['alamat']?></textarea>
+											<textarea name="alamat" class="form-control" placeholder="Alamat Sesuai KTP" rows="3"><?php echo $data['alamat']?></textarea>
 										</div>
 									</div>
 									<div class="form-group">
 										<label class="control-label col-sm-4">Alamat Tinggal Sekarang</label>
 										<div class="col-sm-4">
-											<textarea name="alamat_tinggal_sekarang" class="form-control" placeholder="Alamat Tinggal Sekarang" required rows="3"><?php echo $data['alamat_tinggal_sekarang']?></textarea>
+											<textarea name="alamat_tinggal_sekarang" class="form-control" placeholder="Alamat Tinggal Sekarang" rows="3"><?php echo $data['alamat_tinggal_sekarang']?></textarea>
 										</div>
 									</div>
 									<div class="form-group">
 										<label class="control-label col-sm-4">Kota Lahir</label>
 										<div class="col-sm-4">
-											 <input type="text" name="kota_lahir" class="form-control" value="<?php echo $data['kota_lahir'] ?>" required>
+											 <input type="text" name="kota_lahir" class="form-control" value="<?php echo $data['kota_lahir'] ?>">
 										</div>
 									</div>
         							<div class="form-group">
                                         <label class="control-label col-sm-4">Agama</label>
                                         <div class="col-sm-4">
-                                            <input type="text" name="agama" class="form-control" value="<?php echo $data['agama'] ?>" required>
+                                            <input type="text" name="agama" class="form-control" value="<?php echo $data['agama'] ?>">
                                         </div>
                                     </div>
                                     <div class="form-group">
                                         <label class="control-label col-sm-4">Golongan Darah</label>
                                         <div class="col-sm-4">
-                                            <input type="text" name="gol_darah" class="form-control" value="<?php echo $data['gol_darah'] ?>" required>
+                                            <input type="text" name="gol_darah" class="form-control" value="<?php echo $data['gol_darah'] ?>">
                                         </div>
                                     </div>
 									<div class="form-group">
 										<label class="control-label col-sm-4">Pendidikan Terakhir</label>
                                         <div class="col-sm-4">
-											<select name="pendidikan_terakhir" id="pendidikan_terakhir" class="form-control"  required>
+											<select name="pendidikan_terakhir" id="pendidikan_terakhir" class="form-control" >
 												<option value="<?php echo $data['pendidikan_terakhir'] ?>" selected><?php echo $data['pendidikan_terakhir'] ?></option>
 												<option value="SMP">SMP</option>
 												<option value="SMK">SMK</option>
@@ -199,19 +199,19 @@ $(document).ready(function() {
 									<div class="form-group">
 										<label class="control-label col-sm-4">Nama Institusi Pendidikan Terakhir</label>
 										<div class="col-sm-4">
-											<input type="text" name="nama_institusi" class="form-control" placeholder="Nama Institusi Pendidikan Terakhir" value="<?php echo $data['nama_institusi'] ?>" required>
+											<input type="text" name="nama_institusi" class="form-control" placeholder="Nama Institusi Pendidikan Terakhir" value="<?php echo $data['nama_institusi'] ?>">
 										</div>
 									</div>
 									<div class="form-group">
                                         <label class="control-label col-sm-4">Jurusan</label>
                                         <div class="col-sm-4">
-                                            <input type="text" name="jurusan" class="form-control" value="<?php echo $data['jurusan'] ?>" required>
+                                            <input type="text" name="jurusan" class="form-control" value="<?php echo $data['jurusan'] ?>">
                                         </div>
                                     </div>
                                     <div class="form-group">
                                         <label class="control-label col-sm-4">Nama Bank</label>
                                         <div class="col-sm-4">
-                                            <input type="text" name="nama_bank" class="form-control" value="<?php echo $data['nama_bank'] ?>" required>
+                                            <input type="text" name="nama_bank" class="form-control" value="<?php echo $data['nama_bank'] ?>">
                                         </div>
                                     </div>
                                     <div class="form-group">
@@ -219,13 +219,13 @@ $(document).ready(function() {
                                         <div class="col-sm-4">
                                             <input type="text" name="norek_mandiri" class="form-control" 
                                                    value="<?php echo htmlspecialchars($data['norek_mandiri']); ?>" 
-                                                   pattern="\d+" title="Masukkan hanya angka" inputmode="numeric" required>
+                                                   pattern="\d+" title="Masukkan hanya angka" inputmode="numeric">
                                         </div>
                                     </div>
 									<div class="form-group">
 										<label class="control-label col-sm-4">Jenis Kelamin</label>
 										<div class="col-sm-4">
-											<select name="jk" id="jk" class="form-control" required>
+											<select name="jk" id="jk" class="form-control">
 												<option value="<?php echo $data['jk_emp'] ?>" selected><?php echo $data['jk_emp'] ?></option>
 												<option value="Laki-Laki">Laki-Laki</option>
 												<option value="Perempuan">Perempuan</option>
@@ -235,7 +235,7 @@ $(document).ready(function() {
 									<div class="form-group">
                                         <label class="control-label col-sm-4">Nomor Handphone</label>
                                         <div class="col-sm-4">
-                                            <input type="text" name="telp" min="0" class="form-control" placeholder="Nomor Handphone" value="<?php echo $data['telp_emp'] ?>" required>
+                                            <input type="text" name="telp" min="0" class="form-control" placeholder="Nomor Handphone" value="<?php echo $data['telp_emp'] ?>">
                                         </div>
                                     </div>
 									<div class="form-group">
@@ -291,13 +291,13 @@ $(document).ready(function() {
 									<div class="form-group">
                                         <label class="control-label col-sm-4">Jumlah Cuti</label>
                                         <div class="col-sm-4">
-                                            <input type="number" min="0" name="jml" class="form-control" placeholder="Jumlah Cuti" value="<?php echo $data['jml_cuti'] ?>" required>
+                                            <input type="number" min="0" name="jml" class="form-control" placeholder="Jumlah Cuti" value="<?php echo $data['jml_cuti'] ?>">
                                         </div>
                                     </div>
 									<div class="form-group">
 										<label class="control-label col-sm-4">Cabang</label>
                                         <div class="col-sm-4">
-											<select name="cabang" id="cabang" class="form-control" required>
+											<select name="cabang" id="cabang" class="form-control">
                                                 <option value="<?php echo $data['cabang'] ?>" selected><?php echo $data['cabang'] ?></option>
 												<option value="Puri">Puri</option>
                                                 <option value="Bekasi">Bekasi</option>
@@ -312,7 +312,7 @@ $(document).ready(function() {
 									<div class="form-group">
 										<label class="control-label col-sm-4">Status BPJS Kesehatan</label>
                                         <div class="col-sm-4">
-											<select name="bpjs_kesehatan" id="bpjs_kesehatan" class="form-control" required>
+											<select name="bpjs_kesehatan" id="bpjs_kesehatan" class="form-control">
                                                 <option value="<?php echo $data['bpjs_kesehatan'] ?>" selected><?php echo $data['bpjs_kesehatan'] ?></option>
                                                 <option value="Mandiri">Mandiri</option>
                                                 <option value="PBI">PBI</option>
@@ -331,7 +331,7 @@ $(document).ready(function() {
 									<div class="form-group">
 										<label class="control-label col-sm-4">Status Karyawan</label>
 										<div class="col-sm-4">
-											<select name="aktif" id="aktif" class="form-control" required>
+											<select name="aktif" id="aktif" class="form-control">
 												<option value="<?php echo $data['aktif'] ?>" selected><?php echo $data['aktif'] ?></option>
 												<option value="Aktif">Aktif</option>
 												<option value="Tidak Aktif">Tidak Aktif</option>
@@ -341,7 +341,7 @@ $(document).ready(function() {
 									<div class="form-group">
 										<label class="control-label col-sm-4">Status Pernikahan</label>
                                         <div class="col-sm-4">
-											<select name="status_kawin" id="status_kawin" class="form-control"  required>
+											<select name="status_kawin" id="status_kawin" class="form-control" >
 												<option value="<?php echo $data['status_kawin'] ?>" selected><?php echo $data['status_kawin'] ?></option>
 												<option value="Sudah Menikah">Sudah Menikah</option>
 												<option value="Belum Menikah">Belum Menikah</option>
@@ -375,7 +375,7 @@ $(document).ready(function() {
                                     <div class="form-group">
                                     <label class="control-label col-sm-4">Nomor Emergensi 1</label>
                                         <div class="col-sm-4">
-                                            <input type="text" name="nomor_emrg_pr"  value="<?php echo $data['nomor_emrg_pr'] ?>" class="form-control" required>
+                                            <input type="text" name="nomor_emrg_pr"  value="<?php echo $data['nomor_emrg_pr'] ?>" class="form-control">
                                         </div>
                                     </div>
                                     <div class="form-group">
@@ -387,7 +387,7 @@ $(document).ready(function() {
                                     <div class="form-group">
                                         <label class="control-label col-sm-4">Status Karyawan</label>
                                         <div class="col-sm-4">
-                                            <select name="status_karyawan" class="form-control" required>
+                                            <select name="status_karyawan" class="form-control">
 												<option value="<?php echo $data['status_karyawan'] ?>" selected><?php echo $data['status_karyawan'] ?></option>
                                                 <option value="Tetap">Tetap</option>
                                                 <option value="Kontrak">Kontrak</option>

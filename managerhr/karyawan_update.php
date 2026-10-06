@@ -29,7 +29,10 @@
 		$kesehatan				= $_POST['kesehatan'];
 		$kacamata				= $_POST['kacamata'];
 		$pass					= $_POST['password'];
-		$hak_akses				= "Pegawai";
+		// Ambil hak_akses yang sudah ada dari database agar tidak berubah saat update
+		$q_akses = mysqli_query($conn, "SELECT hak_akses FROM employee WHERE npp='$npplama'");
+		$r_akses = mysqli_fetch_assoc($q_akses);
+		$hak_akses = $r_akses ? $r_akses['hak_akses'] : 'Manager';
 		$status_rem				= $_POST['status_rem'];
 
 		if($npp != ""){
@@ -67,6 +70,13 @@
 						WHERE npp = '$npplama'";
 				}
 				$ress = mysqli_query($conn, $sql);
+				
+				// Simpan ke history plafond
+				$thn_skrg = date('Y');
+				$sql_hist = "REPLACE INTO plafond_history (npp, tahun, plafond_kesehatan, plafond_kacamata, updated_at) 
+							 VALUES ('$npp', '$thn_skrg', '$kesehatan', '$kacamata', NOW())";
+				mysqli_query($conn, $sql_hist);
+
 				header("location: karyawan.php?act=update&msg=success");
 			} else {
 				header("location: karyawan_edit.php?npp=$npplama&act=add&msg=double");			
@@ -99,6 +109,13 @@
 					WHERE npp = '$npplama'";
 			}
 			$ress = mysqli_query($conn, $sql);
+
+			// Simpan ke history plafond
+			$thn_skrg = date('Y');
+			$sql_hist = "REPLACE INTO plafond_history (npp, tahun, plafond_kesehatan, plafond_kacamata, updated_at) 
+						 VALUES ('$npplama', '$thn_skrg', '$kesehatan', '$kacamata', NOW())";
+			mysqli_query($conn, $sql_hist);
+
 			header("location: karyawan.php?act=update&msg=success");
 		}
 	}

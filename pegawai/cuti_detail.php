@@ -2,6 +2,7 @@
 	<link rel="stylesheet" href="css/printing.css">
 		
 <?php
+require_once(file_exists(__DIR__ . "/libur_helper.php") ? __DIR__ . "/libur_helper.php" : dirname(__DIR__) . "/libur_helper.php");
 include("sess_check.php");
 include("dist/function/format_tanggal.php");
 if($_GET) {
@@ -9,6 +10,8 @@ if($_GET) {
 	$sql = "SELECT cuti.*, employee.* FROM cuti, employee WHERE cuti.npp=employee.npp AND cuti.no_cuti='". $_GET['code'] ."'";
 	$query = mysqli_query($conn,$sql);
 	$result = mysqli_fetch_array($query);
+	// Hitung ulang durasi (tanpa hari Minggu & Libur Nasional) agar data lama tetap tampil benar
+	$durasi_tampil = $result ? hitung_durasi_cuti($result['tgl_awal'], $result['tgl_akhir']) : 0;
 }
 else {
 	echo "Nomor Transaksi Tidak Terbaca";
@@ -79,7 +82,7 @@ else {
 	<tr>
 		<td width="20%"><b>Durasi</b></td>
 		<td width="2%"><b>:</b></td>
-		<td width="78%"><?php echo $result['durasi'];?> Hari</td>
+		<td width="78%"><?php echo $durasi_tampil;?> Hari</td>
 	</tr>
 	<tr>
 		<td colspan="3">&nbsp;</td>

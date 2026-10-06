@@ -22,7 +22,8 @@ $createPengajuan = "CREATE TABLE IF NOT EXISTS permintaan_pengajuan (
 mysqli_query($conn, $createPengajuan);
 
 $message = '';
-// Handle ajukan action
+// Handle ajukan action - SEKARANG OTOMATIS SAAT SIMPAN FORM
+/*
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'ajukan') {
     $pid = intval($_POST['permintaan_id'] ?? 0);
     $user = isset($sess_admname) ? $sess_admname : 'SYSTEM';
@@ -38,6 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $message = 'Gagal mengirim pengajuan: ' . mysqli_error($conn);
     }
 }
+*/
 
 // Fetch list with latest status
 $sql = "SELECT p.id, p.no_dokumen, p.jabatan, p.tanggal_dokumen,
@@ -242,19 +244,6 @@ $res = mysqli_query($conn, $sql);
                                             </span>
                                         </td>
                                         <td class="btn-group-action">
-                                                <?php if (empty($row['status'])): ?>
-                                                    <form method="post" class="form-ajukan" style="display:inline">
-                                                        <input type="hidden" name="permintaan_id" value="<?php echo $row['id']; ?>">
-                                                        <input type="hidden" name="action" value="ajukan">
-                                                        <button type="button" class="btn btn-primary btn-sm btn-ajukan">
-                                                            <i class="fa fa-paper-plane"></i> Ajukan
-                                                        </button>
-                                                    </form>
-                                            <?php else: ?>
-                                                <button class="btn btn-default btn-sm" disabled>
-                                                    <i class="fa fa-check"></i> Sudah Diajukan
-                                                </button>
-                                            <?php endif; ?>
                                             <a class="btn btn-info btn-sm" href="permintaan_karyawan_detail.php?id=<?php echo $row['id']; ?>">
                                                 <i class="fa fa-eye"></i> Lihat
                                             </a>
@@ -303,27 +292,6 @@ $res = mysqli_query($conn, $sql);
 
         // Enable tooltips
         $('[data-toggle="tooltip"]').tooltip();
-
-        // SweetAlert confirmation for Ajukan
-        $(document).on('click', '.btn-ajukan', function (e) {
-            e.preventDefault();
-            var btn = $(this);
-            var form = btn.closest('form');
-            Swal.fire({
-                title: 'Ajukan permintaan?',
-                text: 'Permintaan akan dikirim untuk proses persetujuan.',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Ya, ajukan',
-                cancelButtonText: 'Batal',
-                reverseButtons: true
-            }).then(function(result){
-                if (result.isConfirmed) {
-                    // submit the original form (regular POST)
-                    form.submit();
-                }
-            });
-        });
     });
 </script>
 

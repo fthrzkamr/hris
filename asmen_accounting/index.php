@@ -70,6 +70,10 @@ $sqle = "SELECT * FROM kacamata WHERE npp='$id'";
 $resse = mysqli_query($conn, $sqle);
 $kacamata = mysqli_num_rows($resse);
 
+$sqle = "SELECT * FROM pengajuan_training WHERE npp='$id'";
+$resse = mysqli_query($conn, $sqle);
+$training = mysqli_num_rows($resse);
+
 // deskripsi halaman
 $pagedesc = "Beranda";
 include("layout_top.php");
@@ -290,6 +294,40 @@ include("dist/function/format_rupiah.php");
 					<a href="kacamata_rincian.php">
 						<div class="panel-footer">
 							<span class="pull-left">Lihat Rincian Kacamata</span>
+							<span class="pull-right"><i class="fa fa-arrow-circle-right"></i></span>
+							<div class="clearfix"></div>
+						</div>
+					</a>
+				</div>
+			</div><!-- /.panel-green -->
+
+			<div class="col-lg-4 col-md-4">
+				<div class="panel panel-primary">
+					<a href="form_pengajuan_training.php">
+						<div class="panel-footer">
+							<span class="pull-left">Pengajuan Training</span>
+							<span class="pull-right"><i class="fa fa-arrow-circle-right"></i></span>
+							<div class="clearfix"></div>
+						</div>
+					</a>
+
+					<div class="panel-heading">
+						<div class="row">
+							<div class="col-xs-3">
+								<!-- <i class="fa fa-graduation-cap fa-3x"></i> -->
+							</div>
+							<div class="col-xs-12 text-right ">
+								<div class="huge text-bold"><?php echo $training; ?></div>
+								<div>
+									<h4>Training</h4>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<a href="training_status.php">
+						<div class="panel-footer">
+							<span class="pull-left">Lihat Rincian</span>
 							<span class="pull-right"><i class="fa fa-arrow-circle-right"></i></span>
 							<div class="clearfix"></div>
 						</div>

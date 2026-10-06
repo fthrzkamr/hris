@@ -1,4 +1,5 @@
 <?php
+require_once(file_exists(__DIR__ . "/libur_helper.php") ? __DIR__ . "/libur_helper.php" : dirname(__DIR__) . "/libur_helper.php");
 include("sess_check.php");
 
 $npp    = $_POST['npp'];
@@ -8,10 +9,15 @@ $akhir  = $_POST['akhir'];
 $ket    = $_POST['keterangan'];
 $tujuan = $_POST['tipe_cuti'];
 
-$start  = new DateTime($mulai);
-$finish = new DateTime($akhir);
-$int    = $start->diff($finish);
-$durasi = $int->days + 1; // Tambah 1 agar inklusif
+// Daftar Hari Libur Nasional
+$libur_nasional = [
+    '2026-01-01', '2026-01-16', '2026-02-17', '2026-03-19', '2026-03-20', 
+    '2026-03-21', '2026-04-03', '2026-05-01', '2026-05-14', '2026-05-27', 
+    '2026-06-01', '2026-06-16', '2026-08-17', '2026-08-25', '2026-12-25'
+];
+
+// Menghitung durasi tanpa hari Minggu dan Libur Nasional via helper
+$durasi = hitung_durasi_cuti($mulai, $akhir);
 
 $stt    = "Menunggu Approval";
 $id     = date('dmYHis');

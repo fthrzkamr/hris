@@ -181,6 +181,68 @@
 							</a>
 						</div>
 					</div><!-- /.panel-green -->
+					
+					<div class="col-lg-4 col-md-4">
+						<div class="panel panel-red">
+						<a href="reimburse_create.php">
+								<div class="panel-footer">
+									<span class="pull-left">Pengajuan Reimburse</span>
+									<span class="pull-right"><i class="fa fa-arrow-circle-right"></i></span>
+									<div class="clearfix"></div>
+								</div>
+							</a>
+							<div class="panel-heading">
+								<div class="row">
+									<div class="col-xs-3">
+										<!-- <i class="fa fa-minus-circle fa-3x"></i> -->
+									</div>
+									<div class="col-xs-12 text-right ">
+										<div class="huge text-bold"><?php echo $g; ?></div>
+										<div><h4>Reimburse</h4></div>
+									</div>
+								</div>
+							</div>
+							<a href="reimburse_waitapp.php">
+								<div class="panel-footer">
+									<span class="pull-left">Lihat Rincian</span>
+									<span class="pull-right"><i class="fa fa-arrow-circle-right"></i></span>
+									<div class="clearfix"></div>
+								</div>
+							</a>
+						</div>
+					</div><!-- /.panel-green -->
+
+					
+					<div class="col-lg-4 col-md-4">
+						<div class="panel panel-red">
+						<a href="kacamata_create.php">
+								<div class="panel-footer">
+									<span class="pull-left">Pengajuan Reimburse Kacamata</span>
+									<span class="pull-right"><i class="fa fa-arrow-circle-right"></i></span>
+									<div class="clearfix"></div>
+								</div>
+							</a>
+							<div class="panel-heading">
+								<div class="row">
+									<div class="col-xs-3">
+										<!-- <i class="fa fa-minus-circle fa-3x"></i> -->
+									</div>
+									<div class="col-xs-12 text-right ">
+										<div class="huge text-bold"><?php echo $kacamata; ?></div>
+										<div><h4>Reimburse Kacamata</h4></div>
+									</div>
+								</div>
+							</div>
+							<a href="kacamata_rincian.php">
+								<div class="panel-footer">
+									<span class="pull-left">Lihat Rincian Kacamata</span>
+									<span class="pull-right"><i class="fa fa-arrow-circle-right"></i></span>
+									<div class="clearfix"></div>
+								</div>
+							</a>
+						</div>
+					</div><!-- /.panel-green -->
+
 
 				</div><!-- /.row -->
 			</div><!-- /.container-fluid -->

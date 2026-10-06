@@ -1,5 +1,10 @@
 <?php
 	include("sess_check.php");
+
+if (isset($row_sess['status_karyawan']) && $row_sess['status_karyawan'] == 'Magang') {
+	header("location: index.php");
+	exit;
+}
 	
 	$pagedesc = "Pengajuan Pinjaman";
 	$menuparent = "pinjaman";
@@ -72,6 +77,29 @@ function hanyaAngka(evt) {
 		<div class="row">
 			<div class="col-lg-12"><?php include("layout_alert.php"); ?></div>
 		</div>
+
+		<div class="row">
+			<div class="col-lg-12">
+				<div class="alert alert-info">
+					<h4><i class="fa fa-info-circle"></i> <strong>Syarat dan Ketentuan Pinjaman Karyawan</strong></h4>
+					<ol style="margin-left: -20px; margin-bottom: 0;">
+						<li>Karyawan berstatus PKWT atau PKWTT.</li>
+						<li>Memiliki masa kerja minimal 1 (satu) tahun.</li>
+						<li>Tidak sedang memiliki pinjaman berjalan atau pinjaman sebelumnya telah lunas.</li>
+						<li>Pengajuan pinjaman maksimal 50% dari gaji.</li>
+						<li>Cicilan maksimal 30% dari gaji per bulan.</li>
+						<li>Pinjaman hanya diberikan untuk kebutuhan yang bersifat mendesak (<em>urgent</em>).</li>
+						<li>Pengajuan pinjaman wajib mendapatkan persetujuan Manajemen.</li>
+						<li>Pengajuan pinjaman tidak otomatis disetujui dan akan dipertimbangkan berdasarkan kebutuhan serta kondisi perusahaan.</li>
+						<li>Potongan cicilan dilakukan melalui penggajian setiap bulan hingga pinjaman lunas.</li>
+						<li>Pencairan pinjaman dilakukan bersamaan dengan pembayaran insentif dan lembur.</li>
+						<li>Karyawan yang sedang dalam proses pengunduran diri (<em>resign</em>) atau pemutusan hubungan kerja tidak dapat mengajukan pinjaman.</li>
+						<li>Apabila karyawan mengundurkan diri sebelum pinjaman lunas, sisa pinjaman akan diperhitungkan dan dipotong dari hak-hak karyawan yang masih menjadi kewajiban perusahaan.</li>
+					</ol>
+				</div>
+			</div>
+		</div>
+
 		
 		<div class="row">
 			<div class="col-lg-12">

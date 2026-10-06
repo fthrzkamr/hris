@@ -78,7 +78,13 @@ include("dist/function/format_rupiah.php");
 							<h2 align="center">Selamat Datang, <?php echo $res['nama_emp']; ?> ! </h2>
 							<hr />
 							<div>
-								<img src="../foto/<?php echo $res['foto_emp'] ?>" width="210px" align="left" style="margin-left: 300px; margin-right:50px" />
+								<?php if(!empty($res['foto_emp'])): ?>
+									<img src="../foto/<?php echo htmlspecialchars($res['foto_emp']); ?>" width="210px" align="left" style="margin-left: 100px; margin-right:50px; border-radius: 8px;" onerror="this.onerror=null; this.outerHTML='<div style=\'width:210px; height:210px; background:#f0f0f0; border-radius:8px; display:flex; align-items:center; justify-content:center; margin-left:100px; margin-right:50px; float:left;\'><i class=\'fa fa-user-circle\' style=\'font-size:100px; color:#ccc;\'></i></div>';">
+								<?php else: ?>
+									<div style="width:210px; height:210px; background:#f0f0f0; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; float:left; margin-left:100px; margin-right:50px;">
+										<i class="fa fa-user-circle" style="font-size:100px; color:#ccc;"></i>
+									</div>
+								<?php endif; ?>
 
 								<br />
 

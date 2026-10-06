@@ -14,6 +14,65 @@
 	$sql_g = "SELECT * FROM employee WHERE npp='$id'";
 	$ress_g = mysqli_query($conn, $sql_g);
 	$res = mysqli_fetch_array($ress_g);
+
+
+
+
+// Notifikasi Approval Baru (Dengan Filter Skop Dinamis)
+$scope_filter = "";
+if (isset($sess_mngid) && isset($conn)) {
+    $id_koor = '-1'; $id_man = '-1'; $id_lead = '-1';
+    
+    if ($res_k = mysqli_query($conn, "SELECT id_koordinator FROM koordinator WHERE npp='$sess_mngid'")) {
+        if ($row_k = mysqli_fetch_assoc($res_k)) $id_koor = $row_k['id_koordinator'];
+    }
+    if ($res_m = mysqli_query($conn, "SELECT id_manager FROM manager WHERE npp='$sess_mngid'")) {
+        if ($row_m = mysqli_fetch_assoc($res_m)) $id_man = $row_m['id_manager'];
+    }
+    if ($res_l = mysqli_query($conn, "SELECT id_leader FROM leader WHERE npp='$sess_mngid'")) {
+        if ($row_l = mysqli_fetch_assoc($res_l)) $id_lead = $row_l['id_leader'];
+    }
+    
+    if ($id_koor != '-1') $scope_filter = " AND employee.nama_koordinator='$id_koor' ";
+    elseif ($id_man != '-1') $scope_filter = " AND employee.nama_manager='$id_man' ";
+    elseif ($id_lead != '-1') $scope_filter = " AND employee.nama_leader='$id_lead' ";
+}
+
+$count_pending_cuti = 0;
+if (isset($conn)) {
+    $res_cuti = mysqli_query($conn, "SELECT COUNT(*) as total FROM cuti JOIN employee ON cuti.npp=employee.npp WHERE (cuti.stt_cuti LIKE '%Menunggu%' OR cuti.stt_cuti LIKE '%Pending%') $scope_filter");
+    if ($res_cuti) $count_pending_cuti = mysqli_fetch_assoc($res_cuti)['total'];
+}
+
+$count_pending_lembur = 0;
+if (isset($conn)) {
+    $res_lembur = mysqli_query($conn, "SELECT COUNT(*) as total FROM lembur JOIN employee ON lembur.npp=employee.npp WHERE (lembur.status LIKE '%Menunggu%' OR lembur.status LIKE '%Pending%') $scope_filter");
+    if ($res_lembur) $count_pending_lembur = mysqli_fetch_assoc($res_lembur)['total'];
+}
+
+$count_pending_reimburse = 0;
+if (isset($conn)) {
+    $res_reimb = mysqli_query($conn, "SELECT COUNT(*) as total FROM rembes JOIN employee ON rembes.npp=employee.npp WHERE (rembes.status LIKE '%Menunggu%' OR rembes.status LIKE '%Pending%') $scope_filter");
+    if ($res_reimb) $count_pending_reimburse = mysqli_fetch_assoc($res_reimb)['total'];
+}
+
+$count_pending_kacamata = 0;
+if (isset($conn)) {
+    $res_kaca = mysqli_query($conn, "SELECT COUNT(*) as total FROM kacamata JOIN employee ON kacamata.npp=employee.npp WHERE (kacamata.status LIKE '%Menunggu%' OR kacamata.status LIKE '%Pending%') $scope_filter");
+    if ($res_kaca) $count_pending_kacamata = mysqli_fetch_assoc($res_kaca)['total'];
+}
+
+$count_pending_permintaan = 0;
+if (isset($conn)) {
+    $res_permintaan = mysqli_query($conn, "SELECT COUNT(*) as total FROM permintaan_karyawan JOIN employee ON permintaan_karyawan.npp=employee.npp WHERE (permintaan_karyawan.status LIKE '%Menunggu%' OR permintaan_karyawan.status LIKE '%Pending%') $scope_filter");
+    if ($res_permintaan) $count_pending_permintaan = mysqli_fetch_assoc($res_permintaan)['total'];
+}
+
+$count_pending_mobil = 0;
+if (isset($conn)) {
+    $res_mobil = mysqli_query($conn, "SELECT COUNT(*) as total FROM peminjaman_mobil WHERE status = 'Menunggu'");
+    if ($res_mobil) $count_pending_mobil = mysqli_fetch_assoc($res_mobil)['total'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -64,8 +123,43 @@
     <div id="wrapper">
 
         <!-- Navigation -->
-        <nav class="navbar navbar-default navbar-static-top" role="navigation" style="margin-bottom: 0">
-				<!-- <div class="sidebar-nav navbar-collapse">
+                <nav class="navbar navbar-default navbar-static-top" role="navigation" style="margin-bottom: 0">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand hidden-xs" href="index.php">
+                    <img src="../libs/images/dua.png" alt="brand" width="32" class="float-left image-brand">
+                    <div class="float-right">&nbsp;<strong>DF Group </strong></div>
+                    <div class="clear-both"></div>
+                </a>
+            </div><!-- /.navbar-header -->
+
+            <ul class="nav navbar-top-links navbar-right">
+                <li class="dropdown">
+                    <a class="dropdown-toggle" data-toggle="dropdown" href="#">
+                        <?php if(!empty($row_sess['foto_emp'])): ?>
+                            <img src="../foto/<?php echo htmlspecialchars($row_sess['foto_emp']); ?>" width="20px" style="border-radius:50%; vertical-align:middle;" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                            <i class="fa fa-user-circle" style="font-size:20px; vertical-align:middle; display:none; color:#aaa;"></i>
+                        <?php else: ?>
+                            <i class="fa fa-user-circle" style="font-size:20px; vertical-align:middle; color:#aaa;"></i>
+                        <?php endif; ?>
+                        &nbsp;<?php echo ucfirst($sess_mngname); ?>&nbsp;<i class="fa fa-caret-down"></i>
+                    </a>
+                    <ul class="dropdown-menu dropdown-user">
+                        <li><a href="pengaturan.php"><i class="fa fa-gear fa-fw"></i> Pengaturan Akun</a></li>
+                        <li class="divider"></li>
+                        <li><a href="ubah_foto.php"><i class="fa fa-photo fa-fw"></i> Ubah Data Karyawan</a></li>
+                        <li class="divider"></li>
+                        <li><a href="logout.php"><i class="fa fa-sign-out fa-fw"></i> Keluar</a></li>
+                    </ul>
+                </li>
+            </ul>
+
+            <div class="sidebar-nav navbar-collapse">
                    
 					<ul >
                         <li class="sidebar-search">
@@ -236,10 +330,10 @@
 							<ul class="nav nav-second-level">
 								<?php
 									if($pagedesc == "Waiting Approval") {
-										echo '<li><a href="lembur_wait_bersamaan.php" class="active">Menunggu Approval</a></li>';
+										echo '';
 									}
 									else {
-										echo '<li><a href="lembur_wait_bersamaan.php">Data Lemburan</a></li>';
+										echo '';
 									}
 									if($pagedesc == "Approved") {
 										echo '';
@@ -317,6 +411,15 @@
 								echo '</li>';
 							}
 						?>
+                        
+                        <!-- Menu Peminjaman Mobil -->
+                        <?php
+                        if (isset($pagedesc) && $pagedesc == "Peminjaman Mobil") {
+                            echo '<li><a href="peminjaman_mobil.php" class="active"><i class="fa fa-car fa-fw"></i> Peminjaman Mobil</a></li>';
+                        } else {
+                            echo '<li><a href="peminjaman_mobil.php"><i class="fa fa-car fa-fw"></i> Peminjaman Mobil</a></li>';
+                        }
+                        ?>
 	                </ul>
                 </div>
                 <!-- /.sidebar-collapse -->

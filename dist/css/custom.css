@@ -111,3 +111,64 @@ h1.page-header {
   .no-print, .navbar, .sidebar { display:none !important; }
   .container-fluid { padding: 6px; }
 }
+
+/* ============================================
+   GLOBAL MOBILE FIX: Prevent horizontal scroll
+   ============================================ */
+html, body {
+    overflow-x: hidden !important;
+    max-width: 100% !important;
+}
+
+#wrapper, #page-wrapper {
+    overflow-x: hidden !important;
+    max-width: 100% !important;
+}
+
+/* Mobile Navbar Fix: Hamburger & User Name sejajar (same line) */
+@media (max-width: 767px) {
+
+    /* Prevent any element from causing horizontal scroll */
+    * {
+        max-width: 100%;
+    }
+
+    /* Keep user name visible at the right, sejajar with hamburger */
+    .navbar-top-links {
+        float: right !important;
+        margin: 0 50px 0 0 !important; /* leave 50px gap for hamburger on right */
+    }
+    .navbar-top-links > li > a {
+        padding: 15px 10px;
+        min-height: 50px;
+        line-height: 20px;
+    }
+
+    /* Hamburger button on the right */
+    .navbar-toggle {
+        margin-top: 8px;
+        margin-right: 10px;
+        float: right;
+    }
+
+    /* Page wrapper margin */
+    #page-wrapper {
+        margin-bottom: 60px;
+    }
+
+    /* Tables scroll horizontally within container, not whole page */
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    table {
+        min-width: auto !important;
+    }
+
+    /* Footer fixed bottom - full width */
+    .footer-bottom {
+        width: 100% !important;
+        left: 0 !important;
+        right: 0 !important;
+    }
+}

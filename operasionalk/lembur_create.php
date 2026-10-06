@@ -40,7 +40,7 @@ $(document).ready(function() {
 				
 				<div class="row">
 					<div class="col-lg-12">
-						<form class="form-horizontal" name="lembur" action="lembur_insert.php" method="POST" enctype="multipart/form-data" onSubmit="return valid();">
+<form class="form-horizontal" name="lembur" action="lembur_insert.php" method="POST" enctype="multipart/form-data">
 							<div class="panel panel-default">
 								<div class="panel-heading"><h3>Form Pengajuan Lembur</h3></div>
 								<div class="panel-body">
@@ -60,25 +60,36 @@ $(document).ready(function() {
 											<select name="tujuan_lembur" id="tujuan_lembur" class="form-control" required>
 												<option value="" selected>---- Pilih Tujuan Lembur ----</option>
 												<option value="Lembur Hari Libur Nasional">Lembur Hari Libur Nasional</option>
-												<option value="Lembur Oprasional">Lembur Operasional</option>
+												<option value="Lembur Operasional">Lembur Operasional</option>
 												<option value="Lembur Stock Opname">Lembur Stock Opname</option>
 												<option value="Lembur Lainnya">Lembur Lainnya</option>
 											</select>
 										</div>
 									</div>
-									<!-- end tujuan cuti -->
+									<!-- sub-kategori untuk Lembur Lainnya -->
+									<div class="form-group" id="sub_kategori_group" style="display: none;">
+										<label class="control-label col-sm-3">Jenis Lembur Lainnya</label>
+										<div class="col-sm-4">
+											<select name="sub_kategori_lembur" id="sub_kategori_lembur" class="form-control">
+												<option value="" selected>---- Pilih Jenis Lembur ----</option>
+												<option value="Ambil Barang">Ambil Barang</option>
+											</select>
+											<small class="text-muted"><i>* Opsional - Kosongkan jika tidak ada kategori khusus</i></small>
+										</div>
+									</div>
+									<!-- end sub-kategori -->
 
 									<div class="form-group">
 										<label class="control-label col-sm-3">Cabang</label>
 										<div class="col-sm-4">
-											<input type="text" name="cabang" class="form-control" " value="<?php echo $data['cabang'] ?>" readonly>
+											<input type="text" name="cabang" class="form-control"  value="<?php echo $data['cabang'] ?>" readonly>
 										</div>
 									</div>
 
                                     <div class="form-group">
 										<label class="control-label col-sm-3">Tanggal Lembur</label>
 										<div class="col-sm-4">
-											<input type="date" name="tgl_lembur" class="form-control" required>
+											<input type="date" name="tgl_lembur" class="form-control" required min="<?php echo date('Y-m-d'); ?>">
 										</div>
 									</div>
 
@@ -132,3 +143,28 @@ $(document).ready(function() {
 <?php
 	include("layout_bottom.php");
 ?>
+
+<script type="text/javascript">
+$(document).ready(function() {
+	// Toggle sub-kategori saat pilih "Lembur Lainnya"
+	$('#tujuan_lembur').change(function() {
+		if ($(this).val() === 'Lembur Lainnya') {
+			$('#sub_kategori_group').slideDown(200);
+			// Sub-kategori OPSIONAL, tidak required
+		} else {
+			$('#sub_kategori_group').slideUp(200);
+			$('#sub_kategori_lembur').val('');
+		}
+	});
+
+	// Override tujuan_lembur sebelum submit jika sub-kategori dipilih
+	$('form[name="lembur"]').submit(function() {
+		var tujuan = $('#tujuan_lembur').val();
+		var sub = $('#sub_kategori_lembur').val();
+		if (tujuan === 'Lembur Lainnya' && sub !== '') {
+			$('#tujuan_lembur').val('Lembur ' + sub);
+		}
+		return true;
+	});
+});
+</script>

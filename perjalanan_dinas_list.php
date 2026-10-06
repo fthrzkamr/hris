@@ -6,8 +6,8 @@ $pagedesc = 'Daftar Perjalanan Dinas';
 $menuparent = 'perjalanan_dinas';
 include("layout_top.php");
 
-// pastikan apakah user current adalah Manager HR
-$is_managerhr = isset($sess_mngid) && !empty($sess_mngid);
+// pastikan apakah user current adalah Manager HR atau Admin
+$is_managerhr = (isset($sess_mngid) && !empty($sess_mngid)) || (isset($sess_admid) && !empty($sess_admid));
 
 // DB connection
 include __DIR__ . '/dist/config/koneksi.php';
@@ -152,7 +152,7 @@ $sql = "SELECT p.id, p.no_dokumen, p.nama, p.departemen, p.tanggal_perjalanan, p
             SELECT id_perjalanan, MAX(id) AS mid FROM perjalanan_pengajuan GROUP BY id_perjalanan
         ) m ON p2.id_perjalanan = m.id_perjalanan AND p2.id = m.mid
     ) pg ON pg.id_perjalanan = p.id
-    ORDER BY p.id DESC";
+    ORDER BY CASE WHEN pg.status = 'DIAJUKAN' THEN 0 WHEN pg.status = 'REALISASI_DIAJUKAN' THEN 1 WHEN pg.status = 'BELUM DIAJUKAN' OR pg.status IS NULL THEN 2 ELSE 3 END ASC, p.id DESC";
 $res = mysqli_query($conn, $sql);
 ?>
 <style>
@@ -340,10 +340,14 @@ $res = mysqli_query($conn, $sql);
                     <i class="fa fa-table"></i> Daftar Perjalanan Dinas
                 </div>
                 <div class="panel-body">
+                    <div style="margin-bottom: 15px;">
+                        <a href="perjalanan_dinas_export_xls.php" class="btn btn-success btn-sm" style="background-color: #5cb85c !important; border-color: #4cae4c !important; color: #fff !important; opacity: 1 !important;"><i class="fa fa-file-excel-o"></i> Export Excel</a>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-striped table-bordered table-hover" id="dataTables">
                             <thead>
                                 <tr>
+                                    <th style="display:none"></th>
                                     <th>No</th>
                                     <th>No. Dokumen</th>
                                     <th>Nama</th>
@@ -363,10 +367,9 @@ $res = mysqli_query($conn, $sql);
                                 while ($row = mysqli_fetch_assoc($res)): 
                                     $status = $row['status'] ?? 'BELUM DIAJUKAN';
                                     $status_class = 'status-belum';
-                                    if ($status == 'DIAJUKAN') $status_class = 'status-diajukan';
-                                    elseif ($status == 'APPROVED_MANAGER_HR') $status_class = 'status-approved-hr';
-                                    elseif ($status == 'DISETUJUI') $status_class = 'status-disetujui';
-                                    elseif ($status == 'DITOLAK') $status_class = 'status-ditolak';
+                                    if ($status == 'DIAJUKAN' || $status == 'REALISASI_DIAJUKAN' || $status == 'REALISASI_VERIFIED_HR') $status_class = 'status-diajukan';
+                                    elseif ($status == 'APPROVED_MANAGER_HR' || $status == 'DISETUJUI' || $status == 'REALISASI_SELESAI') $status_class = 'status-disetujui';
+                                    elseif ($status == 'DITOLAK' || $status == 'REALISASI_DITOLAK') $status_class = 'status-ditolak';
                                     elseif ($status == 'REVISI') $status_class = 'status-revisi';
                                     
                                     $approval_manager_hr = $row['approval_manager_hr'] ?? null;
@@ -374,8 +377,10 @@ $res = mysqli_query($conn, $sql);
                                     
                                     // Can approve (oleh Manager HR / Direktur) jika status adalah DIAJUKAN atau APPROVED_MANAGER_HR
                                     $can_approve = in_array($status, ['DIAJUKAN', 'APPROVED_MANAGER_HR']);
+                                    $sort_priority = ($status === 'DIAJUKAN') ? 0 : (($status === 'REALISASI_DIAJUKAN') ? 1 : (($status === 'BELUM DIAJUKAN' || empty($status)) ? 2 : 3));
                                 ?>
                                     <tr>
+                                        <td style="display:none"><?php echo $sort_priority; ?></td>
                                         <td class="text-center"><?php echo $no++; ?></td>
                                         <td><strong><?php echo htmlspecialchars($row['no_dokumen']); ?></strong></td>
                                         <td><?php echo htmlspecialchars($row['nama']); ?></td>
@@ -419,12 +424,19 @@ $res = mysqli_query($conn, $sql);
                                                 </a>
                                             <?php endif; ?>
 
-                                            <?php if ($can_approve && $is_managerhr): ?>
-                                                <a class="btn btn-success btn-sm" href="perjalanan_dinas_approve.php?id=<?php echo $row['id']; ?>" 
-                                                   title="Approve & Input Nominal">
-                                                    <i class="fa fa-check-square-o"></i> Approve
+                                            <?php if ($status == 'DIAJUKAN' && $is_managerhr): ?>
+                                                <a class="btn btn-success btn-sm" href="perjalanan_dinas_review.php?id=<?php echo $row['id']; ?>" 
+                                                   title="Review & Approve (Admin)">
+                                                    <i class="fa fa-check-square-o"></i> Review
                                                 </a>
                                             <?php endif; ?>
+
+                                            <?php if ($status == 'REALISASI_DIAJUKAN'): ?>
+                                                 <a class="btn btn-warning btn-sm" href="perjalanan_dinas_approve.php?id=<?php echo $row['id']; ?>" 
+                                                    title="Verifikasi Laporan Realisasi">
+                                                     <i class="fa fa-check-circle-o"></i> Verifikasi Realisasi
+                                                 </a>
+                                             <?php endif; ?>
                                             
                                             <a class="btn btn-info btn-sm" href="perjalanan_dinas_detail.php?id=<?php echo $row['id']; ?>" 
                                                title="Lihat Detail">
@@ -463,10 +475,18 @@ $res = mysqli_query($conn, $sql);
                     previous: "Sebelumnya"
                 }
             },
-            order: [[6, 'desc']],
             columnDefs: [
-                { orderable: false, targets: [0, 10] },
-                { className: "text-center", targets: [0, 7, 8, 9, 10] }
+                { visible: false, targets: [0] },
+                { 
+                    targets: 1, 
+                    orderable: false, 
+                    searchable: false,
+                    render: function (data, type, row, meta) {
+                        return meta.row + 1;
+                    }
+                },
+                { orderable: false, targets: [11] },
+                { className: "text-center", targets: [1, 8, 9, 10, 11] }
             ],
             dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>' +
                 '<"row"<"col-sm-12"tr>>' +

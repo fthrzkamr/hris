@@ -4,6 +4,13 @@
 	// deskripsi halaman
 	$pagedesc = "Data Lemburan";
 	include("layout_top.php");
+
+	// Get dynamic koordinator
+	$id = $sess_mngid;
+	$k_query = mysqli_query($conn, "SELECT id_koordinator FROM koordinator WHERE npp='$id'");
+	$k_row = mysqli_fetch_array($k_query);
+	$id_koor = $k_row ? $k_row['id_koordinator'] : '-1';
+
 	include("dist/function/format_tanggal.php");
 	include("dist/function/format_rupiah.php");
 ?>
@@ -27,13 +34,14 @@
 							
 							<div class="panel-body">
 								<?php
-										$Sql = "SELECT lembur.*, employee.* FROM lembur, employee WHERE lembur.npp=employee.npp AND employee.nama_koordinator='12' ORDER BY lembur.tgl_lembur DESC";
+										$Sql = "SELECT lembur.*, employee.* FROM lembur, employee WHERE lembur.npp=employee.npp AND employee.nama_koordinator='$id_koor' ORDER BY CASE WHEN lembur.status LIKE '%Menunggu%' OR lembur.status LIKE '%Pending%' THEN 1 ELSE 2 END ASC, lembur.tgl_lembur DESC";
 								$Qry = mysqli_query($conn, $Sql);
 										
-								?>						
+								?>	
 								<table class="table table-striped table-bordered table-hover" id="tabel-data">
 									<thead>
 										<tr>
+											<th width="1%" style="display:none">Sort</th>
 											<th width="1%">No</th>
 											<th width="10%">Nama Karyawan</th>
 											<th width="5%">Tujuan Lembur</th>
@@ -48,7 +56,10 @@
 										<?php
 											$i=1;
 											while($data = mysqli_fetch_array($Qry)){
+												// Prioritas sort: 0 = Menunggu (tampil paling atas), 1 = lainnya
+												$sort_priority = (stripos($data['status'], 'Menunggu') !== false || stripos($data['status'], 'Pending') !== false) ? 0 : 1;
 												echo '<tr>';
+												echo '<td style="display:none">'. $sort_priority .'</td>';
 												echo '<td class="text-center">'. $i .'</td>';
 												echo '<td class="text-center">'. $data['nama_karyawan'] .'</td>';
 												echo '<td class="text-center">'. $data['tujuan_lembur'] .'</td>';
@@ -91,8 +102,11 @@
 		$('#tabel-data').DataTable({
 			"responsive": true,
 			"processing": true,
+			// Sort by hidden column 0 (priority: 0=Menunggu, 1=lainnya) ascending
+			"order": [[0, 'asc']],
 			"columnDefs": [
-				{ "orderable": false, "targets": [] }
+				{ "visible": false, "targets": [0] },
+				{ "orderable": false, "targets": [1, 2, 3, 4, 5, 6, 7, 8] }
 			]
 		});
 		

@@ -63,9 +63,12 @@
 										<div class="form-group">
 											<input type="submit" class="btn btn-success btn-block" name="login" value="Masuk">
 										</div>
-										<div class="form-group text-left">
+										<div class="form-group text-left" style="display: flex; gap: 8px; flex-wrap: wrap;">
 											<a href="form_calon_karyawan_baru.php" class="btn btn-success btn-sm">
 												<i class="fa fa-user-plus"></i> Form Calon Karyawan Baru
+											</a>
+											<a href="test_calon_karyawan.php" class="btn btn-info btn-sm">
+												<i class="fa fa-pencil-square-o"></i> Test Calon Karyawan
 											</a>
 										</div>
 									</form>

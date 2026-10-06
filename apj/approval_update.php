@@ -9,8 +9,15 @@ $tgl_akhir  = $_POST['tgl_akhir'];
 
 $start  = new DateTime($tgl_awal);
 $finish = new DateTime($tgl_akhir);
-$int    = $start->diff($finish);
-$durasi = $int->days + 1;
+// Menghitung durasi tanpa hari Minggu
+$durasi = 0;
+$current = clone $start;
+while ($current <= $finish) {
+    if ($current->format('w') != 0) { // 0 = Minggu
+        $durasi++;
+    }
+    $current->modify('+1 day');
+}
 
 $stt = "";
 $null = 0;
@@ -79,13 +86,11 @@ if ($aksi == "2") {  // Jika cuti ditolak
         // Jika sebelumnya "Rejected", pastikan saldo dikurangi kembali
         if ($status_sebelumnya == "Rejected") {
             $total_cuti_baru = $jml_cuti_tersisa - $durasi;
-        } else {
-            $total_cuti_baru = $jml_cuti_tersisa - $durasi;
+            
+            // Update saldo cuti karyawan
+            $sql_update_employee = "UPDATE employee SET jml_cuti='$total_cuti_baru' WHERE npp='$npp'";
+            mysqli_query($conn, $sql_update_employee);
         }
-
-        // Update saldo cuti karyawan
-        $sql_update_employee = "UPDATE employee SET jml_cuti='$total_cuti_baru' WHERE npp='$npp'";
-        mysqli_query($conn, $sql_update_employee);
     }
 
     // Update status cuti menjadi "Approved"

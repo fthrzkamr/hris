@@ -1,6 +1,6 @@
 <?php
 include("sess_check.php");
-include('dist/config/koneksi.php');
+include(__DIR__ . '/../dist/config/koneksi.php');
 
 // Get ID early for POST processing
 $id = isset($_GET['id']) ? intval($_GET['id']) : (isset($_POST['id']) ? intval($_POST['id']) : 0);
@@ -18,6 +18,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aksi']) && $id > 0) {
     mysqli_stmt_execute($stmt_last);
     $res_last = mysqli_stmt_get_result($stmt_last);
     $last = mysqli_fetch_assoc($res_last);
+    
+    if ($last && $last['status'] === 'REALISASI_VERIFIED_HR') {
+        $pengajuan_id = (int)$last['id'];
+        if ($aksi === 'approve_realisasi') {
+            $status = 'REALISASI_SELESAI';
+            $approval_manager = 'APPROVED';
+        } else {
+            $status = 'REALISASI_DITOLAK';
+            $approval_manager = 'REJECTED';
+        }
+        
+        $upd = mysqli_prepare($conn, "UPDATE perjalanan_pengajuan SET approval_manager_hr = ?, approver_manager_hr = ?, tanggal_approval_manager_hr = NOW(), catatan_manager_hr = ?, status = ? WHERE id = ?");
+        mysqli_stmt_bind_param($upd, 'ssssi', $approval_manager, $user_nama, $catatan, $status, $pengajuan_id);
+        $ok = mysqli_stmt_execute($upd);
+        if ($ok) {
+            header("Location: perjalanan_dinas_list.php?msg=" . urlencode("Approval realisasi berhasil: $status"));
+            exit;
+        } else {
+            $err = mysqli_error($conn);
+            header("Location: perjalanan_dinas_list.php?err=" . urlencode("Gagal menyimpan approval: $err"));
+            exit;
+        }
+    }
+
 
     // Jika approve_with_changes, update rincian sesuai input nominal[] dan catat perubahan
     if ($aksi === 'approve_with_changes' || $aksi === 'approve') {
@@ -141,6 +165,8 @@ mysqli_stmt_bind_param($stmt_p, 'i', $id);
 mysqli_stmt_execute($stmt_p);
 $res_p = mysqli_stmt_get_result($stmt_p);
 $pengajuan = mysqli_fetch_assoc($res_p);
+$is_realisasi_mode = $pengajuan && $pengajuan['status'] === 'REALISASI_VERIFIED_HR';
+$prefix = is_file(__DIR__ . '/../dist/config/koneksi.php') ? '../' : '';
 ?>
 <style>
     /* Header: logo | title | meta */
@@ -202,11 +228,11 @@ $pengajuan = mysqli_fetch_assoc($res_p);
     <div class="row">
         <div class="col-lg-12">
             <div class="panel panel-primary">
-                <div class="panel-heading">Review & Approve Anggaran</div>
+                <div class="panel-heading"><?php echo $is_realisasi_mode ? "Review & Approve Realisasi" : "Review & Approve Anggaran"; ?></div>
                 <div class="panel-body">
                     <div class="info-header">
                         <div class="logo"><img src="foto/logo-dua.webp" alt="logo"></div>
-                        <div class="doc-title">Form Anggaran Perjalanan Dinas</div>
+                        <div class="doc-title"><?php echo $is_realisasi_mode ? "Review Realisasi Perjalanan Dinas" : "Form Anggaran Perjalanan Dinas"; ?></div>
                         <div class="doc-meta">
                             <div><strong>No:</strong> <?php echo htmlspecialchars($data['no_dokumen']); ?></div>
                             <div><strong>Tanggal:</strong> <?php echo date('d-m-Y', strtotime($data['tanggal_dokumen'])); ?></div>
@@ -243,6 +269,107 @@ $pengajuan = mysqli_fetch_assoc($res_p);
                         </div>
                     </div>
 
+                    <?php if ($is_realisasi_mode): ?>
+                    <form method="post" id="frmApprove" autocomplete="off">
+                        <input type="hidden" name="id" value="<?php echo (int) $id; ?>">
+                        <input type="hidden" name="aksi" id="formAksi" value="approve_realisasi">
+
+                        <div class="table-responsive">
+                            <table class="table table-striped table-bordered rincian-table">
+                                <thead>
+                                    <tr class="info" style="background-color: #d9edf7; color: #31708f;">
+                                        <th style="width:5%;text-align:center">No</th>
+                                        <th>Keterangan</th>
+                                        <th style="width:5%;text-align:center">Qty</th>
+                                        <th style="width:12%;text-align:right">Nominal Budget</th>
+                                        <th style="width:12%;text-align:right">Total Budget</th>
+                                        <th style="width:12%;text-align:right">Nominal Realisasi</th>
+                                        <th style="width:12%;text-align:right">Total Realisasi</th>
+                                        <th style="width:25%;text-align:center">Bukti / Keterangan</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php 
+                                    $total_budget = 0;
+                                    $total_real = 0;
+                                    foreach ($rincian as $it):
+                                        $nominal = (float) ($it['nominal'] ?? 0);
+                                        $qty = (int) ($it['qty'] ?? 1) ?: 1;
+                                        $total_budget += $nominal * $qty;
+                                        
+                                        $nominal_real = (float) ($it['nominal_realisasi'] ?? 0);
+                                        $total_real_item = isset($it['total_realisasi']) && $it['total_realisasi'] !== null ? (float) $it['total_realisasi'] : ($nominal_real * $qty);
+                                        $total_real += $total_real_item;
+                                    ?>
+                                    <tr>
+                                        <td class="text-center"><?php echo (int) ($it['nomor'] ?? 0); ?></td>
+                                        <td><?php echo htmlspecialchars($it['ket'] ?? ''); ?></td>
+                                        <td class="text-center"><?php echo $qty; ?></td>
+                                        <td style="text-align:right">Rp <?php echo number_format($nominal, 0, ',', '.'); ?></td>
+                                        <td style="text-align:right">Rp <?php echo number_format($nominal * $qty, 0, ',', '.'); ?></td>
+                                        <td style="text-align:right; font-weight:bold; color:#31708f;">Rp <?php echo number_format($nominal_real, 0, ',', '.'); ?></td>
+                                        <td style="text-align:right; font-weight:bold; color:#31708f;">Rp <?php echo number_format($total_real_item, 0, ',', '.'); ?></td>
+                                        <td>
+                                            <?php if (!empty($it['bukti_realisasi'])): 
+                                                $buktis = json_decode($it['bukti_realisasi'] ?? '', true) ?: [];
+                                                foreach ($buktis as $b):
+                                                    if (strpos($b, 'uploads/bukti_realisasi/') !== 0) continue; ?>
+                                                    <a href="<?php echo htmlspecialchars($prefix . $b); ?>" target="_blank" style="margin-right: 5px;">
+                                                        <img src="<?php echo htmlspecialchars($prefix . $b); ?>" style="width: 40px; height: 40px; object-fit: cover; border: 1px solid #ccc; border-radius: 4px;">
+                                                    </a>
+                                                <?php endforeach; ?>
+                                            <?php endif; ?>
+                                            <?php if (!empty($it['keterangan'])): ?>
+                                                <div style="font-size:11px; color:#555;"><?php echo htmlspecialchars($it['keterangan']); ?></div>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                    <tr style="background-color: #f5f5f5; font-weight:bold">
+                                        <td colspan="4" style="text-align:right">TOTAL BUDGET:</td>
+                                        <td style="text-align:right">Rp <?php echo number_format($total_budget, 0, ',', '.'); ?></td>
+                                        <td style="text-align:right; color:#31708f;">TOTAL REALISASI:</td>
+                                        <td style="text-align:right; color:#31708f;">Rp <?php echo number_format($total_real, 0, ',', '.'); ?></td>
+                                        <td></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <?php 
+                        $selisih = $total_real - $total_budget;
+                        ?>
+                        <div class="alert alert-info" style="margin-top: 15px;">
+                            <strong>Selisih Anggaran vs Realisasi:</strong><br>
+                            <?php 
+                            if ($selisih < 0) {
+                                echo 'Kurang Bayar (Sisa Uang Muka dikembalikan ke Perusahaan): Rp ' . number_format(abs($selisih), 0, ',', '.');
+                            } elseif ($selisih > 0) {
+                                echo 'Lebih Bayar (Reimbursement dari Perusahaan): Rp ' . number_format($selisih, 0, ',', '.');
+                            } else {
+                                echo 'Sesuai Budget (Tidak ada selisih)';
+                            }
+                            ?>
+                        </div>
+
+                        <div class="form-group" style="margin-top:15px">
+                            <label>Catatan / Alasan Penolakan (Hanya wajib diisi jika menolak realisasi)</label>
+                            <textarea name="catatan" id="catatanTolak" class="form-control" placeholder="Masukkan alasan penolakan di sini..."></textarea>
+                        </div>
+
+                        <div class="actions">
+                            <button type="button" id="btnApproveReal" class="btn btn-success btn-lg">
+                                <i class="fa fa-check"></i> Setujui Laporan Realisasi
+                            </button>
+                            <button type="button" id="btnRejectReal" class="btn btn-danger btn-lg">
+                                <i class="fa fa-times"></i> Tolak Realisasi
+                            </button>
+                            <a href="perjalanan_dinas_list.php" class="btn btn-default btn-lg">
+                                <i class="fa fa-arrow-left"></i> Kembali
+                            </a>
+                        </div>
+                    </form>
+                    <?php else: ?>
                     <form method="post" id="frmApprove" autocomplete="off">
                         <input type="hidden" name="id" value="<?php echo (int) $id; ?>">
 
@@ -296,8 +423,6 @@ $pengajuan = mysqli_fetch_assoc($res_p);
                             </table>
                         </div>
 
-                            <!-- modal moved below form to avoid nested forms -->
-
                         <div class="form-group" style="margin-top:12px">
                             <label>Catatan Manager HR (opsional)</label>
                             <textarea name="catatan" class="form-control" rows="3" placeholder="Tambahkan catatan jika ada perubahan nominal atau catatan lainnya..."><?php echo htmlspecialchars($pengajuan['catatan_manager_hr'] ?? ''); ?></textarea>
@@ -318,6 +443,7 @@ $pengajuan = mysqli_fetch_assoc($res_p);
                             <strong>Catatan:</strong> Anda dapat mengubah nominal langsung di tabel di atas. Perubahan akan tercatat dalam log sistem untuk audit. Klik "Approve" untuk menyetujui dan meneruskan ke Direktur, atau "Reject" untuk menolak pengajuan.
                         </div>
                     </form>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -327,6 +453,54 @@ $pengajuan = mysqli_fetch_assoc($res_p);
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
         $(function () {
+            // Realisasi Actions
+            $('#btnApproveReal').on('click', function(e) {
+                e.preventDefault();
+                Swal.fire({
+                    title: 'Setujui Realisasi?',
+                    text: 'Laporan realisasi akan disetujui secara final',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, setujui',
+                    cancelButtonText: 'Batal',
+                    confirmButtonColor: '#5cb85c'
+                }).then(function(res) {
+                    if (res.isConfirmed) {
+                        $('#formAksi').val('approve_realisasi');
+                        $('#frmApprove')[0].submit();
+                    }
+                });
+            });
+
+            $('#btnRejectReal').on('click', function(e) {
+                e.preventDefault();
+                var catatan = $('#catatanTolak').val().trim();
+                if (catatan === '') {
+                    Swal.fire({
+                        title: 'Catatan Wajib Diisi',
+                        text: 'Silakan masukkan alasan penolakan pada kolom catatan.',
+                        icon: 'warning',
+                        confirmButtonColor: '#d9534f'
+                    });
+                    return;
+                }
+                
+                Swal.fire({
+                    title: 'Tolak Realisasi?',
+                    text: 'Laporan realisasi ini akan ditolak dan dikembalikan ke user',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ya, tolak',
+                    cancelButtonText: 'Batal',
+                    confirmButtonColor: '#d9534f'
+                }).then(function(res) {
+                    if (res.isConfirmed) {
+                        $('#formAksi').val('reject_realisasi');
+                        $('#frmApprove')[0].submit();
+                    }
+                });
+            });
+
             // Handlers for add/edit/delete rincian within approve page
             $('#btnAddItemApprove').on('click', function () {
                 $('#rincianFormApprove')[0].reset();

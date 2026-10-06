@@ -1,6 +1,11 @@
 <?php
 include("sess_check.php");
 
+if (isset($row_sess['status_karyawan']) && $row_sess['status_karyawan'] == 'Magang') {
+	header("location: index.php");
+	exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $npp                = $_POST['npp'];
     $jumlah_pinjaman    = str_replace(".", "", $_POST['jumlah_pinjaman']);

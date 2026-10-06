@@ -227,11 +227,11 @@ $res = mysqli_query($conn, $sql);
                                 $no = 1;
                                 mysqli_data_seek($res, 0); // Reset result pointer
                                 while ($row = mysqli_fetch_assoc($res)): 
-                                    $status = $row['status'] ?? 'BELUM DIAJUKAN';
-                                    $status_class = 'status-belum';
-                                    if ($status == 'DIAJUKAN') $status_class = 'status-diajukan';
-                                    elseif ($status == 'DISETUJUI') $status_class = 'status-disetujui';
-                                    elseif ($status == 'DITOLAK') $status_class = 'status-ditolak';
+                                     $status = $row['status'] ?? 'BELUM DIAJUKAN';
+                                     $status_class = 'status-belum';
+                                     if ($status == 'DIAJUKAN' || $status == 'REALISASI_DIAJUKAN' || $status == 'REALISASI_VERIFIED_HR') $status_class = 'status-diajukan';
+                                     elseif ($status == 'DISETUJUI' || $status == 'APPROVED_MANAGER_HR' || $status == 'REALISASI_SELESAI') $status_class = 'status-disetujui';
+                                     elseif ($status == 'DITOLAK' || $status == 'REALISASI_DITOLAK') $status_class = 'status-ditolak';
                                     
                                     $tgl_perjalanan = $row['tanggal_perjalanan'] ? date('d-m-Y', strtotime($row['tanggal_perjalanan'])) : '<em>Fleksibel</em>';
                                     $tgl_pengajuan = $row['tanggal_pengajuan'] ? date('d-m-Y H:i', strtotime($row['tanggal_pengajuan'])) : '-';
@@ -252,10 +252,15 @@ $res = mysqli_query($conn, $sql);
                                         </td>
                                         <td><?php echo $tgl_pengajuan; ?></td>
                                         <td class="btn-group-action text-center">
-                                            <a class="btn btn-info btn-sm" href="perjalanan_dinas_detail.php?id=<?php echo $row['id']; ?>">
-                                                <i class="fa fa-eye"></i> Detail
-                                            </a>
-                                        </td>
+                                             <?php if (in_array($status, ['APPROVED_MANAGER_HR', 'DISETUJUI', 'REALISASI_DITOLAK'])): ?>
+                                                 <a class="btn btn-success btn-sm btnRealisasiModal" href="#" data-id="<?php echo $row['id']; ?>" title="Upload Realisasi">
+                                                     <i class="fa fa-upload"></i> Realisasi
+                                                 </a>
+                                             <?php endif; ?>
+                                             <a class="btn btn-info btn-sm" href="perjalanan_dinas_detail.php?id=<?php echo $row['id']; ?>" title="Lihat Detail">
+                                                 <i class="fa fa-eye"></i> Detail
+                                             </a>
+                                         </td>
                                     </tr>
                                 <?php endwhile; ?>
                             </tbody>
@@ -302,7 +307,47 @@ $res = mysqli_query($conn, $sql);
 
         // Enable tooltips
         $('[data-toggle="tooltip"]').tooltip();
+
+        $(document).on('click', '.btnRealisasiModal', function(e) {
+            e.preventDefault();
+            var id = $(this).data('id');
+            $('#realisasi_id_perjalanan').val(id);
+            $('#realisasiModalBody').html('<div class="text-center" style="padding: 20px;"><i class="fa fa-spinner fa-spin fa-2x"></i> Memuat data...</div>');
+            $('#realisasiModal').modal('show');
+            
+            $.get('get_realisasi_items.php', { id: id }, function(html) {
+                $('#realisasiModalBody').html(html);
+            }).fail(function() {
+                $('#realisasiModalBody').html('<div class="alert alert-danger">Gagal memuat rincian perjalanan dinas.</div>');
+            });
+        });
     });
 </script>
+
+<!-- Modal Realisasi -->
+<div id="realisasiModal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg">
+        <form action="submit_realisasi.php" method="post" enctype="multipart/form-data" id="realisasiForm">
+            <input type="hidden" name="id_perjalanan" id="realisasi_id_perjalanan">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title"><i class="fa fa-upload"></i> Laporan Realisasi Perjalanan Dinas</h4>
+                </div>
+                <div class="modal-body" id="realisasiModalBody">
+                    <div class="text-center" style="padding: 20px;">
+                        <i class="fa fa-spinner fa-spin fa-2x"></i> Memuat data...
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success" onclick="return confirm('Apakah Anda yakin data realisasi sudah benar dan siap dikirim?');">
+                        <i class="fa fa-paper-plane"></i> Kirim Laporan Realisasi
+                    </button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Batal</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 
 <?php include("layout_bottom.php"); ?>

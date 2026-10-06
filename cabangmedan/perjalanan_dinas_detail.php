@@ -21,7 +21,7 @@ if ($id <= 0) {
 
 // Fetch main record - with security check to ensure user can only view their own submissions
 $npp_esc = mysqli_real_escape_string($conn, $npp_user);
-$stmt = mysqli_prepare($conn, "SELECT * FROM perjalanan_dinas WHERE id = ? AND npp = ?");
+$stmt = mysqli_prepare($conn, "SELECT p.*, e.nama_bank, e.norek_mandiri as no_rekening, COALESCE(pr.revision_count, 0) as revision_count FROM perjalanan_dinas p LEFT JOIN employee e ON p.npp = e.npp LEFT JOIN (SELECT perjalanan_id, MAX(revision_count) as revision_count FROM perjalanan_rincian GROUP BY perjalanan_id) pr ON p.id = pr.perjalanan_id WHERE p.id = ? AND p.npp = ?");
 mysqli_stmt_bind_param($stmt, 'is', $id, $npp_esc);
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
@@ -49,6 +49,8 @@ mysqli_stmt_bind_param($stmt_status, 'i', $id);
 mysqli_stmt_execute($stmt_status);
 $result_status = mysqli_stmt_get_result($stmt_status);
 $submission = mysqli_fetch_assoc($result_status);
+$is_realisasi_active = $submission && in_array($submission['status'], ['DISETUJUI', 'REALISASI_DIAJUKAN', 'REALISASI_VERIFIED_HR', 'REALISASI_SELESAI', 'REALISASI_DITOLAK']);
+$prefix = is_file(__DIR__ . '/../dist/config/koneksi.php') ? '../' : '';
 ?>
 <!doctype html>
 <html lang="id">
@@ -277,16 +279,16 @@ $submission = mysqli_fetch_assoc($result_status);
         <?php endif; ?>
 
         <div class="header">
-            <div class="logo">
+            <!-- <div class="logo">
                 <img src="../foto/logo-dua.webp" alt="Logo" onerror="this.style.display='none'">
-            </div>
+            </div> -->
             <div class="title">
                 FORM ANGGARAN<br>
                 PERJALANAN BISNIS (DINAS)
             </div>
             <div class="doc-box">
                 <div><strong>No. Dokumen:</strong> <?php echo htmlspecialchars($data['no_dokumen']); ?></div>
-                <div><strong>Revisi:</strong> <?php echo htmlspecialchars($data['revisi']); ?></div>
+                <div><strong>Revisi:</strong> <?php echo htmlspecialchars($data['revision_count'] ?? 0); ?></div>
                 <div><strong>Tanggal:</strong> <?php echo date('d-m-Y', strtotime($data['tanggal_dokumen'])); ?></div>
             </div>
         </div>
@@ -316,6 +318,83 @@ $submission = mysqli_fetch_assoc($result_status);
             </tr>
         </table>
 
+        <?php if ($is_realisasi_active): ?>
+        <table class="rincian-table">
+            <thead>
+                <tr class="info" style="background-color: #d9edf7; color: #31708f;">
+                    <th style="width:5%;text-align:center">No</th>
+                    <th>Keterangan</th>
+                    <th style="width:5%;text-align:center">Qty</th>
+                    <th style="width:12%;text-align:right">Nominal Budget</th>
+                    <th style="width:12%;text-align:right">Total Budget</th>
+                    <th style="width:12%;text-align:right">Nominal Realisasi</th>
+                    <th style="width:12%;text-align:right">Total Realisasi</th>
+                    <th style="width:25%;text-align:center">Bukti / Keterangan</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (!empty($rincian_items)): ?>
+                    <?php foreach ($rincian_items as $item): ?>
+                        <tr>
+                            <td style="text-align:center"><?php echo htmlspecialchars($item['nomor']); ?></td>
+                            <td><?php echo htmlspecialchars($item['ket']); ?></td>
+                            <td style="text-align:center"><?php echo htmlspecialchars($item['qty']); ?></td>
+                            <td style="text-align:right">
+                                <?php 
+                                $nominal_hr = (float)($item['nominal'] ?? 0);
+                                echo number_format($nominal_hr, 0, ',', '.');
+                                ?>
+                            </td>
+                            <td style="text-align:right">
+                                <?php echo number_format($nominal_hr * (float)($item['qty'] ?? 1), 0, ',', '.'); ?>
+                            </td>
+                            <td style="text-align:right">
+                                <?php echo number_format((float)($item['nominal_realisasi'] ?? 0), 0, ',', '.'); ?>
+                            </td>
+                            <td style="text-align:right">
+                                <?php echo number_format((float)($item['total_realisasi'] ?? 0), 0, ',', '.'); ?>
+                            </td>
+                            <td>
+                                <?php if (!empty($item['bukti_realisasi'])): 
+                                    $buktis = json_decode($item['bukti_realisasi'] ?? '', true) ?: [];
+                                    foreach ($buktis as $b):
+                                        if (strpos($b, 'uploads/bukti_realisasi/') !== 0) continue; ?>
+                                        <a href="<?php echo htmlspecialchars($prefix . $b); ?>" target="_blank" class="no-print" style="margin-right: 5px;">
+                                            <img src="<?php echo htmlspecialchars($prefix . $b); ?>" style="width: 35px; height: 35px; object-fit: cover; border: 1px solid #ccc; border-radius: 4px;">
+                                        </a>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                                <?php if (!empty($item['keterangan'])): ?>
+                                    <div style="font-size:11px; color:#555;"><?php echo htmlspecialchars($item['keterangan']); ?></div>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="8" style="text-align:center">Tidak ada rincian anggaran</td>
+                    </tr>
+                <?php endif; ?>
+                <tr>
+                    <td colspan="4" style="text-align:right;font-weight:bold">BUDGET TOTAL:</td>
+                    <td style="text-align:right;font-weight:bold">
+                        Rp <?php echo number_format((float)$data['budget_total'], 0, ',', '.'); ?>
+                    </td>
+                    <td style="text-align:right;font-weight:bold">REALISASI TOTAL:</td>
+                    <td style="text-align:right;font-weight:bold">
+                        Rp <?php 
+                        $total_realisasi_val = 0;
+                        foreach ($rincian_items as $item) {
+                            $total_realisasi_val += (float)($item['total_realisasi'] ?? 0);
+                        }
+                        echo number_format($total_realisasi_val, 0, ',', '.');
+                        ?>
+                    </td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+        <?php else: ?>
         <table class="rincian-table">
             <thead>
                 <tr>
@@ -339,12 +418,8 @@ $submission = mysqli_fetch_assoc($result_status);
                             <td><?php echo htmlspecialchars($item['ket']); ?></td>
                             <td style="text-align:right">
                                 <?php 
-                                // Show nominal if set, otherwise show dash
-                                if (!empty($item['nominal']) && $item['nominal'] != '0') {
-                                    echo number_format((float)$item['nominal'], 0, ',', '.');
-                                } else {
-                                    echo '-';
-                                }
+                                $nominal_hr = (float)($item['nominal'] ?? 0);
+                                echo number_format($nominal_hr, 0, ',', '.');
                                 ?>
                             </td>
                             <td style="text-align:center"><?php echo htmlspecialchars($item['qty']); ?></td>
@@ -353,10 +428,8 @@ $submission = mysqli_fetch_assoc($result_status);
                             </td>
                             <td style="text-align:right">
                                 <?php
-                                // Calculate total from nominal (if set) or perkiraan
-                                $nilai = !empty($item['nominal']) && $item['nominal'] != '0' ? 
-                                    (float)$item['nominal'] : (float)$item['perkiraan'];
-                                echo number_format($nilai * (float)$item['qty'], 0, ',', '.');
+                                $nominal_hr = (float)($item['nominal'] ?? 0);
+                                echo number_format($nominal_hr * (float)$item['qty'], 0, ',', '.');
                                 ?>
                             </td>
                             <td><?php echo htmlspecialchars($item['keterangan']); ?></td>
@@ -376,10 +449,34 @@ $submission = mysqli_fetch_assoc($result_status);
                 </tr>
             </tbody>
         </table>
+        <?php endif; ?>
+
+        <?php if ($is_realisasi_active && $total_realisasi_val > 0): 
+            $selisih = $total_realisasi_val - (float)$data['budget_total'];
+        ?>
+            <div class="alert alert-info no-print" style="margin-top: 15px; border-radius: 4px; padding: 12px; border: 1px solid #31708f;">
+                <strong>Rekapitulasi Realisasi:</strong><br>
+                Total Budget Disetujui: Rp <?php echo number_format((float)$data['budget_total'], 0, ',', '.'); ?><br>
+                Total Realisasi Aktual: Rp <?php echo number_format($total_realisasi_val, 0, ',', '.'); ?><br>
+                Selisih: <strong>
+                    <?php 
+                    if ($selisih < 0) {
+                        echo 'Kurang Bayar (Sisa Uang Muka dikembalikan ke Perusahaan): Rp ' . number_format(abs($selisih), 0, ',', '.');
+                    } elseif ($selisih > 0) {
+                        echo 'Lebih Bayar (Reimbursement dari Perusahaan): Rp ' . number_format($selisih, 0, ',', '.');
+                    } else {
+                        echo 'Sesuai Budget (Tidak ada selisih)';
+                    }
+                    ?>
+                </strong>
+            </div>
+        <?php endif; ?>
 
         <div style="margin-top:15px; font-size:12px">
             <strong>Rekening (Transfer):</strong><br>
-            Trf Ke rek. Mandiri an. Auliya Nurul Haqim Acc. 60012166181
+            Trf Ke rek. <?php echo htmlspecialchars($data['nama_bank'] ?? ''); ?>
+            an. <?php echo htmlspecialchars(($submission && !empty($submission['pengaju'])) ? $submission['pengaju'] : ($data['nama'] ?? '')); ?>
+            Acc. <?php echo htmlspecialchars($data['no_rekening'] ?? ''); ?>
         </div>
 
         <div style="margin-top:15px; font-size:12px">
@@ -423,6 +520,7 @@ $submission = mysqli_fetch_assoc($result_status);
             <div style="margin-top:6px; font-size:11px">Nama : Lucky Hafiansyah</div>
             <div style="font-size:11px">Tanggal : </div>
         </div> -->
+
     </div>
 </body>
 

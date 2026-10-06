@@ -236,14 +236,14 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
                                 <i class="fa fa-refresh"></i> Reset
                             </a>
                         </div>
-                        <div class="form-group" style="margin-bottom: 10px;">
+                        <!-- <div class="form-group" style="margin-bottom: 10px;">
                             <a href="insentif_kurir_upload.php" class="btn btn-success">
                                 <i class="fa fa-upload"></i> Upload Excel
                             </a>
                             <a href="absensi_kurir_list.php" class="btn btn-warning">
                                 <i class="fa fa-book"></i> Lihat Buku Harian
                             </a>
-                        </div>
+                        </div> -->
                     </form>
                 </div>
             </div>

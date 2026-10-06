@@ -5,7 +5,7 @@ $pagedesc = "Update Insentif Kurir";
 $menuparent = "insentif";
 include("layout_top.php");
 
-include("dist/config/koneksi.php");
+include(__DIR__ . "/../../dist/config/koneksi.php");
 
 // Helper: check if column exists
 function column_exists($conn, $table, $column) {
@@ -141,7 +141,7 @@ $pagedesc = "Update Absensi Karyawan";
 $menuparent = "insentif";
 include("layout_top.php");
 
-include("dist/config/koneksi.php");
+include(__DIR__ . "/../../dist/config/koneksi.php");
 
 // If form submitted (POST) -> process update
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

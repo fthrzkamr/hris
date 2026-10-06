@@ -33,13 +33,13 @@ $sql_base = "FROM transaksi_insentif_kurir t
         LEFT JOIN employee e ON t.npp = e.npp
         LEFT JOIN bagian b ON e.nama_bagian = b.id_bagian
         LEFT JOIN (
-            SELECT l.npp, DATE_FORMAT(l.tgl_lembur, '%Y-%m') AS periode,
-                SUM(CASE WHEN LOWER(l.tujuan_lembur) LIKE '%operasional%' THEN (l.jumlah * {$rate_op}) ELSE 0 END) AS lembur_operasional_amt,
+            SELECT l.npp, DATE_FORMAT(DATE_ADD(l.tgl_lembur, INTERVAL 7 HOUR), '%Y-%m') AS periode,
+                SUM(CASE WHEN LOWER(l.tujuan_lembur) LIKE '%operasional%' OR LOWER(l.tujuan_lembur) LIKE '%oprasional%' THEN (l.jumlah * {$rate_op}) ELSE 0 END) AS lembur_operasional_amt,
                 SUM(CASE WHEN LOWER(l.tujuan_lembur) LIKE '%ambil%' OR LOWER(l.tujuan_lembur) LIKE '%pickup%' THEN (l.jumlah * {$rate_ambil}) ELSE 0 END) AS lembur_ambil_amt,
                 SUM(CASE WHEN LOWER(l.tujuan_lembur) LIKE '%lain%' OR LOWER(l.tujuan_lembur) LIKE '%lainnya%' THEN (l.jumlah * {$rate_lain}) ELSE 0 END) AS lembur_lain_amt
             FROM lembur l
             WHERE l.status = 'Approved'
-            GROUP BY l.npp, DATE_FORMAT(l.tgl_lembur, '%Y-%m')
+            GROUP BY l.npp, DATE_FORMAT(DATE_ADD(l.tgl_lembur, INTERVAL 7 HOUR), '%Y-%m')
         ) lb ON lb.npp = t.npp AND lb.periode = t.periode
         WHERE 1=1";
 
@@ -1668,6 +1668,21 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
             var idx_hadir          = 11;
             var idx_total          = 24;
 
+            // Prioritaskan nilai yang disimpan di server jika ada (data-total pada sel Total Dibayarkan)
+            var $totalCell = $row.find('td').eq(idx_total);
+            var serverTotal = $row.find('.editable-total-dibayarkan').data('total');
+            if (typeof serverTotal !== 'undefined' && serverTotal !== null) {
+                var total = parseInt(serverTotal, 10) || 0;
+                // update tampilan sesuai server
+                $totalCell.text(numberWithCommas(total));
+                if (total > 0) {
+                    $totalCell.addClass('bg-success').css({'color': 'white'});
+                } else {
+                    $totalCell.removeClass('bg-success').css({'color': ''});
+                }
+                return; // jangan lakukan perhitungan frontend yang menimpa nilai DB
+            }
+
             var bonusTitik  = parseCellNumber($row.find('td').eq(idx_bonus_titik));
             var bonusFull   = parseCellNumber($row.find('td').eq(idx_bonus_full));
             var lemburOp    = parseCellNumber($row.find('td').eq(idx_lembur_op));
@@ -1693,7 +1708,6 @@ if ($rs_cap && mysqli_num_rows($rs_cap) > 0) {
             total = parseInt(total, 10) || 0;
             if (total < 0) total = 0;
 
-            var $totalCell = $row.find('td').eq(idx_total);
             $totalCell.text(numberWithCommas(total));
 
             if (total > 0) {

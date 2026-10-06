@@ -67,7 +67,7 @@
 // 	var_dump($ea);
 // 	exit();
 	
-	$sql_wait = "SELECT no_cuti FROM cuti WHERE stt_cuti='Menunggu Approval HRD'";
+	$sql_wait = "SELECT no_cuti FROM cuti WHERE stt_cuti='Menunggu Approval'";
 	$ress_wait = mysqli_query($conn, $sql_wait);
 	$wait = mysqli_num_rows($ress_wait);
 	

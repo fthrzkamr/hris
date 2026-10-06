@@ -4,6 +4,13 @@
 	// deskripsi halaman
 	$pagedesc = "Data Lemburan";
 	include("layout_top.php");
+
+	// Get dynamic koordinator
+	$id = $sess_mngid;
+	$k_query = mysqli_query($conn, "SELECT id_koordinator FROM koordinator WHERE npp='$id'");
+	$k_row = mysqli_fetch_array($k_query);
+	$id_koor = $k_row ? $k_row['id_koordinator'] : '-1';
+
 	include("dist/function/format_tanggal.php");
 	include("dist/function/format_rupiah.php");
 ?>
@@ -27,7 +34,7 @@
 							
 							<div class="panel-body">
 								<?php
-										$Sql = "SELECT lembur.*, employee.* FROM lembur, employee WHERE lembur.npp=employee.npp AND employee.nama_koordinator='12' ORDER BY lembur.tgl_lembur DESC";
+										$Sql = "SELECT lembur.*, employee.* FROM lembur, employee WHERE lembur.npp=employee.npp AND employee.nama_koordinator='$id_koor' ORDER BY CASE WHEN lembur.status='Menunggu' THEN 1 ELSE 2 END ASC, lembur.tgl_lembur DESC";
 								$Qry = mysqli_query($conn, $Sql);
 										
 								?>						

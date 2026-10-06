@@ -49,6 +49,26 @@ function formatRupiah(input) {
 				
 				<div class="row">
 					<div class="col-lg-12">
+                        <div class="alert alert-info">
+                            <strong>Ketentuan Reimbursement Kesehatan & Kacamata</strong>
+                            <ol style="margin-top: 10px; margin-bottom: 0; padding-left: 20px;">
+                                <li>Pengajuan reimbursement kesehatan dan kacamata maksimal diterima setiap tanggal 10.</li>
+                                <li>Reimbursement sebesar 80% dari total pengajuan.</li>
+                                <li>Cut off penarikan klaim berlaku untuk periode tanggal 11 sampai dengan 10 pada bulan berikutnya. Pengajuan dengan tanggal transaksi yang telah melewati periode tersebut tidak dapat diproses.</li>
+                                <li>Struk dan kwitansi asli wajib diserahkan kepada HR sebagai dokumen pendukung.</li>
+                                <li>Dokumen pengajuan harus jelas dan valid, serta mencantumkan tanggal transaksi dan nominal. HR berhak menolak klaim apabila dokumen tidak lengkap atau tidak sesuai.</li>
+                                <li>Proses reimbursement akan dilakukan bersamaan dengan jadwal transfer insentif dan lembur.</li>
+                                <li>Klaim dapat ditolak apabila:
+                                    <ul style="list-style-type: disc; padding-left: 20px;">
+                                        <li>Tidak sesuai dengan kategori yang ditentukan</li>
+                                        <li>Melebihi limit yang berlaku</li>
+                                        <li>Dokumen tidak lengkap atau tidak valid</li>
+                                    </ul>
+                                </li>
+                                <li>Untuk pertanyaan lebih lanjut, dapat langsung menghubungi HR Manager.</li>
+                                <li>Perusahaan berhak untuk meninjau dan memperbarui kebijakan ini sewaktu-waktu sesuai kebutuhan perusahaan.</li>
+                            </ol>
+                        </div>
 						<form class="form-horizontal" name="reimburse" action="kacamata_insert.php" method="POST" enctype="multipart/form-data" onSubmit="return valid();">
 							<div class="panel panel-default">
 								<div class="panel-heading"><h3>Form Pengajuan Kacamata</h3>
@@ -66,7 +86,7 @@ function formatRupiah(input) {
                                     <div class="form-group">
 										<label class="control-label col-sm-3">Jenis Kacamata</label>
 										<div class="col-sm-4">
-											<input type="text" name="jenis_kacamata" class="form-control" placeholder="" required>
+											<input type="text" name="jenis_kacamata" class="form-control"  placeholder="" required>
 											<!-- <input type="hidden" name="now" class="form-control" value="<?php echo $now;?>" required>
 											<input type="hidden" name="npp" class="form-control" value="<?php echo $npp;?>" required> -->
 										</div>

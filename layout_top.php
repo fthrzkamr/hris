@@ -33,11 +33,83 @@ if (isset($conn)) {
 // Count perjalanan dinas pending approval untuk badge notifikasi
 $count_pending_perjalanan = 0;
 if (isset($conn)) {
-	$sql_perjalanan = "SELECT COUNT(*) as total FROM perjalanan_pengajuan WHERE status IN ('DIAJUKAN', 'APPROVED_HR')";
+	$sql_perjalanan = "SELECT COUNT(*) as total FROM perjalanan_pengajuan p2
+		INNER JOIN (
+			SELECT id_perjalanan, MAX(id) AS mid FROM perjalanan_pengajuan GROUP BY id_perjalanan
+		) m ON p2.id_perjalanan = m.id_perjalanan AND p2.id = m.mid
+		WHERE p2.status IN ('DIAJUKAN', 'APPROVED_HR', 'REALISASI_DIAJUKAN', 'REALISASI_VERIFIED_HR')";	
 	$result_perjalanan = mysqli_query($conn, $sql_perjalanan);
 	if ($result_perjalanan) {
 		$count_pending_perjalanan = mysqli_fetch_assoc($result_perjalanan)['total'];
 	}
+}
+
+// Count training pending approval untuk badge notifikasi
+$count_pending_training = 0;
+if (isset($conn)) {
+	$sql_training = "SELECT COUNT(*) as total FROM pengajuan_training WHERE status IS NULL OR status = 'Pending'";
+	$result_training = mysqli_query($conn, $sql_training);
+	if ($result_training) {
+		$count_pending_training = mysqli_fetch_assoc($result_training)['total'];
+	}
+}
+
+
+
+// Notifikasi Approval Baru (Dengan Filter Skop Dinamis)
+$scope_filter = "";
+if (isset($sess_mngid) && isset($conn)) {
+    $id_koor = '-1'; $id_man = '-1'; $id_lead = '-1';
+    
+    if ($res_k = mysqli_query($conn, "SELECT id_koordinator FROM koordinator WHERE npp='$sess_mngid'")) {
+        if ($row_k = mysqli_fetch_assoc($res_k)) $id_koor = $row_k['id_koordinator'];
+    }
+    if ($res_m = mysqli_query($conn, "SELECT id_manager FROM manager WHERE npp='$sess_mngid'")) {
+        if ($row_m = mysqli_fetch_assoc($res_m)) $id_man = $row_m['id_manager'];
+    }
+    if ($res_l = mysqli_query($conn, "SELECT id_leader FROM leader WHERE npp='$sess_mngid'")) {
+        if ($row_l = mysqli_fetch_assoc($res_l)) $id_lead = $row_l['id_leader'];
+    }
+    
+    if ($id_koor != '-1') $scope_filter = " AND employee.nama_koordinator='$id_koor' ";
+    elseif ($id_man != '-1') $scope_filter = " AND employee.nama_manager='$id_man' ";
+    elseif ($id_lead != '-1') $scope_filter = " AND employee.nama_leader='$id_lead' ";
+}
+
+$count_pending_cuti = 0;
+if (isset($conn)) {
+    $res_cuti = mysqli_query($conn, "SELECT COUNT(*) as total FROM cuti JOIN employee ON cuti.npp=employee.npp WHERE (cuti.stt_cuti LIKE '%Menunggu%' OR cuti.stt_cuti LIKE '%Pending%') $scope_filter");
+    if ($res_cuti) $count_pending_cuti = mysqli_fetch_assoc($res_cuti)['total'];
+}
+
+$count_pending_lembur = 0;
+if (isset($conn)) {
+    $res_lembur = mysqli_query($conn, "SELECT COUNT(*) as total FROM lembur JOIN employee ON lembur.npp=employee.npp WHERE (lembur.status LIKE '%Menunggu%' OR lembur.status LIKE '%Pending%') $scope_filter");
+    if ($res_lembur) $count_pending_lembur = mysqli_fetch_assoc($res_lembur)['total'];
+}
+
+$count_pending_reimburse = 0;
+if (isset($conn)) {
+    $res_reimb = mysqli_query($conn, "SELECT COUNT(*) as total FROM rembes JOIN employee ON rembes.npp=employee.npp WHERE (rembes.status LIKE '%Menunggu%' OR rembes.status LIKE '%Pending%') $scope_filter");
+    if ($res_reimb) $count_pending_reimburse = mysqli_fetch_assoc($res_reimb)['total'];
+}
+
+$count_pending_kacamata = 0;
+if (isset($conn)) {
+    $res_kaca = mysqli_query($conn, "SELECT COUNT(*) as total FROM kacamata JOIN employee ON kacamata.npp=employee.npp WHERE (kacamata.status LIKE '%Menunggu%' OR kacamata.status LIKE '%Pending%') $scope_filter");
+    if ($res_kaca) $count_pending_kacamata = mysqli_fetch_assoc($res_kaca)['total'];
+}
+
+$count_pending_permintaan = 0;
+if (isset($conn)) {
+    $res_permintaan = mysqli_query($conn, "SELECT COUNT(*) as total FROM permintaan_karyawan JOIN employee ON permintaan_karyawan.npp=employee.npp WHERE (permintaan_karyawan.status LIKE '%Menunggu%' OR permintaan_karyawan.status LIKE '%Pending%') $scope_filter");
+    if ($res_permintaan) $count_pending_permintaan = mysqli_fetch_assoc($res_permintaan)['total'];
+}
+
+$count_pending_mobil = 0;
+if (isset($conn)) {
+    $res_mobil = mysqli_query($conn, "SELECT COUNT(*) as total FROM peminjaman_mobil WHERE status = 'Menunggu'");
+    if ($res_mobil) $count_pending_mobil = mysqli_fetch_assoc($res_mobil)['total'];
 }
 ?>
 <!DOCTYPE html>
@@ -148,11 +220,18 @@ if (isset($conn)) {
 							}
 							echo '</a></li>';
 						} else {
-							echo '<li><a href="calon_karyawan_list.php"><i class="fa fa-user-plus fa-fw"></i>&nbsp;Calon Karyawan';
+							echo '<li><a href="calon_karyawan_list.php"><i class="fa fa-user fa-fw"></i>&nbsp;Calon Karyawan';
 							if($count_pending_calon > 0) {
 								echo ' <span class="badge" style="background-color: #d9534f; margin-left: 5px;">' . $count_pending_calon . '</span>';
 							}
 							echo '</a></li>';
+						}
+
+						// Menu Hasil Test Calon Karyawan
+						if ($pagedesc == "Hasil Test Calon") {
+							echo '<li><a href="test_calon_list.php" class="active"><i class="fa fa-pencil-square-o fa-fw"></i>&nbsp;Hasil Test Calon</a></li>';
+						} else {
+							echo '<li><a href="test_calon_list.php"><i class="fa fa-pencil-square-o fa-fw"></i>&nbsp;Hasil Test Calon</a></li>';
 						}
 						
 						if (isset($menuparent) && $menuparent == "master") {
@@ -162,7 +241,7 @@ if (isset($conn)) {
 						}
 						?>
 						<!-- open <li> tag generated with php, see line 134-139 -->
-						<a href="#"><i class="fa fa-group fa-fw"></i>&nbsp;Master Data <span
+						<a href="#"><i class="fa fa-database fa-fw"></i>&nbsp;Master Data <span
 								class="fa arrow"></span></a>
 						<ul class="nav nav-second-level">
 							<?php
@@ -197,21 +276,25 @@ if (isset($conn)) {
 						if (
 							isset($pagedesc) && $pagedesc == "Pengajuan Karyawan"
 						) {
-							echo '<li><a href="permintaan_karyawan_list.php" class="active"><i class="fa fa-download fa-fw"></i>&nbsp;Pengajuan Karyawan</a></li>';
+							echo '<li><a href="permintaan_karyawan_list.php" class="active"><i class="fa fa-users fa-fw"></i>&nbsp;Pengajuan Karyawan</a></li>';
 						} else {
-							echo '<li><a href="permintaan_karyawan_list.php"><i class="fa fa-download fa-fw"></i>&nbsp;Pengajuan Karyawan</a></li>';
+							echo '<li><a href="permintaan_karyawan_list.php"><i class="fa fa-users fa-fw"></i>&nbsp;Pengajuan Karyawan</a></li>';
 						}
 						?>
 
 						<!-- Form Permintaan Karyawan Baru -->
-						<?php
-						$is_form_permintaan_karyawan = (basename($_SERVER['PHP_SELF']) == 'form_permintaan_karyawan.php');
-						if ($is_form_permintaan_karyawan) {
-							echo '<li><a href="form_permintaan_karyawan.php" class="active"><i class="fa fa-file-text-o fa-fw"></i>&nbsp;Form Permintaan Karyawan</a></li>';
-						} else {
-							echo '<li><a href="form_permintaan_karyawan.php"><i class="fa fa-file-text-o fa-fw"></i>&nbsp;Form Permintaan Karyawan</a></li>';
-						}
-						?>
+
+                        <li>
+                            <a href="#"><i class="fa fa-users fa-fw"></i> Permintaan Karyawan<span class="fa arrow"></span></a>
+                            <ul class="nav nav-second-level">
+                                <li>
+                                    <a href="form_permintaan_karyawan.php"><i class="fa fa-plus-circle"></i> Buat Permintaan Baru</a>
+                                </li>
+                                <li>
+                                    <a href="permintaan_karyawan_list.php"><i class="fa fa-list"></i> Daftar Permintaan Saya</a>
+                                </li>
+                            </ul>
+                        </li>
 						<?php
 						if (isset($menuparent) && $menuparent == "approval") {
 							echo '<li class="active">';
@@ -233,21 +316,33 @@ if (isset($conn)) {
 							<ul class="nav nav-second-level">
 								<li>
 									<a href="perjalanan_dinas_list.php" class="<?php echo ($pagedesc == 'Daftar Perjalanan Dinas') ? 'active' : ''; ?>">
-										<i class="fa fa-list"></i> Daftar Perjalanan Dinas
+										<i class="fa fa-check-square-o fa-fw"></i> Daftar Perjalanan Dinas
 										<?php echo $badge_perjalanan; ?>
 									</a>
 								</li>
+								<li class="divider"></li>
+								<li><a href="form_perjalanan_dinas.php"><i class="fa fa-plus fa-fw"></i> Buat Pengajuan Baru</a></li>
+								<li><a href="perjalanan_dinas_saya.php"><i class="fa fa-user fa-fw"></i> Daftar Pengajuan Saya</a></li>
 							</ul>
 						</li>
 
 						<!-- Menu Training -->
 						<?php
 						if (isset($menuparent) && $menuparent == "training") {
-							echo '<li><a href="training_list.php" class="active"><i class="fa fa-download fa-fw"></i>&nbsp;Pengajuan Training</a></li>';
+							echo '<li class="active">';
 						} else {
-							echo '<li><a href="training_list.php"><i class="fa fa-download fa-fw"></i>&nbsp;Pengajuan Training</a></li>';
+							echo '<li>';
 						}
+						$badge_training = ($count_pending_training > 0) ? ' <span class="badge" style="background-color: #d9534f; margin-left: 5px;">' . $count_pending_training . '</span>' : '';
 						?>
+							<a href="#"><i class="fa fa-graduation-cap fa-fw"></i> Pengajuan Training<?php echo $badge_training; ?><span class="fa arrow"></span></a>
+							<ul class="nav nav-second-level">
+								<li><a href="training_list.php" class="<?php echo ($pagedesc == 'Daftar Training') ? 'active' : ''; ?>"><i class="fa fa-check-square-o fa-fw"></i> Approval Training<?php echo $badge_training; ?></a></li>
+								<li class="divider"></li>
+								<li><a href="form_pengajuan_training.php"><i class="fa fa-plus fa-fw"></i> Buat Pengajuan Baru</a></li>
+								<li><a href="training_status.php"><i class="fa fa-user fa-fw"></i> Status Pengajuan Saya</a></li>
+							</ul>
+						</li>
 
 						<!-- Insentif menu -->
 						<?php
@@ -257,7 +352,7 @@ if (isset($conn)) {
 							echo '<li>';
 						}
 						?>
-						<a href="#"><i class="fa fa-download fa-fw"></i>&nbsp;Insentif<span class="fa arrow"></span></a>
+						<a href="#"><i class="fa fa-gift fa-fw"></i>&nbsp;Insentif<span class="fa arrow"></span></a>
 						<ul class="nav nav-second-level">
 							<?php
 							if ($pagedesc == "Upload Insentif Kurir") {
@@ -279,15 +374,56 @@ if (isset($conn)) {
 						</ul><!-- /.nav-second-level -->
 						</li>
 
-						<!-- Menu Approval Request Slip Gaji untuk HR/Admin -->
+						<!-- Menu Slip Gaji (Pengajuan + Approval) untuk HR/Admin -->
 						<?php
 						$badge_slip = ($count_pending_slip > 0) ? ' <span class="badge" style="background-color: #d9534f;">' . $count_pending_slip . '</span>' : '';
-						if (isset($pagedesc) && $pagedesc == "Approval Request Slip Gaji") {
-							echo '<li><a href="request_slip_gaji_approval_list.php" class="active"><i class="fa fa-download fa-fw"></i>&nbsp;Approval Slip Gaji' . $badge_slip . '</a></li>';
+						echo (isset($menuparent) && $menuparent == "gaji") ? '<li class="active">' : '<li>';
+						?>
+							<a href="#"><i class="fa fa-download fa-fw"></i>&nbsp;Slip Gaji<span class="fa arrow"></span></a>
+							<ul class="nav nav-second-level">
+								<?php
+								if (isset($pagedesc) && $pagedesc == "Request Slip Gaji") {
+									echo '<li><a href="request_slip_gaji.php" class="active"><i class="fa fa-file-text-o fa-fw"></i> Pengajuan Slip Gaji</a></li>';
+								} else {
+									echo '<li><a href="request_slip_gaji.php"><i class="fa fa-file-text-o fa-fw"></i> Pengajuan Slip Gaji</a></li>';
+								}
+								if (isset($pagedesc) && $pagedesc == "Daftar Request Slip Gaji Saya") {
+									echo '<li><a href="request_slip_gaji_list_saya.php" class="active"><i class="fa fa-list fa-fw"></i> Daftar Request Saya</a></li>';
+								} else {
+									echo '<li><a href="request_slip_gaji_list_saya.php"><i class="fa fa-list fa-fw"></i> Daftar Request Saya</a></li>';
+								}
+								if (isset($pagedesc) && $pagedesc == "Approval Request Slip Gaji") {
+									echo '<li><a href="request_slip_gaji_approval_list.php" class="active"><i class="fa fa-check-square-o fa-fw"></i> Approval Slip Gaji' . $badge_slip . '</a></li>';
+								} else {
+									echo '<li><a href="request_slip_gaji_approval_list.php"><i class="fa fa-check-square-o fa-fw"></i> Approval Slip Gaji' . $badge_slip . '</a></li>';
+								}
+								if (isset($pagedesc) && $pagedesc == "Daftar Slip Gaji Approved") {
+									echo '<li><a href="request_slip_gaji_list.php" class="active"><i class="fa fa-file-excel-o fa-fw"></i> Daftar Slip Gaji (Semua)</a></li>';
+								} else {
+									echo '<li><a href="request_slip_gaji_list.php"><i class="fa fa-file-excel-o fa-fw"></i> Daftar Slip Gaji (Semua)</a></li>';
+								}
+								?>
+							</ul><!-- /.nav-second-level -->
+						</li>
+
+						<!-- Menu Pinjaman -->
+						<?php
+						if (isset($pagedesc) && $pagedesc == "Pengajuan Pinjaman") {
+							echo '<li><a href="pinjaman_saya.php" class="active"><i class="fa fa-money fa-fw"></i>&nbsp;Pinjaman Saya</a></li>';
 						} else {
-							echo '<li><a href="request_slip_gaji_approval_list.php"><i class="fa fa-download fa-fw"></i>&nbsp;Approval Slip Gaji' . $badge_slip . '</a></li>';
+							echo '<li><a href="pinjaman_saya.php"><i class="fa fa-money fa-fw"></i>&nbsp;Pinjaman Saya</a></li>';
 						}
 						?>
+
+						<!-- Menu Peminjaman Mobil -->
+						<?php
+						if (isset($pagedesc) && $pagedesc == "Peminjaman Mobil") {
+							echo '<li><a href="peminjaman_mobil.php" class="active"><i class="fa fa-car fa-fw"></i>&nbsp;Peminjaman Mobil</a></li>';
+						} else {
+							echo '<li><a href="peminjaman_mobil.php"><i class="fa fa-car fa-fw"></i>&nbsp;Peminjaman Mobil</a></li>';
+						}
+						?>
+
 
 						<?php
 						if (isset($menuparent) && $menuparent == "laporan") {
@@ -297,7 +433,7 @@ if (isset($conn)) {
 						}
 						?>
 						<!-- open <li> tag generated with php, see line 155-160 -->
-						<a href="#"><i class="fa fa-download fa-fw"></i>&nbsp;Laporan<span class="fa arrow"></span></a>
+						<a href="#"><i class="fa fa-file-text-o fa-fw"></i>&nbsp;Laporan<span class="fa arrow"></span></a>
 						<ul class="nav nav-second-level">
 							<?php
 							if ($pagedesc == "Laporan") {

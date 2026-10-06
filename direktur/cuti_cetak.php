@@ -21,11 +21,6 @@ function valid()
 		return false;
 	}
 
-	if(document.cuti.mulai.value < document.cuti.now.value){
-		alert("Tanggal mulai cuti tidak valid!");
-		return false;
-	}
-	
 	return true;
 }
 </script>
@@ -82,7 +77,7 @@ function valid()
 									<div class="form-group">
 										<label class="control-label col-sm-3">Mulai Cuti</label>
 										<div class="col-sm-4">
-											<input type="date" name="mulai" class="form-control" required>
+											<input type="date" name="mulai" class="form-control"  required>
 											<input type="hidden" name="now" class="form-control" value="<?php echo $now;?>" required>
 											<input type="hidden" name="npp" class="form-control" value="<?php echo $npp;?>" required>
 										</div>
@@ -91,7 +86,7 @@ function valid()
 									<div class="form-group">
 										<label class="control-label col-sm-3">Akhir Cuti</label>
 										<div class="col-sm-4">
-											<input type="date" name="akhir" class="form-control" required>
+											<input type="date" name="akhir" class="form-control"  required>
 										</div>
 									</div>
 

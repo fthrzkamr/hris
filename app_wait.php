@@ -28,7 +28,7 @@
 							<div class="panel-body">
 						<?php
 								$Sql = "SELECT cuti.*, employee.* FROM cuti, employee WHERE cuti.npp=employee.npp AND 
-										cuti.stt_cuti='Menunggu Approval HRD' ORDER BY cuti.tgl_pengajuan DESC";
+										cuti.stt_cuti='Menunggu Approval' ORDER BY cuti.tgl_pengajuan DESC";
 								$Qry = mysqli_query($conn, $Sql);
 								
 							?>						

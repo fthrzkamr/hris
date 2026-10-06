@@ -52,6 +52,12 @@ $(document).ready(function() {
 											<input type="hidden" name="npp" class="form-control" value="<?php echo $npp;?>" required>
 										</div>
 									</div>
+									 <div class="form-group">
+										<label class="control-label col-sm-3">Nama Koordinator</label>
+										<div class="col-sm-4">
+											<input type="text" name="nama_koordinator" class="form-control" value="<?php echo $data['nama_koordinator'] ?>" required readonly>
+										</div>
+									</div>
 									
 									<!-- tujuan cuti -->
 									<div class="form-group">
@@ -74,6 +80,7 @@ $(document).ready(function() {
 											<input type="text" name="cabang" class="form-control" " value="<?php echo $data['cabang'] ?>" readonly>
 										</div>
 									</div>
+
 
                                     <div class="form-group">
 										<label class="control-label col-sm-3">Tanggal Lembur</label>
@@ -98,7 +105,8 @@ $(document).ready(function() {
 									</div>
                                     
 
-								 
+								   
+
 									<div class="form-group">
 										<label class="control-label col-sm-3">Alasan Lembur</label>
 										<div class="col-sm-4">

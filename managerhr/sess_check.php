@@ -4,8 +4,8 @@
 	// membaca nilai variabel session 
 	$chk_sess = $_SESSION['managerhr'];
 	// memanggil file koneksi
-	include("dist/config/koneksi.php");
-	include("dist/config/library.php");
+	include(__DIR__ . "/../dist/config/koneksi.php");
+	include(__DIR__ . "/../dist/config/library.php");
 	// mengambil data pengguna dari tabel pengguna
 	$sql_sess = "SELECT * FROM employee WHERE npp='". $chk_sess ."'";
 	$ress_sess = mysqli_query($conn, $sql_sess);

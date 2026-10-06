@@ -31,14 +31,12 @@ $id = $sess_mngid;
                         </div>
 
                         <?php
-                        $Sql = "SELECT rembes.*, employee.* FROM rembes, employee 
-                                WHERE rembes.npp=employee.npp 
-                                AND YEAR(rembes.tanggal_pemeriksaan) = 2025
-                                ORDER BY
-                                    CASE 
-                                        WHEN rembes.status = 'Menunggu di Approve' THEN 1 
-                                        ELSE 2 
-                                    END,
+                        $tahun_batas = (int)date('Y') - 1;
+                        $Sql = "SELECT rembes.*, employee.* FROM rembes 
+                                JOIN employee ON rembes.npp = employee.npp
+                                WHERE YEAR(rembes.tanggal_pemeriksaan) >= $tahun_batas
+                                ORDER BY 
+                                    CASE WHEN rembes.status LIKE '%Menunggu%' THEN 0 ELSE 1 END ASC,
                                     rembes.tanggal_pemeriksaan DESC";
 
                         $Qry = mysqli_query($conn, $Sql);
@@ -110,6 +108,7 @@ $id = $sess_mngid;
         $('#tabel-data').DataTable({
             "responsive": true,
             "processing": true,
+            "order": [], // Urutan dari SQL, bukan DataTables
             "columnDefs": [
                 { "orderable": false, "targets": [] }
             ]

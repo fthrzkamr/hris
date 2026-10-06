@@ -103,9 +103,32 @@ $(document).ready(function() {
 									</div>
 
 									<div class="form-group">
-										<label class="control-label col-sm-3">Foto</label>
+										<label class="control-label col-sm-3">Foto Bukti / Kwitansi</label>
 										<div class="col-sm-4">
-											<input type="text" name="foto" class="form-control" value="<?php echo $data['foto'];?> " readonly>
+											<?php
+											$foto_file = $data['foto'];
+											$foto_path = "../dist/uploads/raim_kesehatan/" . $foto_file;
+											$ext = strtolower(pathinfo($foto_file, PATHINFO_EXTENSION));
+											
+											if (!empty($foto_file)) {
+												if (in_array($ext, ['jpg', 'jpeg', 'png', 'gif'])) {
+													// Menampilkan pratinjau gambar jika file adalah gambar
+													echo '<a href="'.$foto_path.'" target="_blank">';
+													echo '<img src="'.$foto_path.'" class="img-responsive img-thumbnail" style="max-height: 250px; margin-bottom: 10px;" alt="Bukti Kwitansi">';
+													echo '</a>';
+												} else if (in_array($ext, ['pdf'])) {
+													// Menampilkan tombol download/lihat jika file adalah PDF
+													echo '<a href="'.$foto_path.'" target="_blank" class="btn btn-primary"><i class="fa fa-file-pdf-o"></i> Lihat Dokumen PDF</a>';
+												} else {
+													// File format lain
+													echo '<a href="'.$foto_path.'" target="_blank" class="btn btn-default"><i class="fa fa-download"></i> Download File</a>';
+												}
+												echo '<p class="help-block"><small><i>Klik gambar/tombol di atas untuk melihat ukuran penuh.</i></small></p>';
+												echo '<input type="hidden" name="foto" value="'.$foto_file.'">';
+											} else {
+												echo '<input type="text" class="form-control" value="Tidak ada foto terlampir" readonly>';
+											}
+											?>
 										</div>
 									</div>
 									

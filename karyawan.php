@@ -38,6 +38,7 @@
 											<th width="10%">Nama Karyawan</th>
 											<th width="5%">Telepon</th>
 											<th width="10%">Bagian</th>
+											<th width="10%">Koordinator</th>
 											<th width="5%">Sisa Cuti</th>
 											<th width="10%">Status Karyawan</th>
 											<th width="10%">Opsi</th>
@@ -46,7 +47,11 @@
 									<tbody>
 										<?php
 											$i = 1;
-											$sql = "SELECT B.nama_bagian,B.id_bagian,A.npp,A.nama_emp, A.telp_emp, A.jml_cuti,A.aktif, A.status_karyawan  FROM employee AS A LEFT JOIN bagian AS B ON A.nama_bagian = B.id_bagian ORDER BY A.nama_emp ASC";
+											$sql = "SELECT B.nama_bagian,B.id_bagian, C.nama_koordinator, A.npp,A.nama_emp, A.telp_emp, A.jml_cuti,A.aktif, A.status_karyawan  
+                                                    FROM employee AS A 
+                                                    LEFT JOIN bagian AS B ON A.nama_bagian = B.id_bagian 
+                                                    LEFT JOIN koordinator AS C ON A.nama_koordinator = C.id_koordinator
+                                                    ORDER BY A.nama_emp ASC";
 											$ress = mysqli_query($conn, $sql);
 											while($data = mysqli_fetch_array($ress)) {
 												echo '<tr>';
@@ -55,14 +60,14 @@
 												echo '<td class="text-center">'. $data['nama_emp'] .'</td>';
 												echo '<td class="text-center">'. $data['telp_emp'] .'</td>';
 												echo '<td class="text-center">'. $data['nama_bagian'] .'</td>';
+												echo '<td class="text-center">'. $data['nama_koordinator'] .'</td>';
 												echo '<td class="text-center">'. $data['jml_cuti'] .'</td>';
                                                 echo '<td class="text-center">'. $data['aktif'] . ' - ' . $data['status_karyawan'] . '</td>';
 												echo '<td class="text-center">
 													  <a href="#myModal" data-toggle="modal" data-load-code="'.$data['npp'].'" data-remote-target="#myModal .modal-body" class="btn btn-primary btn-xs">Detail</a>
-													  <a href="karyawan_edit.php?npp='. $data['npp'] .'" class="btn btn-warning btn-xs">Edit</a>';?>
-													  <a href="karyawan_hapus.php?id=<?php echo $data['npp'];?>" onclick="return confirm('Apakah anda yakin akan menghapus <?php echo $data['nama_emp'];?>?');" class="btn btn-danger btn-xs">Hapus</a></td>
-												<?php
-													  echo '</td>';
+													  <a href="karyawan_edit.php?npp='. $data['npp'] .'" class="btn btn-warning btn-xs">Edit</a>
+													  <a href="karyawan_hapus.php?id='. $data['npp'].'" onclick="return confirm(\'Apakah anda yakin akan menghapus '. $data['nama_emp'] .'?\');" class="btn btn-danger btn-xs">Hapus</a>
+													  </td>';
 												echo '</tr>';												
 												$i++;
 											}
@@ -92,7 +97,7 @@
 			"responsive": true,
 			"processing": true,
 			"columnDefs": [
-				{ "orderable": false, "targets": [6] }
+				{ "orderable": false, "targets": [8] }
 			]
 		});
 		

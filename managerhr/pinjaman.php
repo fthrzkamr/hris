@@ -1,6 +1,11 @@
 <?php
 include("sess_check.php");
 
+if (isset($row_sess['status_karyawan']) && $row_sess['status_karyawan'] == 'Magang') {
+	header("location: index.php");
+	exit;
+}
+
 // Auto-process pembayaran angsuran yang sudah jatuh tempo
 include("pinjaman_auto_process.php");
 
@@ -70,6 +75,18 @@ if (isset($_SESSION['auto_payment_processed']) && $_SESSION['auto_payment_proces
         color: #ffffff;
         /* Warna teks putih */
     }
+
+    .status-display.menunggu {
+        background-color: #f0ad4e;
+        /* Warna orange */
+        color: #ffffff;
+    }
+
+    .status-display.ditolak {
+        background-color: #d9534f;
+        /* Warna merah */
+        color: #ffffff;
+    }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -115,9 +132,10 @@ if (isset($_SESSION['auto_payment_processed']) && $_SESSION['auto_payment_proces
                             <tbody>
                                 <?php
                                 $i = 1;
-                                $sql = "SELECT p.id_pinjaman, p.npp, e.nama_emp, p.tanggal_pengajuan, p.jumlah_pinjaman, p.tenor, p.status, p.cicilan_per_bulan
+                                 $sql = "SELECT p.id_pinjaman, p.npp, e.nama_emp, p.tanggal_pengajuan, p.jumlah_pinjaman, p.tenor, p.status, p.cicilan_per_bulan
                                         FROM pinjaman p
                                         JOIN employee e ON p.npp = e.npp
+                                        WHERE p.status IN ('aktif', 'lunas')
                                         ORDER BY p.tanggal_pengajuan DESC";
                                 $ress = mysqli_query($conn, $sql) or die(mysqli_error($conn));
                                 while ($data = mysqli_fetch_array($ress)) {
@@ -172,12 +190,77 @@ if (isset($_SESSION['auto_payment_processed']) && $_SESSION['auto_payment_proces
                 </div> <!-- /.panel -->
             </div>
         </div>
+
+        <!-- Persetujuan Pinjaman (Menunggu Approval) -->
+        <div class="row" style="margin-top: 20px;">
+            <div class="col-lg-12">
+                <div class="panel panel-default">
+                    <div class="panel-body">
+                        <div class="panel-heading" style="margin-bottom: 15px;">
+                            <h4 class="mb-0">Persetujuan Pinjaman</h4>
+                        </div>
+                        <table class="table table-striped table-bordered table-hover" id="tabel-approval">
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>Nama</th>
+                                    <th>Tgl Pinjam</th>
+                                    <th>Jumlah</th>
+                                    <th>Tenor (x)</th>
+                                    <th>Cicilan</th>
+                                    <th>Status</th>
+                                    <th style="width:230px">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                $i = 1;
+                                $sql_app = "SELECT p.id_pinjaman, p.npp, e.nama_emp, p.tanggal_pengajuan, p.jumlah_pinjaman, p.tenor, p.status, p.cicilan_per_bulan
+                                            FROM pinjaman p
+                                            JOIN employee e ON p.npp = e.npp
+                                            WHERE p.status = 'menunggu'
+                                            ORDER BY p.tanggal_pengajuan DESC";
+                                $ress_app = mysqli_query($conn, $sql_app) or die(mysqli_error($conn));
+                                while ($data_app = mysqli_fetch_array($ress_app)) {
+                                ?>
+                                    <tr>
+                                        <td class="text-center"><?= $i ?></td>
+                                        <td class="text-center"><?= $data_app['nama_emp'] ?></td>
+                                        <td class="text-center"><?= format_tanggal($data_app['tanggal_pengajuan']) ?></td>
+                                        <td class="text-center"><?= format_rupiah($data_app['jumlah_pinjaman']) ?></td>
+                                        <td class="text-center"><?= $data_app['tenor'] ?>x</td>
+                                        <td class="text-center"><?= format_rupiah($data_app['cicilan_per_bulan']) ?></td>
+                                        <td class="text-center status <?= $data_app['status'] ?>">
+                                            <div class="status-display <?= $data_app['status'] ?>">
+                                                <?= ucfirst($data_app['status']) ?>
+                                            </div>
+                                        </td>
+                                        <td class="text-center">
+                                            <div style="display:inline-block; white-space: nowrap;">
+                                                <a href="pinjaman_approve.php?id=<?= $data_app['id_pinjaman'] ?>" class="btn btn-success btn-xs" style="margin-right:4px;" title="Setujui" onclick="return confirm('Apakah Anda yakin ingin menyetujui pinjaman ini?')"><i class="fa fa-check"></i> Setuju</a>
+                                                <a href="pinjaman_reject.php?id=<?= $data_app['id_pinjaman'] ?>" class="btn btn-danger btn-xs" style="margin-right:4px;" title="Tolak" onclick="return confirm('Apakah Anda yakin ingin menolak pinjaman ini?')"><i class="fa fa-close"></i> Tolak</a>
+                                                <a href="pinjaman_detail.php?id=<?= $data_app['id_pinjaman'] ?>" class="btn btn-info btn-xs" title="Detail"><i class="fa fa-eye"></i> Detail</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php $i++;
+                                } ?>
+                            </tbody>
+                        </table>
+                    </div> <!-- /.panel-body -->
+                </div> <!-- /.panel -->
+            </div>
+        </div>
     </div>
 </div>
 
 <script type="text/javascript">
     $(document).ready(function() {
         $('#tabel-data').DataTable({
+            "responsive": true,
+            "processing": true
+        });
+        $('#tabel-approval').DataTable({
             "responsive": true,
             "processing": true
         });

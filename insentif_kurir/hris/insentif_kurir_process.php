@@ -1,6 +1,6 @@
 <?php
-include("sess_check.php");
-include("dist/config/koneksi.php");
+include(__DIR__ . '/sess_check.php');
+include(dirname(__DIR__, 2) . '/dist/config/koneksi.php');
 
 // Check if file is uploaded
 if (!isset($_FILES['excel_file'])) {
@@ -11,7 +11,7 @@ if (!isset($_FILES['excel_file'])) {
 }
 
 // Load PhpSpreadsheet
-require_once 'vendor/autoload.php';
+require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;

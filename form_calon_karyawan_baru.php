@@ -42,6 +42,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $cabang = $_POST['cabang'] ?? '';
     $nama_bagian = $_POST['nama_bagian'] ?? '';
 
+    // Prepare emergency contact storage BEFORE validation
+    $nomor_emrg_pr = '';
+    if(!empty($emrg1_name)) $nomor_emrg_pr = $emrg1_name . '|' . $emrg1_phone;
+    else $nomor_emrg_pr = $emrg1_phone;
+
+    $nomor_emrg_kd = '';
+    if(!empty($emrg2_name)) $nomor_emrg_kd = $emrg2_name . '|' . $emrg2_phone;
+    else $nomor_emrg_kd = $emrg2_phone;
+
     // Generate NPP for applicant: Format YYDDMMXX (8 digits)
     // YY = 2 digit tahun (26 untuk 2026)
     // DDMM = 4 digit tanggal lahir (1503 untuk 15 Maret)
@@ -118,15 +127,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else if (empty($foto_emp)) {
         $error = 'Foto wajib diupload';
     } else {
-        // Prepare emergency contact storage: combine name and number into DB fields
-        $nomor_emrg_pr = '';
-        if(!empty($emrg1_name)) $nomor_emrg_pr = $emrg1_name . '|' . $emrg1_phone;
-        else $nomor_emrg_pr = $emrg1_phone;
-
-        $nomor_emrg_kd = '';
-        if(!empty($emrg2_name)) $nomor_emrg_kd = $emrg2_name . '|' . $emrg2_phone;
-        else $nomor_emrg_kd = $emrg2_phone;
-
         // Keep alamat_tinggal_sekarang as provided (single input). Do not append status detail.
 
         // Insert into employee table with status 'Calon Karyawan'

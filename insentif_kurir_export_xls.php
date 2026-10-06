@@ -43,13 +43,13 @@ $sql_base = "FROM transaksi_insentif_kurir t
     LEFT JOIN employee e ON t.npp = e.npp
     LEFT JOIN bagian b ON e.nama_bagian = b.id_bagian
     LEFT JOIN (
-        SELECT l.npp, DATE_FORMAT(l.tgl_lembur, '%Y-%m') AS periode,
-            SUM(CASE WHEN LOWER(l.tujuan_lembur) LIKE '%operasional%' THEN (l.jumlah * {$rate_op}) ELSE 0 END) AS lembur_operasional_amt,
+        SELECT l.npp, DATE_FORMAT(DATE_ADD(l.tgl_lembur, INTERVAL 7 HOUR), '%Y-%m') AS periode,
+            SUM(CASE WHEN LOWER(l.tujuan_lembur) LIKE '%operasional%' OR LOWER(l.tujuan_lembur) LIKE '%oprasional%' THEN (l.jumlah * {$rate_op}) ELSE 0 END) AS lembur_operasional_amt,
             SUM(CASE WHEN LOWER(l.tujuan_lembur) LIKE '%ambil%' OR LOWER(l.tujuan_lembur) LIKE '%pickup%' THEN (l.jumlah * {$rate_ambil}) ELSE 0 END) AS lembur_ambil_amt,
             SUM(CASE WHEN LOWER(l.tujuan_lembur) LIKE '%lain%' OR LOWER(l.tujuan_lembur) LIKE '%lainnya%' THEN (l.jumlah * {$rate_lain}) ELSE 0 END) AS lembur_lain_amt
         FROM lembur l
         WHERE l.status = 'Approved'
-        GROUP BY l.npp, DATE_FORMAT(l.tgl_lembur, '%Y-%m')
+        GROUP BY l.npp, DATE_FORMAT(DATE_ADD(l.tgl_lembur, INTERVAL 7 HOUR), '%Y-%m')
     ) lb ON lb.npp = t.npp AND lb.periode = t.periode
     WHERE 1=1";
 
@@ -254,3 +254,4 @@ $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
 $writer->save('php://output');
 exit();
 ?>
+

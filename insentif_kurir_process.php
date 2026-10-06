@@ -67,8 +67,9 @@ function _setting_value($row)
 }
 
 try {
-    // Override with database values if available
-    $rs = mysqli_query($conn, "SELECT nama_variabel, nilai_angka, nominal_rp, nilai_waktu FROM pengaturan_insentif_kurir");
+    // Override with database values from pengaturan_insentif_kurir (active settings)
+    $rs = mysqli_query($conn, "SELECT nama_variabel, nilai_angka, nominal_rp, nilai_waktu 
+                               FROM pengaturan_insentif_kurir");
     if ($rs) {
         while ($r = mysqli_fetch_assoc($rs)) {
             $k = strtoupper(trim($r['nama_variabel']));
@@ -418,7 +419,10 @@ try {
         $lembur_ambil = 0;
         $lembur_lain = 0;
 
-        $lembur_stmt = mysqli_prepare($conn, "SELECT tujuan_lembur, SUM(jumlah) as total FROM lembur WHERE npp = ? AND DATE(tgl_lembur) = ? AND status = 'Approved' GROUP BY tujuan_lembur");
+        // FIX: Konversi UTC ke WIB (UTC+7) agar tanggal match.
+        // Data tgl_lembur di DB tersimpan sebagai UTC (jam 17:00:00 = 00:00 WIB hari berikutnya),
+        // sehingga DATE(tgl_lembur) bergeser -1 hari. Tambah 7 jam untuk konversi ke WIB.
+        $lembur_stmt = mysqli_prepare($conn, "SELECT tujuan_lembur, SUM(jumlah) as total FROM lembur WHERE npp = ? AND DATE(DATE_ADD(tgl_lembur, INTERVAL 7 HOUR)) = ? AND status = 'Approved' GROUP BY tujuan_lembur");
         if ($lembur_stmt) {
             mysqli_stmt_bind_param($lembur_stmt, 'ss', $npp, $tanggal_str);
             mysqli_stmt_execute($lembur_stmt);

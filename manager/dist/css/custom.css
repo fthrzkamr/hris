@@ -89,8 +89,103 @@ h1.page-header {
 @media(max-width: 767px) {
 	#page-wrapper {
 		margin-bottom: 60px;
+		margin-left: 0 !important;
 	}
 	.huge {
 		font-size: 1.5em;
+	}
+
+	/* ===== NAVBAR MOBILE FIX ===== */
+
+	/* Navbar header area: logo + hamburger */
+	.navbar-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+		padding: 0 10px;
+		min-height: 50px;
+	}
+
+	/* Show brand on mobile (was hidden-xs) */
+	.navbar-brand.hidden-xs {
+		display: flex !important;
+		align-items: center;
+		padding: 8px 10px;
+		font-size: 15px;
+	}
+
+	/* Hamburger button style */
+	.navbar-toggle {
+		display: block !important;
+		margin: 0;
+		padding: 8px 10px;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		background: transparent;
+		float: right;
+		position: relative;
+		top: 0;
+	}
+	.navbar-toggle .icon-bar {
+		display: block;
+		width: 22px;
+		height: 2px;
+		border-radius: 1px;
+		background-color: #555;
+		margin: 4px 0;
+	}
+
+	/* User dropdown: hide from top-right on mobile, show inside collapsed menu */
+	.navbar-top-links.navbar-right {
+		display: none !important;
+	}
+
+	/* Sidebar collapse: full-width dropdown overlay */
+	.navbar-default.sidebar {
+		position: relative;
+		width: 100%;
+		z-index: 999;
+	}
+	.sidebar-nav.navbar-collapse {
+		max-height: 70vh;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+		border-top: 1px solid #e5e5e5;
+		background: #fff;
+		box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+	}
+	.sidebar-nav.navbar-collapse.in {
+		display: block !important;
+	}
+
+	/* Sidebar menu items on mobile */
+	#side-menu > li > a {
+		padding: 12px 15px;
+		font-size: 14px;
+		border-bottom: 1px solid #f0f0f0;
+	}
+	#side-menu > li.sidebar-search {
+		padding: 10px 15px;
+		background: #f8f8f8;
+	}
+	#side-menu > li.sidebar-search h4 {
+		margin: 0 0 4px;
+		font-size: 14px;
+	}
+	#side-menu > li.sidebar-search h5 {
+		margin: 0;
+		font-size: 12px;
+	}
+	.sidebar .nav-second-level li a {
+		padding: 10px 15px 10px 35px;
+		font-size: 13px;
+	}
+
+	/* Page content: no left margin on mobile */
+	#page-wrapper {
+		margin-left: 0 !important;
+		border-left: none !important;
+		padding: 0 10px;
 	}
 }

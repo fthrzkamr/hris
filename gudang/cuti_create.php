@@ -1,7 +1,7 @@
 <?php
-	include("sess_check.php");
-	
-
+require_once(file_exists(__DIR__ . "/libur_helper.php") ? __DIR__ . "/libur_helper.php" : dirname(__DIR__) . "/libur_helper.php");
+$libur_nasional = get_libur_nasional();
+include("sess_check.php");
 	
 	$sql = "SELECT * FROM employee WHERE npp='". $sess_mngid ."'";
 	$ress = mysqli_query($conn, $sql);
@@ -21,11 +21,6 @@ function valid()
 		return false;
 	}
 
-	if(document.cuti.mulai.value < document.cuti.now.value){
-		alert("Tanggal mulai cuti tidak valid!");
-		return false;
-	}
-	
 	return true;
 }
 </script>
@@ -33,7 +28,6 @@ function valid()
 <!-- top of file -->
 		<!-- Page Content -->
 		<div id="page-wrapper">
-            <div class="container-fluid">
                 <div class="row">
                     <div class="col-lg-12">
                         <h1 class="page-header">Pengajuan Cuti</h1>
@@ -72,6 +66,9 @@ function valid()
 												<option value="khitanan">Khitanan, Baptisan Anak (2 Hari)</option>
 												<option value="istri">Istri Melahirkan (4 Hari)</option>
 												<option value="keluarga">Anggota Keluarga Meninggal (1 Hari)</option>
+												<option value="izin">Izin</option>
+												<option value="izin Sakit">Izin Sakit</option>
+												<option value="hutang cuti">Hutang Cuti</option>
 											</select>
 										</div>
 									</div>
@@ -80,7 +77,7 @@ function valid()
 									<div class="form-group">
 										<label class="control-label col-sm-3">Mulai Cuti</label>
 										<div class="col-sm-4">
-											<input type="date" name="mulai" class="form-control" required>
+											<input type="date" name="mulai" class="form-control"  required>
 											<input type="hidden" name="now" class="form-control" value="<?php echo $now;?>" required>
 											<input type="hidden" name="npp" class="form-control" value="<?php echo $npp;?>" required>
 										</div>
@@ -89,7 +86,7 @@ function valid()
 									<div class="form-group">
 										<label class="control-label col-sm-3">Akhir Cuti</label>
 										<div class="col-sm-4">
-											<input type="date" name="akhir" class="form-control" required>
+											<input type="date" name="akhir" class="form-control"  required>
 										</div>
 									</div>
 
@@ -115,6 +112,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const tipeCuti = document.getElementById("tipe_cuti");
     const mulaiCuti = document.querySelector("input[name='mulai']");
     const akhirCuti = document.querySelector("input[name='akhir']");
+    const liburNasional = <?php echo json_encode($libur_nasional); ?>;
 
     tipeCuti.addEventListener("change", function () {
         if (mulaiCuti.value) {
@@ -129,40 +127,61 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     function hitungTanggalAkhir() {
-    let durasi = 0;
-    let mulai = new Date(mulaiCuti.value);
+        if (!mulaiCuti.value || !tipeCuti.value) return;
 
-    // Reset readOnly setiap kali tipe cuti berubah
-    akhirCuti.readOnly = false;
+        let targetHari = 0;
+        const tipe = tipeCuti.value;
 
-    if (tipeCuti.value === "cuti menikah") {
-        durasi = 2;
-    } else if (tipeCuti.value === "cuti hamil") {
-        durasi = 89;
-    } else if (tipeCuti.value === "keluarga inti") {
-        durasi = 1;
-    } else if (tipeCuti.value === "menikahkan") {
-        durasi = 1;
-    } else if (tipeCuti.value === "khitanan") {
-        durasi = 1;
-    } else if (tipeCuti.value === "istri") {
-        durasi = 3;
-    } else if (tipeCuti.value === "keluarga") {
-        durasi = 0;
-    } else {
-        akhirCuti.value = ""; // Reset jika cuti tahunan
-        return;
+        // Reset readOnly tiap tipe cuti berubah
+        akhirCuti.readOnly = false;
+
+        if (tipe === "cuti menikah") {
+            targetHari = 3;
+        } else if (tipe === "cuti hamil") {
+            targetHari = 90;
+        } else if (tipe === "keluarga inti") {
+            targetHari = 2;
+        } else if (tipe === "menikahkan") {
+            targetHari = 2;
+        } else if (tipe === "khitanan") {
+            targetHari = 2;
+        } else if (tipe === "istri") {
+            targetHari = 4;
+        } else if (tipe === "keluarga") {
+            targetHari = 1;
+        } else {
+            akhirCuti.value = ""; // Reset jika cuti tahunan / izin dll
+            return;
+        }
+
+        // Parse tanggal mulai dalam lokal time (YYYY-MM-DD)
+        let parts = mulaiCuti.value.split("-");
+        let curr = new Date(parts[0], parts[1] - 1, parts[2]);
+
+        let count = 0;
+        while (count < targetHari) {
+            let y = curr.getFullYear();
+            let m = String(curr.getMonth() + 1).padStart(2, '0');
+            let d = String(curr.getDate()).padStart(2, '0');
+            let tglStr = `${y}-${m}-${d}`;
+
+            // Lewati hari Minggu (0 = Minggu) DAN Libur Nasional
+            if (curr.getDay() !== 0 && !liburNasional.includes(tglStr)) {
+                count++;
+            }
+            if (count < targetHari) {
+                curr.setDate(curr.getDate() + 1);
+            }
+        }
+
+        // Format ke YYYY-MM-DD
+        let y = curr.getFullYear();
+        let m = String(curr.getMonth() + 1).padStart(2, '0');
+        let d = String(curr.getDate()).padStart(2, '0');
+
+        akhirCuti.value = `${y}-${m}-${d}`;
+        akhirCuti.readOnly = true; // Mencegah edit manual selain cuti tahunan
     }
-
-    let akhir = new Date(mulai);
-    akhir.setDate(mulai.getDate() + durasi);
-
-    // Format ke YYYY-MM-DD agar sesuai dengan input date
-    let akhirFormatted = akhir.toISOString().split("T")[0];
-
-    akhirCuti.value = akhirFormatted;
-    akhirCuti.readOnly = true; // Mencegah edit manual selain cuti tahunan
-}
 
 });
 </script>

@@ -1,4 +1,5 @@
 <?php
+	require_once(file_exists(__DIR__ . "/libur_helper.php") ? __DIR__ . "/libur_helper.php" : dirname(__DIR__) . "/libur_helper.php");
 	include("sess_check.php");
 
 	include("dist/function/format_tanggal.php");
@@ -8,6 +9,8 @@
 			AND cuti.no_cuti ='$no'";
 	$query = mysqli_query($conn,$sql);
 	$result = mysqli_fetch_array($query);
+	// Hitung ulang durasi (tanpa hari Minggu & Libur Nasional) agar data lama tetap tampil benar
+	$durasi_tampil = $result ? hitung_durasi_cuti($result['tgl_awal'], $result['tgl_akhir']) : 0;
 	// deskripsi halaman
 	$pagedesc = "Cetak Form Cuti";
 	$pagetitle = str_replace(" ", "_", $pagedesc)
@@ -116,7 +119,7 @@
 					</tr>
 					<tr>
 						<td>Durasi</td>
-						<td><?php echo $result['durasi'];?> Hari</td>
+						<td><?php echo $durasi_tampil;?> Hari</td>
 					</tr>
 					<tr>
 						<td>Keterangan</td>

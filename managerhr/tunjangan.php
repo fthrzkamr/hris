@@ -2,7 +2,7 @@
 include("sess_check.php");
 
 // deskripsi halaman
-$pagedesc = "Data Karyawan";
+$pagedesc = "Informasi Karyawan";
 include("layout_top.php");
 include("dist/function/format_tanggal.php");
 include("dist/function/format_rupiah.php");

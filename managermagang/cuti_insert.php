@@ -17,7 +17,7 @@
 		$dur 		= $int->days;
 		$durasi 	= $dur+1;
 
-		$stt 		= "Menunggu Approval HRD";
+		$stt 		= "Menunggu Approval";
 		$id 		= date('dmYHis');
 
 		$pgw = "SELECT * FROM employee WHERE npp='$npp'";

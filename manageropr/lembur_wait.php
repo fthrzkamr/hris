@@ -26,7 +26,7 @@
 						<div class="panel panel-default">
 							<div class="panel-body">
                             <?php
-								$Sql = "SELECT lembur.*, employee.* FROM lembur, employee WHERE lembur.npp=employee.npp AND employee.nama_manager='1' ORDER BY lembur.tgl_lembur DESC";
+										$Sql = "SELECT lembur.*, employee.* FROM lembur, employee WHERE lembur.npp=employee.npp AND employee.nama_manager='1' ORDER BY CASE WHEN lembur.status='Menunggu' THEN 1 ELSE 2 END ASC, lembur.tgl_lembur DESC";
 								$Qry = mysqli_query($conn, $Sql);
 								
 							?>		

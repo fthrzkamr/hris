@@ -1,6 +1,11 @@
 <?php
 include("sess_check.php");
 
+if (isset($row_sess['status_karyawan']) && $row_sess['status_karyawan'] == 'Magang') {
+	header("location: index.php");
+	exit;
+}
+
 $pagedesc = "Data Pinjaman";
 include("layout_top.php");
 include("dist/function/format_tanggal.php");

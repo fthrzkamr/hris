@@ -287,7 +287,8 @@ $(document).ready(function() {
                                         <option value="Medan">Medan</option>
                                         <option value="Bali">Bali</option>
                                         <option value="Banjarmasin">Banjarmasin</option>
-
+                                        <option value="Gorontalo">Gorontalo</option>
+                                        <option value="Palembang">Palembang</option>
                                     </select>
                                 </div>
                             </div>

@@ -1,6 +1,7 @@
 <?php
+	require_once(file_exists(__DIR__ . "/libur_helper.php") ? __DIR__ . "/libur_helper.php" : dirname(__DIR__) . "/libur_helper.php");
 	include("sess_check.php");
-	
+
 	// Deskripsi halaman
 	$pagedesc = "Approved";
 	include("layout_top.php");
@@ -51,7 +52,16 @@
                                     $i=1;
                                     while($data = mysqli_fetch_array($Qry)){
                                         // Cek apakah cuti sudah Approved atau Rejected
-                                        $isDisabled = ($data['stt_cuti'] == 'Approved' || $data['stt_cuti'] == 'Rejected') ? 'disabled-link' : '';
+                                            // Hitung selisih hari antara tanggal pemeriksaan dan hari ini
+                                        $tanggal_pemeriksaan = new DateTime($data['tgl_pengajuan']);
+                                        $tanggal_sekarang = new DateTime();
+                                        $selisih_hari = $tanggal_pemeriksaan->diff($tanggal_sekarang)->days;
+
+                                        $isDisabled = ($data['stt_cuti'] == 'Approved' || $data['stt_cuti'] == 'Rejected' || $selisih_hari >= 7) ? 'disabled-link' : '';
+
+                                        // Hitung ulang durasi (tanpa hari Minggu & Libur Nasional) agar data lama yang belum
+                                        // memakai perhitungan libur nasional tetap tampil benar
+                                        $durasi_tampil = hitung_durasi_cuti($data['tgl_awal'], $data['tgl_akhir']);
 
                                         echo '<tr>';
                                         echo '<td class="text-center">'. $i .'</td>';
@@ -59,7 +69,7 @@
                                         echo '<td class="text-center">'. IndonesiaTgl($data['tgl_pengajuan']) .'</td>';
                                         echo '<td class="text-center">'. IndonesiaTgl($data['tgl_awal']) .'</td>';
                                         echo '<td class="text-center">'. IndonesiaTgl($data['tgl_akhir']) .'</td>';
-                                        echo '<td class="text-center">'. $data['durasi'] .' Hari</td>';
+                                        echo '<td class="text-center">'. $durasi_tampil .' Hari</td>';
                                         echo '<td class="text-center">'. $data['stt_cuti'] .'</td>';
                                         echo '<td class="text-center">
                                               <a href="#myModal" data-toggle="modal" data-load-code="'.$data['no_cuti'].'" data-remote-target="#myModal .modal-body" class="btn btn-primary btn-xs">Detail</a>

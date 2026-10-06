@@ -51,10 +51,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 
     // Proses upload file
-    $target_dir = "uploads/raim_kesehatan/";
-    $file_name = basename($_FILES["foto"]["name"]);
-    $target_file = $target_dir . $file_name;
-    $file_type = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
+    $target_dir = "../dist/uploads/raim_kesehatan/";
+    $original_name = basename($_FILES["foto"]["name"]);
+    $file_type = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
 
     // Validasi format file
     $allowed_types = ["jpg", "jpeg", "png", "pdf"];
@@ -63,13 +62,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit();
     }
 
+    // Nama file dibuat unik (npp + id_rmbs) agar tidak menimpa file upload lain yang kebetulan bernama sama
+    $file_name = $npp . '_' . $id_rmbs . '.' . $file_type;
+    $target_file = $target_dir . $file_name;
+
     // Simpan file ke server
     if (move_uploaded_file($_FILES["foto"]["tmp_name"], $target_file)) {
         // Simpan data ke database
         $sql = "INSERT INTO rembes 
                 (id_rmbs, npp, nama_anggota_keluarga, hubungan_keluarga, nama_fasilitas_kesehatan, fasilitas_kesehatan, nama_dokter, tanggal_pemeriksaan, total_kwitansi, no_kwitansi, foto, status, reject) 
                 VALUES 
-                ('$id_rmbs', '$npp', '$nama_anggota_keluarga', '$hubungan_keluarga', '$nama_fasilitas_kesehatan', '$fasilitas_kesehatan', '$nama_dokter','$tanggal_pemeriksaan', '$total_kwintansi', '$no_kwitansi', '$file_name', 'Menunggu di Approve', 'Tidak')";
+                ('$id_rmbs', '$npp', '$nama_anggota_keluarga', '$hubungan_keluarga', '$nama_fasilitas_kesehatan', '$fasilitas_kesehatan', '$nama_dokter','$tanggal_pemeriksaan', '$total_kwintansi', '$no_kwitansi', '$file_name', 'Menunggu Approval', 'Tidak')";
         
         $query = mysqli_query($conn, $sql);
         if (!$query) {

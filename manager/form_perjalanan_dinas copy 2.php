@@ -75,7 +75,7 @@ if (empty($departemen_user) || is_numeric($departemen_user)) {
                                 <input type="text" name="nama" class="form-control"
                                     value="<?php echo htmlspecialchars($nama_user); ?>" readonly
                                     style="background-color: #f5f5f5; cursor: not-allowed;">
-                                <p class="help-block">Nama diambil dari akun yang sedang login</p>
+
                             </div>
                         </div>
                     </div>
@@ -87,7 +87,7 @@ if (empty($departemen_user) || is_numeric($departemen_user)) {
                                 <input type="text" name="departemen" class="form-control"
                                     value="<?php echo htmlspecialchars($departemen_user); ?>" readonly
                                     style="background-color: #f5f5f5; cursor: not-allowed;">
-                                <p class="help-block">Departemen diambil dari data kepegawaian Anda</p>
+
                             </div>
                         </div>
                     </div>
@@ -97,7 +97,7 @@ if (empty($departemen_user) || is_numeric($departemen_user)) {
                             <div class="form-group">
                                 <label>Tanggal Perjalanan</label>
                                 <input type="date" name="tanggal_perjalanan" class="form-control">
-                                <p class="help-block">Kosongkan jika tanggal fleksibel</p>
+
                             </div>
                         </div>
                         <div class="col-lg-6 col-md-6 col-sm-6">
@@ -105,7 +105,7 @@ if (empty($departemen_user) || is_numeric($departemen_user)) {
                                 <label>Jumlah Hari <span class="text-danger">*</span></label>
                                 <input type="number" name="jumlah_hari" class="form-control" min="1"
                                     placeholder="Jumlah hari perjalanan" required>
-                                <p class="help-block">Termasuk hari menginap</p>
+
                             </div>
                         </div>
                     </div>

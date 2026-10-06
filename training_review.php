@@ -55,6 +55,7 @@ $(document).ready(function() {
                         <div class="panel-heading"><h3>Detail Pengajuan Training</h3></div>
                         <div class="panel-body">
                         
+                            <input type="hidden" name="id_pengajuan" value="<?php echo $data['id_pengajuan'];?>">
                             <!-- <div class="form-group">
                                 <label class="control-label col-sm-3">ID Pengajuan</label>
                                 <div class="col-sm-4">

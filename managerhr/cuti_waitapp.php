@@ -27,8 +27,8 @@
 						<div class="panel panel-default">
 							<div class="panel-body">
 						<?php
-								$Sql = "SELECT cuti.*, employee.* FROM cuti, employee WHERE cuti.npp=employee.npp AND cuti.stt_cuti ='Menunggu APproval HRD'
-									    AND cuti.npp='$id' ORDER BY cuti.tgl_pengajuan DESC";
+								$Sql = "SELECT cuti.*, employee.* FROM cuti, employee WHERE cuti.npp=employee.npp AND cuti.stt_cuti LIKE '%Menunggu Approval%'
+									     ORDER BY cuti.tgl_pengajuan DESC";
 								$Qry = mysqli_query($conn, $Sql);
 								
 							?>						
@@ -36,6 +36,7 @@
 									<thead>
 										<tr>
 											<th width="1%">No</th>
+											<th width="10%">Nama Karyawan</th>
 											<th width="10%">Keterangan Cuti</th>
 											<th width="5%">Tgl Pengajuan</th>
 											<th width="5%">Tgl Awal Cuti</th>
@@ -51,6 +52,7 @@
 											while($data = mysqli_fetch_array($Qry)){
 												echo '<tr>';
 												echo '<td class="text-center">'. $i .'</td>';
+												echo '<td class="text-center">'. $data['nama_emp'] .'</td>';
 												echo '<td class="text-center">'. $data['keterangan'] .'</td>';
 												echo '<td class="text-center">'. IndonesiaTgl($data['tgl_pengajuan']) .'</td>';
 												echo '<td class="text-center">'. IndonesiaTgl($data['tgl_awal']) .'</td>';

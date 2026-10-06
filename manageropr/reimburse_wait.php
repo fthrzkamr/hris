@@ -36,7 +36,7 @@ $id = $sess_mngid;
                                 AND YEAR(rembes.tanggal_pemeriksaan) = 2025
                                 ORDER BY
                                     CASE 
-                                        WHEN rembes.status = 'Menunggu di Approve' THEN 1 
+                                        WHEN rembes.status = 'Menunggu Approval' THEN 1 
                                         ELSE 2 
                                     END,
                                     rembes.tanggal_pemeriksaan DESC";
@@ -80,7 +80,7 @@ $id = $sess_mngid;
                                     <a href="reimburse_review.php?no=<?php echo $data['id_rmbs']; ?>" class="btn btn-primary btn-xs">Review</a>
                                     <?php
                                     if (!empty($file_bukti)) {
-                                        $file_path = "uploads/raim_kesehatan/" . $file_bukti;
+                                        $file_path = "../dist/uploads/raim_kesehatan/" . $file_bukti;
                                         if (file_exists($file_path)) {
                                             echo ' <a href="' . $file_path . '" class="btn btn-info btn-xs" download>Download</a>';
                                         }

@@ -17,7 +17,7 @@ if ($id <= 0) {
 }
 
 // Fetch main record
-$stmt = mysqli_prepare($conn, "SELECT * FROM perjalanan_dinas WHERE id = ?");
+$stmt = mysqli_prepare($conn, "SELECT p.*, e.nama_bank, e.norek_mandiri as no_rekening, COALESCE(pr.revision_count, 0) as revision_count FROM perjalanan_dinas p LEFT JOIN employee e ON p.npp = e.npp LEFT JOIN (SELECT perjalanan_id, MAX(revision_count) as revision_count FROM perjalanan_rincian GROUP BY perjalanan_id) pr ON p.id = pr.perjalanan_id WHERE p.id = ?");
 mysqli_stmt_bind_param($stmt, 'i', $id);
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
@@ -237,8 +237,14 @@ $submission = mysqli_fetch_assoc($result_status);
                 style="text-decoration:none;padding:6px 12px;background:#f5f5f5;border:1px solid #ccc;border-radius:3px;color:#333;margin-right:8px">←
                 Kembali</a>
             <button onclick="window.print()"
-                style="padding:6px 12px;background:#337ab7;color:white;border:none;border-radius:3px;cursor:pointer">Cetak
+                style="padding:6px 12px;background:#337ab7;color:white;border:none;border-radius:3px;cursor:pointer;margin-right:8px">Cetak
                 / Print</button>
+            <?php if ($submission && $submission['status'] === 'DIAJUKAN'): ?>
+                <a href="perjalanan_dinas_review.php?id=<?php echo $id; ?>" 
+                   style="text-decoration:none;padding:6px 12px;background:#5cb85c;color:white;border:none;border-radius:3px;cursor:pointer">
+                   <i class="fa fa-check"></i> Review & Approve (Admin)
+                </a>
+            <?php endif; ?>
         </div>
 
         <?php if ($submission): ?>
@@ -269,16 +275,16 @@ $submission = mysqli_fetch_assoc($result_status);
         <?php endif; ?>
 
         <div class="header">
-            <div class="logo">
+            <!-- <!-- <div class="logo">
                 <img src="foto/logo-dua.webp" alt="Logo">
-            </div>
+            </div> --> 
             <div class="title">
                 FORM ANGGARAN<br>
                 PERJALANAN BISNIS (DINAS)
             </div>
             <div class="doc-box">
                 <div><strong>No. Dokumen:</strong> <?php echo htmlspecialchars($data['no_dokumen']); ?></div>
-                <div><strong>Revisi:</strong> <?php echo htmlspecialchars($data['revisi']); ?></div>
+                <div><strong>Revisi:</strong> <?php echo htmlspecialchars($data['revision_count'] ?? 0); ?></div>
                 <div><strong>Tanggal:</strong> <?php echo date('d-m-Y', strtotime($data['tanggal_dokumen'])); ?></div>
             </div>
         </div>
@@ -331,12 +337,8 @@ $submission = mysqli_fetch_assoc($result_status);
                             <td><?php echo htmlspecialchars($item['ket']); ?></td>
                             <td style="text-align:right">
                                 <?php 
-                                // Show nominal if set, otherwise show dash
-                                if (!empty($item['nominal']) && $item['nominal'] != '0') {
-                                    echo number_format((float)$item['nominal'], 0, ',', '.');
-                                } else {
-                                    echo '-';
-                                }
+                                $nominal_hr = (float)($item['nominal'] ?? 0);
+                                echo number_format($nominal_hr, 0, ',', '.');
                                 ?>
                             </td>
                             <td style="text-align:center"><?php echo htmlspecialchars($item['qty']); ?></td>
@@ -345,10 +347,8 @@ $submission = mysqli_fetch_assoc($result_status);
                             </td>
                             <td style="text-align:right">
                                 <?php
-                                // Calculate total from nominal (if set) or perkiraan
-                                $nilai = !empty($item['nominal']) && $item['nominal'] != '0' ? 
-                                    (float)$item['nominal'] : (float)$item['perkiraan'];
-                                echo number_format($nilai * (float)$item['qty'], 0, ',', '.');
+                                $nominal_hr = (float)($item['nominal'] ?? 0);
+                                echo number_format($nominal_hr * (float)$item['qty'], 0, ',', '.');
                                 ?>
                             </td>
                             <td><?php echo htmlspecialchars($item['keterangan']); ?></td>
@@ -371,7 +371,9 @@ $submission = mysqli_fetch_assoc($result_status);
 
         <div style="margin-top:15px; font-size:12px">
             <strong>Rekening (Transfer):</strong><br>
-            Trf Ke rek. Mandiri an. Auliya Nurul Haqim Acc. 60012166181
+            Trf Ke rek. <?php echo htmlspecialchars($data['nama_bank'] ?? ''); ?>
+            an. <?php echo htmlspecialchars(($submission && !empty($submission['pengaju'])) ? $submission['pengaju'] : ($data['nama'] ?? '')); ?>
+            Acc. <?php echo htmlspecialchars($data['no_rekening'] ?? ''); ?>
         </div>
 
         <div style="margin-top:15px; font-size:12px">

@@ -227,7 +227,10 @@ $can_approve_direktur = ($status == 'APPROVED_MANAGER_HR' && $approval_manager_h
                             if (!empty($rincian_items)): 
                             ?>
                                 <?php foreach ($rincian_items as $item): 
-                                    $total_line = (float)$item['nominal'] * (float)$item['qty'];
+                                    // Use nominal from HR/Manager HR. If not set, total is 0.
+                                    $nominal_hr = (float)($item['nominal'] ?? 0);
+                                    
+                                    $total_line = $nominal_hr * (float)$item['qty'];
                                     $grand_total += $total_line;
                                 ?>
                                     <tr>
@@ -235,7 +238,9 @@ $can_approve_direktur = ($status == 'APPROVED_MANAGER_HR' && $approval_manager_h
                                         <td><?php echo htmlspecialchars($item['ket']); ?></td>
                                         <td class="text-right">Rp <?php echo number_format((float)$item['perkiraan'], 0, ',', '.'); ?></td>
                                         <td class="text-center"><?php echo htmlspecialchars($item['qty']); ?></td>
-                                        <td class="text-right"><strong>Rp <?php echo number_format((float)$item['nominal'], 0, ',', '.'); ?></strong></td>
+                                        <td class="text-right">
+                                            <strong>Rp <?php echo number_format($nominal_hr, 0, ',', '.'); ?></strong>
+                                        </td>
                                         <td class="text-right"><strong>Rp <?php echo number_format($total_line, 0, ',', '.'); ?></strong></td>
                                         <td><?php echo htmlspecialchars($item['keterangan']); ?></td>
                                     </tr>

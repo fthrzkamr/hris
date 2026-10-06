@@ -4,6 +4,13 @@
 	// deskripsi halaman
 	$pagedesc = "Data Lemburan";
 	include("layout_top.php");
+
+	// Get dynamic koordinator
+	$id = $sess_mngid;
+	$k_query = mysqli_query($conn, "SELECT id_koordinator FROM koordinator WHERE npp='$id'");
+	$k_row = mysqli_fetch_array($k_query);
+	$id_koor = $k_row ? $k_row['id_koordinator'] : '-1';
+
 	include("dist/function/format_tanggal.php");
 	include("dist/function/format_rupiah.php");
 ?>
@@ -24,13 +31,13 @@
 				<div class="row">
 					<div class="col-lg-12">
 						<div class="panel panel-default">
+							
 							<div class="panel-body">
-						<?php
-                            $Sql = "SELECT lembur.*, employee.* FROM lembur, employee WHERE lembur.npp=employee.npp
-                            ORDER BY lembur.tgl_lembur DESC";								
-                            $Qry = mysqli_query($conn, $Sql);
-								
-							?>						
+								<?php
+										$Sql = "SELECT lembur.*, employee.* FROM lembur, employee WHERE lembur.npp=employee.npp AND employee.nama_koordinator='$id_koor' ORDER BY CASE WHEN lembur.status LIKE '%Menunggu%' OR lembur.status LIKE '%Pending%' THEN 1 ELSE 2 END ASC, lembur.tgl_lembur DESC";
+								$Qry = mysqli_query($conn, $Sql);
+										
+								?>	
 								<table class="table table-striped table-bordered table-hover" id="tabel-data">
 									<thead>
 										<tr>
@@ -40,7 +47,6 @@
 											<th width="5%">Tgl Lembur</th>
 											<th width="5%">Jam Mulai Lembur</th>
 											<th width="5%">Jam Berakhir Lembur</th>
-											<th width="5%">Nama Koordinator</th>
 											<th width="5%">Status Lemburan</th>
 											<th width="5%">Opsi</th>
 										</tr>
@@ -56,7 +62,6 @@
 												echo '<td class="text-center">'. IndonesiaTgl($data['tgl_lembur']) .'</td>';
 												echo '<td class="text-center">'. $data['jam_mulai_lembur'] .'</td>';
 												echo '<td class="text-center">'. $data['jam_berakhir_lembur'] .'</td>';
-												echo '<td class="text-center">'. $data['nama_koordinator'] .'</td>';
 												echo '<td class="text-center">'. $data['status'] .'</td>';
 												echo '<td class="text-center">
 													  ';?>
@@ -93,6 +98,8 @@
 		$('#tabel-data').DataTable({
 			"responsive": true,
 			"processing": true,
+			"ordering": false,
+			"order": [],
 			"columnDefs": [
 				{ "orderable": false, "targets": [] }
 			]

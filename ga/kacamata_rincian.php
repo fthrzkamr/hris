@@ -68,7 +68,9 @@ $id = $sess_mngid;
                                             <a href="#myModal" data-toggle="modal" data-load-code="' . $data['id_kacamata'] . '" data-remote-target="#myModal .modal-body" class="btn btn-primary btn-xs">Detail</a>';
 
                                     // Tombol Hapus (Nonaktif jika status "Rejected" atau "Approved")
-                                    $disabled = ($status == 'Rejected' || $status == 'Approved') ? 'disabled' : '';
+                                    $tgl_pengajuan = strtotime($data['tanggal_pengajuan']);
+                                    $selisih_hari = floor((time() - $tgl_pengajuan) / (60 * 60 * 24));
+                                    $disabled = ($status == 'Rejected' || $status == 'Approved' || $selisih_hari > 7) ? 'disabled' : '';
                                     echo '<a href="kacamata_hapus.php?id_kacamata=' . $data['id_kacamata'] . '" onclick="return confirm(\'Apakah Anda yakin akan menghapus Data Reimburse ' . $data['id_kacamata'] . '?\');" class="btn btn-danger btn-xs" ' . $disabled . '>Hapus</a>';
 
                                     echo '</td>';

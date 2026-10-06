@@ -16,7 +16,7 @@
                 'start'           => $row['tgl_awal'],
                 'end'             => $row['tgl_akhir'],
             );
-       }else if ($row['stt_cuti']== 'Menunggu Approval HRD') {
+       }else if ($row['stt_cuti']== 'Menunggu Approval') {
 
             $json[] = array(
                 'backgroundColor' => 'rgb(251,176,64)',

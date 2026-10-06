@@ -6,7 +6,9 @@ include("sess_check.php");
 include("dist/function/format_tanggal.php");
 if($_GET) {
 	$kode = $_GET['code'];
-	$sql = "SELECT * FROM employee WHERE npp='". $_GET['code'] ."'";
+	$sql = "SELECT A.*, B.nama_bagian FROM employee AS A 
+            LEFT JOIN bagian AS B ON A.nama_bagian = B.id_bagian 
+            WHERE A.npp='". $_GET['code'] ."'";
 	$query = mysqli_query($conn,$sql);
 	$result = mysqli_fetch_array($query);
 }
@@ -63,7 +65,7 @@ else {
 	<tr>
 		<td width="20%"><b>Divisi</b></td>
 		<td width="2%"><b>:</b></td>
-		<td width="78%"><?php echo $result['divisi'];?></td>
+		<td width="78%"><?php echo $result['nama_bagian'];?></td>
 	</tr>
 	<tr>
 		<td colspan="3">&nbsp;</td>
@@ -103,13 +105,7 @@ else {
 	<tr>
 		<td width="20%"><b>Aktif</b></td>
 		<td width="2%"><b>:</b></td>
-		<td width="78%"><?php 
-		if($result['active']==1){
-		echo "Ya";
-		}else{
-		echo "Tidak";
-		}
-		?></td>
+		<td width="78%"><b><?php echo $result['aktif'];?></b></td>
 	</tr>
 	<tr>
 		<td colspan="3">&nbsp;</td>
@@ -117,7 +113,7 @@ else {
 	<tr>
 		<td width="20%"><b>Foto</b></td>
 		<td width="2%"><b>:</b></td>
-		<td width="78%"><img src="foto/<?php echo $result['foto_emp'];?>" width="70px"></td>
+		<td width="78%"><img src="../foto/<?php echo $result['foto_emp'];?>" width="70px" onerror="this.src='../foto/default.png'"></td>
 	</tr>
 	<tr>
 		<td colspan="3">&nbsp;</td>
