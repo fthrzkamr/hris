@@ -2,3 +2,7 @@
 # Sengaja tidak di-commit supaya tidak bentrok saat deploy ke hosting
 */uploads/
 foto/karyawan/
+
+# Konfigurasi koneksi database berbeda per environment (lokal vs hosting)
+# Jangan di-track supaya kredensial production tidak pernah ketimpa/bocor
+dist/config/koneksi.php
