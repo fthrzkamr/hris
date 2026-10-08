@@ -1,8 +1,11 @@
 <?php
 	include("sess_check.php");
+	require_once(file_exists(__DIR__ . "/libur_helper.php") ? __DIR__ . "/libur_helper.php" : dirname(__DIR__) . "/libur_helper.php");
 
 	$id=$sess_mngid;
 	$id_esc = mysqli_real_escape_string($conn, $id);
+
+	$libur_nasional_json = json_encode(get_libur_nasional());
 
 	// Fetch all cuti for the calendar
 	$cuti_events = [];
@@ -104,6 +107,21 @@
             }
             .ios-calendar-day.other-month { opacity: 0.4; pointer-events: none; }
             .ios-calendar-day.selected { border-color: #007aff; background: #ffffff; box-shadow: 0 4px 12px rgba(0, 122, 255, 0.1); }
+            .ios-calendar-day.libur-minggu { background: rgba(255, 59, 48, 0.05); }
+            .ios-calendar-day.libur-minggu .day-number { color: #ff3b30; }
+            .ios-calendar-day.libur-nasional { background: rgba(255, 59, 48, 0.08); }
+            .ios-calendar-day.libur-nasional .day-number { color: #ff3b30; }
+            .libur-tag {
+                font-size: 9px;
+                font-weight: 700;
+                color: #ff3b30;
+                background: rgba(255, 59, 48, 0.12);
+                border-radius: 5px;
+                padding: 2px 5px;
+                margin-bottom: 4px;
+                display: inline-block;
+            }
+            .ios-calendar-day-name.minggu { color: #ff3b30; }
             .day-number {
                 font-size: 14px;
                 font-weight: 600;
@@ -141,8 +159,11 @@
                         </div>
                     </div>
                     <div id="calendarTitle" style="text-align: center; font-weight: 700; color: #1c1c1e; margin-bottom: 15px; font-size: 16px;"></div>
+                    <div style="text-align: center; margin-bottom: 15px;">
+                        <span class="libur-tag"><i class="fa fa-circle"></i> Minggu / Libur Nasional</span>
+                    </div>
                     <div class="ios-calendar-grid">
-                        <div class="ios-calendar-day-name">Min</div>
+                        <div class="ios-calendar-day-name minggu">Min</div>
                         <div class="ios-calendar-day-name">Sen</div>
                         <div class="ios-calendar-day-name">Sel</div>
                         <div class="ios-calendar-day-name">Rab</div>
@@ -180,6 +201,7 @@
 <!-- bottom of file -->
 <script>
 const cutiBookings = <?php echo $cuti_json; ?>;
+const liburNasional = <?php echo $libur_nasional_json; ?>;
 
 let currentDate = new Date();
 let selectedDate = new Date();
@@ -229,7 +251,20 @@ function renderCalendar() {
             dayDiv.classList.add("selected");
         }
 
-        const dayBookings = getBookingsForDate(dateStr);
+        const isSunday = d.getDay() === 0;
+        const isNationalHoliday = liburNasional.includes(dateStr);
+        if (isSunday) {
+            dayDiv.classList.add("libur-minggu");
+        }
+        if (isNationalHoliday) {
+            dayDiv.classList.add("libur-nasional");
+            const liburTag = document.createElement("div");
+            liburTag.classList.add("libur-tag");
+            liburTag.innerText = "Libur";
+            dayDiv.appendChild(liburTag);
+        }
+
+        const dayBookings = (isSunday || isNationalHoliday) ? [] : getBookingsForDate(dateStr);
         if (dayBookings.length > 0) {
             dayBookings.forEach(b => {
                 const eventBar = document.createElement("div");
@@ -243,9 +278,11 @@ function renderCalendar() {
         }
 
         dayDiv.addEventListener("click", () => {
+            if (isSunday || isNationalHoliday) return;
+
             selectedDate = new Date(year, month, i);
             renderCalendar();
-            
+
             const selectedDateStr = formatDate(selectedDate);
             const dayBookings = getBookingsForDate(selectedDateStr);
             if (dayBookings.length > 0) {

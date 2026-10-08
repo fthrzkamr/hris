@@ -298,6 +298,27 @@ if ($is_approver && isset($_POST['action_master']) && $_POST['action_master'] ==
     $message_type = "success";
 }
 
+// ---------- MASTER MOBIL: TAMBAH ----------
+if ($is_approver && isset($_POST['action_master']) && $_POST['action_master'] == 'add_mobil') {
+    $nama_mobil = mysqli_real_escape_string($conn, trim($_POST['nama_mobil'] ?? ''));
+    $no_plat    = mysqli_real_escape_string($conn, trim($_POST['no_plat'] ?? ''));
+
+    if (empty($nama_mobil) || empty($no_plat)) {
+        $message = "Nama mobil dan nomor plat wajib diisi!";
+        $message_type = "danger";
+    } else {
+        $q_cek_plat = mysqli_query($conn, "SELECT 1 FROM master_mobil WHERE no_plat = '$no_plat'");
+        if (mysqli_num_rows($q_cek_plat) > 0) {
+            $message = "Nomor plat <strong>$no_plat</strong> sudah terdaftar.";
+            $message_type = "danger";
+        } else {
+            mysqli_query($conn, "INSERT INTO master_mobil (nama_mobil, no_plat, status) VALUES ('$nama_mobil', '$no_plat', 'Tersedia')");
+            $message = "Mobil '$nama_mobil' berhasil ditambahkan.";
+            $message_type = "success";
+        }
+    }
+}
+
 // ---------- MASTER MOBIL TABLE ----------
 mysqli_query($conn, "CREATE TABLE IF NOT EXISTS master_mobil (
     id_mobil INT AUTO_INCREMENT PRIMARY KEY,
@@ -1316,12 +1337,13 @@ $pagedesc = "Peminjaman Mobil";
         </div> <!-- Close bottom row -->
         <?php endif; ?>
 
-    <?php if ($is_approver): ?>
+    <?php if ($is_approver && $is_approval_page): ?>
     <!-- Master Mobil Panel -->
     <div class="row"><div class="col-xs-12 col-md-12">
     <div class="panel panel-default" style="margin-top: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: none;">
-        <div class="panel-heading" style="background-color: #ffffff; border-bottom: 1px solid #f2f2f7; padding: 16px 20px; border-radius: 12px 12px 0 0;">
+        <div class="panel-heading" style="background-color: #ffffff; border-bottom: 1px solid #f2f2f7; padding: 16px 20px; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center;">
             <b style="font-size: 15px; color: #1c1c1e;"><i class="fa fa-car" style="color: #007aff; margin-right: 6px;"></i> Master Data Kendaraan</b>
+            <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#addMobilModal"><i class="fa fa-plus"></i> Tambah Mobil</button>
         </div>
         <div class="panel-body" style="padding: 20px;">
             <div class="table-responsive">
@@ -1354,7 +1376,8 @@ $pagedesc = "Peminjaman Mobil";
                                         <input type="hidden" name="action_master" value="update_status">
                                         <input type="hidden" name="id_mobil" value="<?php echo $rm['id_mobil']; ?>">
                                         <select name="new_status" class="form-control input-sm" style="width: 140px; font-size: 13px; height: 32px; border-radius: 6px; box-shadow: none; border-color: #d1d1d6;">
-                                            <option value="Tersedia" <?php echo ($rm['status'] == 'Tersedia' || $rm['status'] == 'Tidak Tersedia') ? 'selected' : ''; ?>>Tersedia</option>
+                                            <option value="Tersedia" <?php echo ($rm['status'] == 'Tersedia') ? 'selected' : ''; ?>>Tersedia</option>
+                                            <option value="Tidak Tersedia" <?php echo ($rm['status'] == 'Tidak Tersedia') ? 'selected' : ''; ?>>Tidak Tersedia</option>
                                             <option value="Dalam Perbaikan" <?php echo ($rm['status'] == 'Dalam Perbaikan') ? 'selected' : ''; ?>>Dalam Perbaikan</option>
                                         </select>
                                         <button type="submit" class="btn btn-primary btn-sm" style="padding: 5px 12px; font-size: 12px; border-radius: 6px; font-weight: 600; background-color: #007aff; border-color: #007aff; box-shadow: 0 2px 6px rgba(0,122,255,0.2);"><i class="fa fa-save"></i> Simpan</button>
@@ -1371,6 +1394,39 @@ $pagedesc = "Peminjaman Mobil";
     <?php endif; ?>
     <?php endif; ?>
 </div>
+
+<?php if ($is_approver && $is_approval_page): ?>
+<!-- Modal: Tambah Mobil -->
+<div class="modal fade" id="addMobilModal" tabindex="-1" role="dialog" aria-labelledby="addMobilModalLabel" aria-hidden="true" style="font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+    <div class="modal-dialog" role="document" style="max-width: 450px;">
+        <div class="modal-content" style="border-radius: 20px; border: none; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+            <div class="modal-header ios-modal-header" style="background: white; border-bottom: 1px solid #f2f2f7; padding: 20px;">
+                <h4 class="modal-title ios-modal-title" id="addMobilModalLabel"><i class="fa fa-plus-circle" style="color: #007aff;"></i> &nbsp;Tambah Mobil Baru</h4>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="font-size: 24px; font-weight: 300; opacity: 0.5;">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form method="post">
+                <div class="modal-body" style="padding: 20px;">
+                    <input type="hidden" name="action_master" value="add_mobil">
+                    <div class="ios-form-group">
+                        <label class="ios-form-label">Nama Mobil <span class="text-danger">*</span></label>
+                        <input type="text" class="ios-input" name="nama_mobil" placeholder="Contoh: Toyota Avanza" required>
+                    </div>
+                    <div class="ios-form-group">
+                        <label class="ios-form-label">Nomor Plat <span class="text-danger">*</span></label>
+                        <input type="text" class="ios-input" name="no_plat" placeholder="Contoh: B 1234 ABC" required>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #f2f2f7; padding: 15px 20px; background: #f8f8fa; display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" class="ios-btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="ios-btn-primary"><i class="fa fa-save"></i> Simpan Mobil</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- Modal: New Booking Form (Apple Slide Sheet Style) -->
 <div class="modal fade" id="bookingModal" tabindex="-1" role="dialog" aria-labelledby="bookingModalLabel" aria-hidden="true" style="font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
