@@ -424,6 +424,14 @@ if (isset($conn)) {
 						}
 						?>
 
+						<?php
+						if (isset($pagedesc) && $pagedesc == "Booking Ruang Meeting") {
+							echo '<li><a href="booking_ruang_meeting.php" class="active"><i class="fa fa-building fa-fw"></i>&nbsp;Booking Ruang Meeting</a></li>';
+						} else {
+							echo '<li><a href="booking_ruang_meeting.php"><i class="fa fa-building fa-fw"></i>&nbsp;Booking Ruang Meeting</a></li>';
+						}
+						?>
+
 
 						<?php
 						if (isset($menuparent) && $menuparent == "laporan") {

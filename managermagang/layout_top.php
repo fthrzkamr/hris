@@ -420,6 +420,13 @@ if (isset($conn)) {
                             echo '<li><a href="peminjaman_mobil.php"><i class="fa fa-car fa-fw"></i> Peminjaman Mobil</a></li>';
                         }
                         ?>
+                        <?php
+                        if (isset($pagedesc) && $pagedesc == "Booking Ruang Meeting") {
+                            echo '<li><a href="booking_ruang_meeting.php" class="active"><i class="fa fa-building fa-fw"></i> Booking Ruang Meeting</a></li>';
+                        } else {
+                            echo '<li><a href="booking_ruang_meeting.php"><i class="fa fa-building fa-fw"></i> Booking Ruang Meeting</a></li>';
+                        }
+                        ?>
 	                </ul>
                 </div>
                 <!-- /.sidebar-collapse -->

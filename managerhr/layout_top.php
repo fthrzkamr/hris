@@ -398,6 +398,13 @@ if (isset($conn)) {
                             echo '<li><a href="peminjaman_mobil_app.php" class="' . (isset($pagedesc) && $pagedesc == 'Approval Peminjaman Mobil' ? 'active' : '') . '">Approval' . $badge_mobil_child . '</a></li></ul></li>';
                             }
                         ?>
+                        <?php
+                        if (isset($pagedesc) && $pagedesc == "Booking Ruang Meeting") {
+                            echo '<li><a href="booking_ruang_meeting.php" class="active"><i class="fa fa-building fa-fw"></i> Booking Ruang Meeting</a></li>';
+                        } else {
+                            echo '<li><a href="booking_ruang_meeting.php"><i class="fa fa-building fa-fw"></i> Booking Ruang Meeting</a></li>';
+                        }
+                        ?>
 
                         <!-- <?php
                         // Link to Pengajuan Karyawan

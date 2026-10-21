@@ -204,6 +204,14 @@ if (isset($conn) && $id_koor_notif != '-1') {
                         }
                         ?>
                         </li>
+                        <?php
+                        if (isset($pagedesc) && $pagedesc == "Booking Ruang Meeting") {
+                            echo '<li><a href="booking_ruang_meeting.php" class="active"><i class="fa fa-building fa-fw"></i> Booking Ruang Meeting</a>';
+                        } else {
+                            echo '<li><a href="booking_ruang_meeting.php"><i class="fa fa-building fa-fw"></i> Booking Ruang Meeting</a>';
+                        }
+                        ?>
+                        </li>
                         </li>
                         <?php if($sess_jabatan == 'Manager' || $sess_jabatan == 'Leader'): ?>
                         <li>
