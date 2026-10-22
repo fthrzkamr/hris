@@ -6,6 +6,7 @@ if (isset($conn)) {
         npp VARCHAR(50) NOT NULL,
         nama_emp VARCHAR(100) NOT NULL,
         ruangan VARCHAR(100) NOT NULL,
+        tgl_booking DATE NOT NULL,
         tgl_mulai DATE NOT NULL,
         tgl_selesai DATE NOT NULL,
         jam_mulai TIME NOT NULL,
@@ -16,9 +17,16 @@ if (isset($conn)) {
         keterangan TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_npp (npp),
+        INDEX idx_booking (tgl_booking),
         INDEX idx_dates (tgl_mulai, tgl_selesai)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
     mysqli_query($conn, $createTable);
+
+    $chk_col = mysqli_query($conn, "SHOW COLUMNS FROM booking_ruang_meeting LIKE 'tgl_booking'");
+    if ($chk_col && mysqli_num_rows($chk_col) == 0) {
+        mysqli_query($conn, "ALTER TABLE booking_ruang_meeting ADD COLUMN tgl_booking DATE AFTER ruangan");
+        mysqli_query($conn, "UPDATE booking_ruang_meeting SET tgl_booking = tgl_mulai WHERE tgl_booking IS NULL OR tgl_booking = '0000-00-00'");
+    }
 
     $createMaster = "CREATE TABLE IF NOT EXISTS master_ruangan (
         id_ruangan INT AUTO_INCREMENT PRIMARY KEY,
@@ -84,7 +92,7 @@ if (isset($_POST['action_cancel']) && $_POST['action_cancel'] == 'cancel') {
             } elseif ($bd['status'] !== 'Disetujui') {
                 $message = "Booking ini sudah tidak aktif.";
                 $message_type = "danger";
-            } elseif ($bd['tgl_selesai'] < date('Y-m-d')) {
+            } elseif ((!empty($bd['tgl_booking']) ? $bd['tgl_booking'] : $bd['tgl_selesai']) < date('Y-m-d')) {
                 $message = "Booking yang jadwalnya sudah lewat tidak dapat dibatalkan.";
                 $message_type = "danger";
             } else {
@@ -103,8 +111,7 @@ if (isset($_POST['action_cancel']) && $_POST['action_cancel'] == 'cancel') {
 if (isset($_POST['action_edit']) && $_POST['action_edit'] == 'edit') {
     $booking_id       = mysqli_real_escape_string($conn, $_POST['booking_id']);
     $edit_ruangan     = mysqli_real_escape_string($conn, $_POST['ruangan'] ?? '');
-    $edit_tgl_mulai   = mysqli_real_escape_string($conn, $_POST['tgl_mulai'] ?? '');
-    $edit_tgl_selesai = mysqli_real_escape_string($conn, $_POST['tgl_selesai'] ?? '');
+    $edit_tgl_booking = mysqli_real_escape_string($conn, $_POST['tgl_booking'] ?? '');
     $edit_jam_mulai   = mysqli_real_escape_string($conn, $_POST['jam_mulai'] ?? '');
     $edit_jam_selesai = mysqli_real_escape_string($conn, $_POST['jam_selesai'] ?? '');
     $edit_agenda      = mysqli_real_escape_string($conn, $_POST['agenda'] ?? '');
@@ -116,44 +123,43 @@ if (isset($_POST['action_edit']) && $_POST['action_edit'] == 'edit') {
         $message_type = "danger";
     } else {
         $bd = mysqli_fetch_assoc($q_chk);
+        $bd_date = !empty($bd['tgl_booking']) ? $bd['tgl_booking'] : $bd['tgl_selesai'];
         if (!$is_admin_ruangan && $bd['npp'] !== $active_npp) {
             $message = "Anda tidak memiliki akses untuk mengubah booking ini.";
             $message_type = "danger";
         } elseif ($bd['status'] !== 'Disetujui') {
             $message = "Booking yang sudah dibatalkan tidak dapat diubah.";
             $message_type = "danger";
-        } elseif ($bd['tgl_selesai'] < date('Y-m-d')) {
+        } elseif ($bd_date < date('Y-m-d')) {
             $message = "Booking yang jadwalnya sudah lewat tidak dapat diubah.";
             $message_type = "danger";
-        } elseif (empty($edit_ruangan) || empty($edit_tgl_mulai) || empty($edit_tgl_selesai) || empty($edit_jam_mulai) || empty($edit_jam_selesai) || empty($edit_agenda)) {
+        } elseif (empty($edit_ruangan) || empty($edit_tgl_booking) || empty($edit_jam_mulai) || empty($edit_jam_selesai) || empty($edit_agenda)) {
             $message = "Semua kolom input edit wajib diisi!";
             $message_type = "danger";
-        } elseif ($edit_tgl_mulai > $edit_tgl_selesai) {
-            $message = "Tanggal mulai tidak boleh melebihi tanggal selesai!";
-            $message_type = "danger";
-        } elseif ($edit_tgl_mulai == $edit_tgl_selesai && $edit_jam_mulai >= $edit_jam_selesai) {
-            $message = "Jam mulai harus sebelum jam selesai pada hari yang sama!";
+        } elseif ($edit_jam_mulai >= $edit_jam_selesai) {
+            $message = "Jam mulai harus sebelum jam selesai!";
             $message_type = "danger";
         } else {
             $query_overlap = "SELECT * FROM booking_ruang_meeting
                               WHERE ruangan = '$edit_ruangan'
                               AND status = 'Disetujui'
                               AND id != '$booking_id'
-                              AND TIMESTAMP(tgl_mulai, jam_mulai) < TIMESTAMP('$edit_tgl_selesai', '$edit_jam_selesai')
-                              AND TIMESTAMP(tgl_selesai, jam_selesai) > TIMESTAMP('$edit_tgl_mulai', '$edit_jam_mulai')";
+                              AND TIMESTAMP(tgl_mulai, jam_mulai) < TIMESTAMP('$edit_tgl_booking', '$edit_jam_selesai')
+                              AND TIMESTAMP(tgl_selesai, jam_selesai) > TIMESTAMP('$edit_tgl_booking', '$edit_jam_mulai')";
             $res_overlap = mysqli_query($conn, $query_overlap);
             if (mysqli_num_rows($res_overlap) > 0) {
                 $overlap_data = mysqli_fetch_assoc($res_overlap);
                 $dipakai_oleh = $overlap_data['nama_emp'];
-                $tgl_dari    = date('d/m/Y', strtotime($overlap_data['tgl_mulai']));
-                $tgl_sampai  = date('d/m/Y', strtotime($overlap_data['tgl_selesai']));
-                $message = "Gagal mengubah! Ruangan <strong>$edit_ruangan</strong> sudah dibooking oleh <strong>$dipakai_oleh</strong> untuk periode $tgl_dari s.d $tgl_sampai.";
+                $tgl_disp     = date('d/m/Y', strtotime(!empty($overlap_data['tgl_booking']) ? $overlap_data['tgl_booking'] : $overlap_data['tgl_mulai']));
+                $jam_disp     = substr($overlap_data['jam_mulai'], 0, 5) . " - " . substr($overlap_data['jam_selesai'], 0, 5);
+                $message = "Gagal mengubah! Ruangan <strong>$edit_ruangan</strong> sudah dibooking oleh <strong>$dipakai_oleh</strong> pada tanggal $tgl_disp (jam $jam_disp).";
                 $message_type = "danger";
             } else {
                 $q_upd = "UPDATE booking_ruang_meeting SET
                             ruangan='$edit_ruangan',
-                            tgl_mulai='$edit_tgl_mulai',
-                            tgl_selesai='$edit_tgl_selesai',
+                            tgl_booking='$edit_tgl_booking',
+                            tgl_mulai='$edit_tgl_booking',
+                            tgl_selesai='$edit_tgl_booking',
                             jam_mulai='$edit_jam_mulai',
                             jam_selesai='$edit_jam_selesai',
                             agenda='$edit_agenda',
@@ -193,41 +199,37 @@ if ($q_rooms) {
 
 // ---------- NEW BOOKING ----------
 if (isset($_POST['submit_booking'])) {
-    $ruangan     = mysqli_real_escape_string($conn, $_POST['ruangan']);
-    $tgl_mulai   = mysqli_real_escape_string($conn, $_POST['tgl_mulai']);
-    $tgl_selesai = mysqli_real_escape_string($conn, $_POST['tgl_selesai']);
-    $jam_mulai   = mysqli_real_escape_string($conn, $_POST['jam_mulai']);
-    $jam_selesai = mysqli_real_escape_string($conn, $_POST['jam_selesai']);
-    $agenda      = mysqli_real_escape_string($conn, $_POST['agenda'] ?? '');
+    $ruangan        = mysqli_real_escape_string($conn, $_POST['ruangan']);
+    $tgl_booking    = mysqli_real_escape_string($conn, $_POST['tgl_booking']);
+    $jam_mulai      = mysqli_real_escape_string($conn, $_POST['jam_mulai']);
+    $jam_selesai    = mysqli_real_escape_string($conn, $_POST['jam_selesai']);
+    $agenda         = mysqli_real_escape_string($conn, $_POST['agenda'] ?? '');
     $jumlah_peserta = intval($_POST['jumlah_peserta'] ?? 0);
 
-    if (empty($ruangan) || empty($tgl_mulai) || empty($tgl_selesai) || empty($jam_mulai) || empty($jam_selesai) || empty($agenda)) {
+    if (empty($ruangan) || empty($tgl_booking) || empty($jam_mulai) || empty($jam_selesai) || empty($agenda)) {
         $message = "Semua kolom input wajib diisi!";
         $message_type = "danger";
-    } elseif ($tgl_mulai > $tgl_selesai) {
-        $message = "Tanggal mulai tidak boleh melebihi tanggal selesai!";
-        $message_type = "danger";
-    } elseif ($tgl_mulai == $tgl_selesai && $jam_mulai >= $jam_selesai) {
-        $message = "Jam mulai harus sebelum jam selesai pada hari yang sama!";
+    } elseif ($jam_mulai >= $jam_selesai) {
+        $message = "Jam mulai harus sebelum jam selesai!";
         $message_type = "danger";
     } else {
         $query_overlap = "SELECT * FROM booking_ruang_meeting
                           WHERE ruangan = '$ruangan'
                           AND status = 'Disetujui'
-                          AND TIMESTAMP(tgl_mulai, jam_mulai) < TIMESTAMP('$tgl_selesai', '$jam_selesai')
-                          AND TIMESTAMP(tgl_selesai, jam_selesai) > TIMESTAMP('$tgl_mulai', '$jam_mulai')";
+                          AND TIMESTAMP(tgl_mulai, jam_mulai) < TIMESTAMP('$tgl_booking', '$jam_selesai')
+                          AND TIMESTAMP(tgl_selesai, jam_selesai) > TIMESTAMP('$tgl_booking', '$jam_mulai')";
         $res_overlap = mysqli_query($conn, $query_overlap);
 
         if (mysqli_num_rows($res_overlap) > 0) {
             $overlap_data = mysqli_fetch_assoc($res_overlap);
             $dipakai_oleh = $overlap_data['nama_emp'];
-            $tgl_dari    = date('d/m/Y', strtotime($overlap_data['tgl_mulai']));
-            $tgl_sampai  = date('d/m/Y', strtotime($overlap_data['tgl_selesai']));
-            $message = "Ruangan <strong>$ruangan</strong> tidak tersedia — sudah dibooking oleh <strong>$dipakai_oleh</strong> untuk periode $tgl_dari s.d $tgl_sampai (jam " . substr($overlap_data['jam_mulai'],0,5) . " - " . substr($overlap_data['jam_selesai'],0,5) . ").";
+            $tgl_disp     = date('d/m/Y', strtotime(!empty($overlap_data['tgl_booking']) ? $overlap_data['tgl_booking'] : $overlap_data['tgl_mulai']));
+            $jam_disp     = substr($overlap_data['jam_mulai'], 0, 5) . " - " . substr($overlap_data['jam_selesai'], 0, 5);
+            $message = "Ruangan <strong>$ruangan</strong> tidak tersedia — sudah dibooking oleh <strong>$dipakai_oleh</strong> pada tanggal $tgl_disp (jam $jam_disp).";
             $message_type = "danger";
         } else {
-            $query_insert = "INSERT INTO booking_ruang_meeting (npp, nama_emp, ruangan, tgl_mulai, tgl_selesai, jam_mulai, jam_selesai, agenda, jumlah_peserta, status)
-                             VALUES ('$active_npp', '$active_name', '$ruangan', '$tgl_mulai', '$tgl_selesai', '$jam_mulai', '$jam_selesai', '$agenda', $jumlah_peserta, 'Disetujui')";
+            $query_insert = "INSERT INTO booking_ruang_meeting (npp, nama_emp, ruangan, tgl_booking, tgl_mulai, tgl_selesai, jam_mulai, jam_selesai, agenda, jumlah_peserta, status)
+                             VALUES ('$active_npp', '$active_name', '$ruangan', '$tgl_booking', '$tgl_booking', '$tgl_booking', '$jam_mulai', '$jam_selesai', '$agenda', $jumlah_peserta, 'Disetujui')";
             if (mysqli_query($conn, $query_insert)) {
                 $message = "Booking ruang meeting berhasil disimpan!";
                 $message_type = "success";
@@ -252,6 +254,7 @@ if ($res_bookings) {
             'id' => $row['id'],
             'nama_emp' => $row['nama_emp'],
             'ruangan' => $row['ruangan'],
+            'tgl_booking' => !empty($row['tgl_booking']) ? $row['tgl_booking'] : $row['tgl_mulai'],
             'tgl_mulai' => $row['tgl_mulai'],
             'tgl_selesai' => $row['tgl_selesai'],
             'jam_mulai' => substr($row['jam_mulai'], 0, 5),
@@ -584,9 +587,9 @@ $pagedesc = "Booking Ruang Meeting";
                                 <tr>
                                     <th width="5%" class="text-center">No</th>
                                     <th width="15%">Ruangan</th>
-                                    <th width="20%">Periode</th>
-                                    <th width="10%">Waktu</th>
-                                    <th width="20%">Agenda</th>
+                                    <th width="15%">Tanggal Booking</th>
+                                    <th width="12%">Waktu</th>
+                                    <th width="23%">Agenda</th>
                                     <th width="10%" class="text-center">Peserta</th>
                                     <th width="10%" class="text-center">Status</th>
                                     <th width="10%" class="text-center">Aksi</th>
@@ -594,11 +597,15 @@ $pagedesc = "Booking Ruang Meeting";
                             </thead>
                             <tbody>
                                 <?php $no = 1; foreach ($my_bookings as $my): ?>
+                                    <?php
+                                    $my_tgl = !empty($my['tgl_booking']) ? $my['tgl_booking'] : $my['tgl_mulai'];
+                                    $my_expired = ($my_tgl < date('Y-m-d'));
+                                    ?>
                                     <tr>
                                         <td class="text-center"><?php echo $no++; ?></td>
                                         <td><strong><?php echo htmlspecialchars($my['ruangan']); ?></strong></td>
-                                        <td data-order="<?php echo $my['tgl_mulai'] . ' ' . $my['jam_mulai']; ?>">
-                                            <i class="fa fa-calendar-o"></i> &nbsp;<?php echo date('d/m/Y', strtotime($my['tgl_mulai'])) . ' - ' . date('d/m/Y', strtotime($my['tgl_selesai'])); ?>
+                                        <td data-order="<?php echo $my_tgl . ' ' . $my['jam_mulai']; ?>">
+                                            <i class="fa fa-calendar-o"></i> &nbsp;<?php echo date('d/m/Y', strtotime($my_tgl)); ?>
                                         </td>
                                         <td><?php echo substr($my['jam_mulai'],0,5) . ' - ' . substr($my['jam_selesai'],0,5); ?></td>
                                         <td><?php echo htmlspecialchars($my['agenda']); ?></td>
@@ -616,7 +623,6 @@ $pagedesc = "Booking Ruang Meeting";
                                             <?php endif; ?>
                                         </td>
                                         <td class="text-center">
-                                            <?php $my_expired = ($my['tgl_selesai'] < date('Y-m-d')); ?>
                                             <?php if ($my['status'] == 'Disetujui' && !$my_expired): ?>
                                                 <div style="display: flex; gap: 4px; justify-content: center;">
                                                     <button type="button" class="btn btn-info btn-xs" style="border-radius: 4px;" onclick="openEditModal(<?php echo htmlspecialchars(json_encode($my), ENT_QUOTES, 'UTF-8'); ?>)">
@@ -712,19 +718,9 @@ $pagedesc = "Booking Ruang Meeting";
             </div>
             <form method="post" id="formBooking">
                 <div class="modal-body" style="padding: 24px;">
-                    <div class="row">
-                        <div class="col-xs-6" style="padding-right: 8px;">
-                            <div class="ios-form-group">
-                                <label class="ios-form-label">Tanggal Mulai <span class="text-danger">*</span></label>
-                                <input type="date" class="ios-input" name="tgl_mulai" required>
-                            </div>
-                        </div>
-                        <div class="col-xs-6" style="padding-left: 8px;">
-                            <div class="ios-form-group">
-                                <label class="ios-form-label">Tanggal Selesai <span class="text-danger">*</span></label>
-                                <input type="date" class="ios-input" name="tgl_selesai" required>
-                            </div>
-                        </div>
+                    <div class="ios-form-group">
+                        <label class="ios-form-label">Tanggal Booking <span class="text-danger">*</span></label>
+                        <input type="date" class="ios-input" name="tgl_booking" required>
                     </div>
                     <div class="row">
                         <div class="col-xs-6" style="padding-right: 8px;">
@@ -818,19 +814,9 @@ $pagedesc = "Booking Ruang Meeting";
                 <div class="modal-body" style="padding: 24px;">
                     <input type="hidden" name="booking_id" id="edit_booking_id">
                     <input type="hidden" name="action_edit" value="edit">
-                    <div class="row">
-                        <div class="col-xs-6" style="padding-right: 8px;">
-                            <div class="ios-form-group">
-                                <label class="ios-form-label">Tanggal Mulai <span class="text-danger">*</span></label>
-                                <input type="date" class="ios-input" name="tgl_mulai" id="edit_tgl_mulai" required>
-                            </div>
-                        </div>
-                        <div class="col-xs-6" style="padding-left: 8px;">
-                            <div class="ios-form-group">
-                                <label class="ios-form-label">Tanggal Selesai <span class="text-danger">*</span></label>
-                                <input type="date" class="ios-input" name="tgl_selesai" id="edit_tgl_selesai" required>
-                            </div>
-                        </div>
+                    <div class="ios-form-group">
+                        <label class="ios-form-label">Tanggal Booking <span class="text-danger">*</span></label>
+                        <input type="date" class="ios-input" name="tgl_booking" id="edit_tgl_booking" required>
                     </div>
                     <div class="row">
                         <div class="col-xs-6" style="padding-right: 8px;">
@@ -1057,7 +1043,10 @@ function formatDate(date) {
 }
 
 function getBookingsForDate(dateStr) {
-    return bookings.filter(b => (dateStr >= b.tgl_mulai && dateStr <= b.tgl_selesai));
+    return bookings.filter(b => {
+        const bDate = b.tgl_booking || b.tgl_mulai;
+        return (dateStr === bDate || (dateStr >= b.tgl_mulai && dateStr <= b.tgl_selesai));
+    });
 }
 
 function showBookingDetails(dateStr) {
@@ -1113,8 +1102,7 @@ function openEditModal(data) {
         data = JSON.parse(data);
     }
     document.getElementById("edit_booking_id").value = data.id;
-    document.getElementById("edit_tgl_mulai").value = data.tgl_mulai;
-    document.getElementById("edit_tgl_selesai").value = data.tgl_selesai;
+    document.getElementById("edit_tgl_booking").value = data.tgl_booking || data.tgl_mulai || '';
     document.getElementById("edit_jam_mulai").value = (data.jam_mulai || '').substring(0, 5);
     document.getElementById("edit_jam_selesai").value = (data.jam_selesai || '').substring(0, 5);
     document.getElementById("edit_ruangan").value = data.ruangan;
@@ -1130,78 +1118,79 @@ window.addEventListener('load', function() {
 
 function checkOverlapInstantly() {
     const ruanganSelect = document.querySelector('#formBooking select[name="ruangan"]');
-    const tglMulai = document.querySelector('#formBooking input[name="tgl_mulai"]');
-    const tglSelesai = document.querySelector('#formBooking input[name="tgl_selesai"]');
+    const tglBooking = document.querySelector('#formBooking input[name="tgl_booking"]');
     const jamMulai = document.querySelector('#formBooking input[name="jam_mulai"]');
     const jamSelesai = document.querySelector('#formBooking input[name="jam_selesai"]');
 
-    if (!ruanganSelect || !tglMulai || !tglSelesai || !jamMulai || !jamSelesai) return;
-    if (!ruanganSelect.value || !tglMulai.value || !tglSelesai.value || !jamMulai.value || !jamSelesai.value) return;
+    if (!ruanganSelect || !tglBooking || !jamMulai || !jamSelesai) return;
+    if (!ruanganSelect.value || !tglBooking.value || !jamMulai.value || !jamSelesai.value) return;
 
-    const newStart = `${tglMulai.value} ${jamMulai.value}`;
-    const newEnd   = `${tglSelesai.value} ${jamSelesai.value}`;
+    if (jamMulai.value && jamSelesai.value && jamMulai.value >= jamSelesai.value) {
+        alert("Jam mulai harus sebelum jam selesai!");
+        jamSelesai.value = '';
+        return;
+    }
+
+    const newStart = `${tglBooking.value} ${jamMulai.value}`;
+    const newEnd   = `${tglBooking.value} ${jamSelesai.value}`;
 
     const overlap = bookings.find(b => {
         if (b.status !== 'Disetujui') return false;
         if (b.ruangan !== ruanganSelect.value) return false;
-        const existStart = `${b.tgl_mulai} ${b.jam_mulai}`;
-        const existEnd   = `${b.tgl_selesai} ${b.jam_selesai}`;
-        return (existStart < newEnd && existEnd > newStart);
+        const bStart = `${b.tgl_booking || b.tgl_mulai} ${b.jam_mulai}`;
+        const bEnd   = `${b.tgl_booking || b.tgl_selesai} ${b.jam_selesai}`;
+        return (bStart < newEnd && bEnd > newStart);
     });
 
     if (overlap) {
+        const bTgl = overlap.tgl_booking || overlap.tgl_mulai;
         const jamKet = `(jam ${overlap.jam_mulai} s.d ${overlap.jam_selesai})`;
-        alert(`TIDAK TERSEDIA:\n\nRuangan ${ruanganSelect.value} sudah dibooking oleh ${overlap.nama_emp} pada tanggal ${overlap.tgl_mulai} s.d ${overlap.tgl_selesai} ${jamKet}.\n\nSilakan pilih jam/tanggal atau ruangan yang lain.`);
-        tglMulai.value = '';
-        tglSelesai.value = '';
+        alert(`TIDAK TERSEDIA:\n\nRuangan ${ruanganSelect.value} sudah dibooking oleh ${overlap.nama_emp} pada tanggal ${bTgl} ${jamKet}.\n\nSilakan pilih jam/tanggal atau ruangan yang lain.`);
+        tglBooking.value = '';
     }
 }
 
 function checkEditOverlapInstantly() {
     const editBookingId = document.getElementById("edit_booking_id").value;
     const ruanganSelect = document.getElementById("edit_ruangan");
-    const tglMulai = document.getElementById("edit_tgl_mulai");
-    const tglSelesai = document.getElementById("edit_tgl_selesai");
+    const tglBooking = document.getElementById("edit_tgl_booking");
     const jamMulai = document.getElementById("edit_jam_mulai");
     const jamSelesai = document.getElementById("edit_jam_selesai");
 
-    if (!ruanganSelect || !tglMulai || !tglSelesai || !jamMulai || !jamSelesai) return;
-    if (!ruanganSelect.value || !tglMulai.value || !tglSelesai.value || !jamMulai.value || !jamSelesai.value) return;
+    if (!ruanganSelect || !tglBooking || !jamMulai || !jamSelesai) return;
+    if (!ruanganSelect.value || !tglBooking.value || !jamMulai.value || !jamSelesai.value) return;
 
-    const newStart = `${tglMulai.value} ${jamMulai.value}`;
-    const newEnd   = `${tglSelesai.value} ${jamSelesai.value}`;
+    if (jamMulai.value && jamSelesai.value && jamMulai.value >= jamSelesai.value) {
+        alert("Jam mulai harus sebelum jam selesai!");
+        jamSelesai.value = '';
+        return;
+    }
+
+    const newStart = `${tglBooking.value} ${jamMulai.value}`;
+    const newEnd   = `${tglBooking.value} ${jamSelesai.value}`;
 
     const overlap = bookings.find(b => {
         if (b.status !== 'Disetujui') return false;
         if (String(b.id) === String(editBookingId)) return false;
         if (b.ruangan !== ruanganSelect.value) return false;
-        const existStart = `${b.tgl_mulai} ${b.jam_mulai}`;
-        const existEnd   = `${b.tgl_selesai} ${b.jam_selesai}`;
-        return (existStart < newEnd && existEnd > newStart);
+        const bStart = `${b.tgl_booking || b.tgl_mulai} ${b.jam_mulai}`;
+        const bEnd   = `${b.tgl_booking || b.tgl_selesai} ${b.jam_selesai}`;
+        return (bStart < newEnd && bEnd > newStart);
     });
 
     if (overlap) {
+        const bTgl = overlap.tgl_booking || overlap.tgl_mulai;
         const jamKet = `(jam ${overlap.jam_mulai} s.d ${overlap.jam_selesai})`;
-        alert(`TIDAK TERSEDIA:\n\nRuangan ${ruanganSelect.value} sudah dibooking oleh ${overlap.nama_emp} pada tanggal ${overlap.tgl_mulai} s.d ${overlap.tgl_selesai} ${jamKet}.\n\nSilakan pilih jam/tanggal atau ruangan yang lain.`);
-        tglMulai.value = '';
-        tglSelesai.value = '';
+        alert(`TIDAK TERSEDIA:\n\nRuangan ${ruanganSelect.value} sudah dibooking oleh ${overlap.nama_emp} pada tanggal ${bTgl} ${jamKet}.\n\nSilakan pilih jam/tanggal atau ruangan yang lain.`);
+        tglBooking.value = '';
     }
 }
 
 if (document.querySelector('#formBooking select[name="ruangan"]')) {
     document.querySelector('#formBooking select[name="ruangan"]').addEventListener('change', checkOverlapInstantly);
 }
-if (document.querySelector('#formBooking input[name="tgl_mulai"]')) {
-    document.querySelector('#formBooking input[name="tgl_mulai"]').addEventListener('change', function() {
-        const tglSelesai = document.querySelector('#formBooking input[name="tgl_selesai"]');
-        if (this.value && !tglSelesai.value) {
-            tglSelesai.value = this.value;
-        }
-        checkOverlapInstantly();
-    });
-}
-if (document.querySelector('#formBooking input[name="tgl_selesai"]')) {
-    document.querySelector('#formBooking input[name="tgl_selesai"]').addEventListener('change', checkOverlapInstantly);
+if (document.querySelector('#formBooking input[name="tgl_booking"]')) {
+    document.querySelector('#formBooking input[name="tgl_booking"]').addEventListener('change', checkOverlapInstantly);
 }
 if (document.querySelector('#formBooking input[name="jam_mulai"]')) {
     document.querySelector('#formBooking input[name="jam_mulai"]').addEventListener('change', checkOverlapInstantly);
@@ -1213,17 +1202,8 @@ if (document.querySelector('#formBooking input[name="jam_selesai"]')) {
 if (document.getElementById('edit_ruangan')) {
     document.getElementById('edit_ruangan').addEventListener('change', checkEditOverlapInstantly);
 }
-if (document.getElementById('edit_tgl_mulai')) {
-    document.getElementById('edit_tgl_mulai').addEventListener('change', function() {
-        const tglSelesai = document.getElementById('edit_tgl_selesai');
-        if (this.value && !tglSelesai.value) {
-            tglSelesai.value = this.value;
-        }
-        checkEditOverlapInstantly();
-    });
-}
-if (document.getElementById('edit_tgl_selesai')) {
-    document.getElementById('edit_tgl_selesai').addEventListener('change', checkEditOverlapInstantly);
+if (document.getElementById('edit_tgl_booking')) {
+    document.getElementById('edit_tgl_booking').addEventListener('change', checkEditOverlapInstantly);
 }
 if (document.getElementById('edit_jam_mulai')) {
     document.getElementById('edit_jam_mulai').addEventListener('change', checkEditOverlapInstantly);
