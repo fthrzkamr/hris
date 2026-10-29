@@ -1,0 +1,5 @@
+---
+deployment:
+  tasks:
+    - /usr/bin/find . -type d -not -path './.git*' -exec chmod 755 {} \;
+    - /usr/bin/find . -type f -not -path './.git/*' -exec chmod 644 {} \;

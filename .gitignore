@@ -1,0 +1,26 @@
+# Folder upload dokumen/foto milik karyawan (reimburse, kacamata, dll)
+# Sengaja tidak di-commit supaya tidak bentrok saat deploy ke hosting
+*/uploads/
+uploads/
+foto/karyawan/
+foto/foto*
+
+# Konfigurasi koneksi database berbeda per environment (lokal vs hosting)
+# Jangan di-track supaya kredensial production tidak pernah ketimpa/bocor
+dist/config/koneksi.php
+
+# Cache, backup, archive & temporary files
+.phpunit.cache/
+*.log
+error_log
+*/error_log
+*.bak
+*.zip
+*.tmp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editor files
+.vscode/
+.idea/
