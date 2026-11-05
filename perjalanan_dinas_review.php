@@ -336,11 +336,13 @@ $pengajuan = mysqli_fetch_assoc($res_p);
             });
 
             $(document).on('click', '.btnEditApprove', function () {
+                var rawNominal = unformat($(this).data('nominal'));
+                var rawPerkiraan = unformat($(this).data('perkiraan'));
                 $('#rincian_id_approve').val($(this).data('id'));
                 $('#ket_approve').val($(this).data('ket'));
-                $('#nominal_approve').val($(this).data('nominal'));
+                $('#nominal_approve').val(formatRp(rawNominal));
                 $('#qty_approve').val($(this).data('qty'));
-                $('#perkiraan_approve').val($(this).data('perkiraan'));
+                $('#perkiraan_approve').val(formatRp(rawPerkiraan));
                 $('#keterangan_approve').val($(this).data('keterangan'));
                 $('#rincianModalApprove .modal-title').text('Edit Item');
                 $('#rincianModalApprove').modal('show');
@@ -435,7 +437,7 @@ $pengajuan = mysqli_fetch_assoc($res_p);
                 $('#budgetDisplay').text('Rp ' + formatRp(totalBudget));
             }
 
-            $(document).on('input', '.nominal-field', function () {
+            $(document).on('input keyup', '.nominal-field, .rupiah-modal-input', function () {
                 var v = $(this).val().replace(/\D/g, '');
                 if (v === '') $(this).val('');
                 else $(this).val(formatRp(v));
@@ -457,9 +459,22 @@ $pengajuan = mysqli_fetch_assoc($res_p);
                 </div>
                 <div class="modal-body">
                     <div class="form-group"><label>Keterangan</label><input name="ket" id="ket_approve" class="form-control" required></div>
-                    <div class="form-group"><label>Nominal</label><input type="text" inputmode="numeric" pattern="[0-9.]*" name="nominal" id="nominal_approve" class="form-control" oninput="this.value=this.value.replace(/[^0-9\.]/g,'');"></div>
-                    <div class="form-group"><label>Qty</label><input type="number" step="1" min="0" name="qty" id="qty_approve" class="form-control" oninput="this.value=this.value.replace(/[^0-9]/g,'');"></div>
-                    <div class="form-group"><label>Perkiraan</label><input type="text" inputmode="numeric" pattern="[0-9.]*" name="perkiraan" id="perkiraan_approve" class="form-control" oninput="this.value=this.value.replace(/[^0-9\.]/g,'');"></div>
+                    <div class="form-group">
+                        <label>Nominal yang Disetujui (Rp)</label>
+                        <div class="input-group">
+                            <span class="input-group-addon" style="font-weight:bold;">Rp</span>
+                            <input type="text" inputmode="numeric" name="nominal" id="nominal_approve" class="form-control text-right rupiah-modal-input" style="font-weight:bold; font-family:Consolas, monospace;">
+                        </div>
+                    </div>
+                    <div class="form-group"><label>Qty</label><input type="number" step="1" min="1" name="qty" id="qty_approve" class="form-control" oninput="this.value=this.value.replace(/[^0-9]/g,'');"></div>
+                    <div class="form-group">
+                        <label>Nominal yang Diajukan / Perkiraan Awal (Rp)</label>
+                        <div class="input-group">
+                            <span class="input-group-addon" style="font-weight:bold;">Rp</span>
+                            <input type="text" name="perkiraan" id="perkiraan_approve" class="form-control text-right" readonly tabindex="-1" style="background-color:#f0f0f0; cursor:not-allowed; font-weight:bold; font-family:Consolas, monospace;">
+                        </div>
+                        <small class="text-muted"><i class="fa fa-lock"></i> Nominal pengajuan awal paten (tidak dapat diubah)</small>
+                    </div>
                     <div class="form-group"><label>Keterangan Tambahan</label><input name="keterangan" id="keterangan_approve" class="form-control"></div>
                 </div>
                 <div class="modal-footer">

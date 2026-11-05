@@ -23,5 +23,8 @@ if (!$row_sess) {
 $sess_admid = $row_sess['npp'];
 $sess_admuser = $row_sess['npp'];
 $sess_admname = $row_sess['nama_emp'];
+$sess_mngid = $row_sess['npp'];
+$sess_mngname = $row_sess['nama_emp'];
+$sess_bagian = $row_sess['nama_bagian'] ?? null;
 $sess_jabatan = $row_sess['jabatan'] ?? null;
 ?>

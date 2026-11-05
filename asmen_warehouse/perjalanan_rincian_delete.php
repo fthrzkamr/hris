@@ -1,8 +1,15 @@
 <?php
+ob_start();
 require_once __DIR__ . '/sess_check.php';
+if (is_file(__DIR__ . '/dist/config/koneksi.php')) {
+    require_once __DIR__ . '/dist/config/koneksi.php';
+} elseif (is_file(__DIR__ . '/../dist/config/koneksi.php')) {
+    require_once __DIR__ . '/../dist/config/koneksi.php';
+}
+if (ob_get_length()) {
+    ob_clean();
+}
 header('Content-Type: application/json');
-
-require_once __DIR__ . '/dist/config/koneksi.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'error' => 'Invalid request']);
@@ -30,13 +37,15 @@ if (!$row) {
 }
 
 $perjalanan_id = intval($row['perjalanan_id']);
-$user_display = $sess_admname ?? $sess_mngname ?? ($_SESSION['nama'] ?? ($_SESSION['user'] ?? 'system'));
+$user_display = $sess_mngname ?? ($sess_kryname ?? ($sess_spvname ?? ($sess_admname ?? ($sess_dirname ?? ($_SESSION['nama'] ?? 'HR')))));
 
 // insert log
 $note = 'Deleted via UI by ' . $user_display;
 $log_stmt = mysqli_prepare($conn, "INSERT INTO perjalanan_rincian_log (rincian_id, perjalanan_id, old_nominal, old_total, old_keterangan, changed_by, note) VALUES (?,?,?,?,?,?,?)");
-mysqli_stmt_bind_param($log_stmt, 'iisssss', $id, $perjalanan_id, $row['nominal'], $row['total'], $row['keterangan'], $user_display, $note);
-mysqli_stmt_execute($log_stmt);
+if ($log_stmt) {
+    mysqli_stmt_bind_param($log_stmt, 'iisssss', $id, $perjalanan_id, $row['nominal'], $row['total'], $row['keterangan'], $user_display, $note);
+    @mysqli_stmt_execute($log_stmt);
+}
 
 // delete
 $del = mysqli_prepare($conn, "DELETE FROM perjalanan_rincian WHERE id = ? AND perjalanan_id = ?");
@@ -54,6 +63,6 @@ if ($ok) {
     mysqli_stmt_bind_param($upd2, 'di', $new_total, $perjalanan_id);
     mysqli_stmt_execute($upd2);
     echo json_encode(['success' => true, 'budget_total' => $new_total]);
-} else echo json_encode(['success' => false, 'error' => 'DB delete failed']);
-
-?>
+} else {
+    echo json_encode(['success' => false, 'error' => 'DB delete failed']);
+}

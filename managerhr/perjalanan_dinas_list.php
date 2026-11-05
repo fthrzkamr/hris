@@ -1,452 +1,478 @@
 <?php
-include("sess_check.php");
-include __DIR__ . '/dist/config/koneksi.php';
-
-$pagedesc = 'Daftar Perjalanan Dinas';
+$pagedesc = 'Persetujuan Perjalanan Dinas';
 $menuparent = 'perjalanan_dinas';
+include("sess_check.php");
 include("layout_top.php");
 
-// pastikan apakah user current adalah Manager HR atau Admin
-$is_managerhr = (isset($sess_mngid) && !empty($sess_mngid)) || (isset($sess_admid) && !empty($sess_admid));
-
 // DB connection
-include __DIR__ . '/dist/config/koneksi.php';
+if (is_file(__DIR__ . '/dist/config/koneksi.php')) {
+    include_once __DIR__ . '/dist/config/koneksi.php';
+} else {
+    include_once __DIR__ . '/../dist/config/koneksi.php';
+}
 
-// ensure pengajuan table exists with approval columns
-$createPengajuan = "CREATE TABLE IF NOT EXISTS perjalanan_pengajuan (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    id_perjalanan INT NOT NULL,
-    npp VARCHAR(50),
-    pengaju VARCHAR(100),
-    tanggal_pengajuan DATETIME,
-    status VARCHAR(50),
-    catatan TEXT,
-    approval_hr VARCHAR(50),
-    approver_hr VARCHAR(100),
-    tanggal_approval_hr DATETIME,
-    catatan_hr TEXT,
-    approval_manager_hr VARCHAR(50),
-    approver_manager_hr VARCHAR(100),
-    tanggal_approval_manager_hr DATETIME,
-    catatan_manager_hr TEXT,
-    approval_direktur VARCHAR(50),
-    approver_direktur VARCHAR(100),
-    tanggal_approval_direktur DATETIME,
-    catatan_direktur TEXT,
-    FOREIGN KEY (id_perjalanan) REFERENCES perjalanan_dinas(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-mysqli_query($conn, $createPengajuan);
+// Get NPP from session
+$npp_user = $sess_mngid ?? ($sess_admid ?? ($sess_kryid ?? ($sess_spvid ?? ($sess_dirid ?? ($_SESSION['admin'] ?? ($_SESSION['managerhr'] ?? ($_SESSION['npp'] ?? '')))))));
 
-// Add approval columns if not exist - check first to avoid errors
-$checkColumns = mysqli_query($conn, "SHOW COLUMNS FROM perjalanan_pengajuan LIKE 'approval_hr'");
-if (mysqli_num_rows($checkColumns) == 0) {
-    // Columns don't exist, add them
-    $alterQueries = [
-        "ALTER TABLE perjalanan_pengajuan ADD COLUMN approval_hr VARCHAR(50)",
-        "ALTER TABLE perjalanan_pengajuan ADD COLUMN approver_hr VARCHAR(100)",
-        "ALTER TABLE perjalanan_pengajuan ADD COLUMN tanggal_approval_hr DATETIME",
-        "ALTER TABLE perjalanan_pengajuan ADD COLUMN catatan_hr TEXT",
-        "ALTER TABLE perjalanan_pengajuan ADD COLUMN approval_manager_hr VARCHAR(50)",
-        "ALTER TABLE perjalanan_pengajuan ADD COLUMN approver_manager_hr VARCHAR(100)",
-        "ALTER TABLE perjalanan_pengajuan ADD COLUMN tanggal_approval_manager_hr DATETIME",
-        "ALTER TABLE perjalanan_pengajuan ADD COLUMN catatan_manager_hr TEXT",
-        "ALTER TABLE perjalanan_pengajuan ADD COLUMN approval_direktur VARCHAR(50)",
-        "ALTER TABLE perjalanan_pengajuan ADD COLUMN approver_direktur VARCHAR(100)",
-        "ALTER TABLE perjalanan_pengajuan ADD COLUMN tanggal_approval_direktur DATETIME",
-        "ALTER TABLE perjalanan_pengajuan ADD COLUMN catatan_direktur TEXT"
-    ];
-    
-    foreach ($alterQueries as $query) {
-        @mysqli_query($conn, $query); // Suppress errors if column already exists
-    }
+if (empty($npp_user)) {
+    echo '<div id="page-wrapper"><div class="alert alert-danger" style="margin-top:20px;">Session tidak valid. Silakan login kembali.</div></div>';
+    include("layout_bottom.php");
+    exit;
 }
 
 $message = '';
-// Handle ajukan action (HR mengajukan ke Manager HR)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'ajukan') {
-    $perjalanan_id = intval($_POST['id'] ?? 0);
-    $nominals = $_POST['nominal'] ?? []; // expect array [rincian_id => nominal]
-    $pengaju_npp = $sess_admid ?? $sess_mngid ?? $_SESSION['admin'] ?? null;
-    $pengaju_name = $sess_admname ?? $sess_mngname ?? ($_SESSION['admin'] ?? 'HR');
+$messageType = 'info';
 
-    if ($perjalanan_id > 0) {
-        mysqli_begin_transaction($conn);
-        try {
-            // update rincian jika dikirim nominal oleh HR
-            if (!empty($nominals) && is_array($nominals)) {
-                foreach ($nominals as $rid => $val) {
-                    $rid = intval($rid);
-                    $val_clean = preg_replace('/[^0-9\.]/','',$val);
-                    $nominal_new = $val_clean === '' ? '0' : $val_clean;
-
-                    // ambil qty lama
-                    $stmtOld = mysqli_prepare($conn, "SELECT qty FROM perjalanan_rincian WHERE id = ?");
-                    mysqli_stmt_bind_param($stmtOld, 'i', $rid);
-                    mysqli_stmt_execute($stmtOld);
-                    $resOld = mysqli_stmt_get_result($stmtOld);
-                    $rowOld = mysqli_fetch_assoc($resOld);
-                    $qty = (float)($rowOld['qty'] ?? 1);
-
-                    $total_new = number_format((float)$nominal_new * $qty, 2, '.', '');
-                    $upd = mysqli_prepare($conn, "UPDATE perjalanan_rincian SET nominal = ?, total = ? WHERE id = ?");
-                    mysqli_stmt_bind_param($upd, 'ssi', $nominal_new, $total_new, $rid);
-                    mysqli_stmt_execute($upd);
-                }
-
-                // rekalkulasi budget_total
-                $stmtSum = mysqli_prepare($conn, "SELECT SUM(CAST(REPLACE(total,',','') AS DECIMAL(20,2))) AS s FROM perjalanan_rincian WHERE perjalanan_id = ?");
-                mysqli_stmt_bind_param($stmtSum, 'i', $perjalanan_id);
-                mysqli_stmt_execute($stmtSum);
-                $resSum = mysqli_stmt_get_result($stmtSum);
-                $sumRow = mysqli_fetch_assoc($resSum);
-                $budget_total = (float)($sumRow['s'] ?? 0);
-
-                $updBudget = mysqli_prepare($conn, "UPDATE perjalanan_dinas SET budget_total = ? WHERE id = ?");
-                mysqli_stmt_bind_param($updBudget, 'di', $budget_total, $perjalanan_id);
-                mysqli_stmt_execute($updBudget);
-            }
-
-            // cari pengajuan terakhir untuk perjalanan ini
-            $stmtSel = mysqli_prepare($conn, "SELECT id FROM perjalanan_pengajuan WHERE id_perjalanan = ? ORDER BY id DESC LIMIT 1 FOR UPDATE");
-            mysqli_stmt_bind_param($stmtSel, 'i', $perjalanan_id);
-            mysqli_stmt_execute($stmtSel);
-            $resSel = mysqli_stmt_get_result($stmtSel);
-            $last = mysqli_fetch_assoc($resSel);
-
-            $tgl_now = date('Y-m-d H:i:s');
-            $status = 'DIAJUKAN';
-
-            if ($last && !empty($last['id'])) {
-                $pid = (int)$last['id'];
-                $updPeng = mysqli_prepare($conn, "UPDATE perjalanan_pengajuan SET npp = ?, pengaju = ?, tanggal_pengajuan = ?, status = ?, approval_manager_hr = NULL, approver_manager_hr = NULL, tanggal_approval_manager_hr = NULL, catatan_manager_hr = NULL WHERE id = ?");
-                mysqli_stmt_bind_param($updPeng, 'ssssi', $pengaju_npp, $pengaju_name, $tgl_now, $status, $pid);
-                mysqli_stmt_execute($updPeng);
-            } else {
-                $ins = mysqli_prepare($conn, "INSERT INTO perjalanan_pengajuan (id_perjalanan, npp, pengaju, tanggal_pengajuan, status) VALUES (?,?,?,?,?)");
-                mysqli_stmt_bind_param($ins, 'issss', $perjalanan_id, $pengaju_npp, $pengaju_name, $tgl_now, $status);
-                mysqli_stmt_execute($ins);
-            }
-
-            mysqli_commit($conn);
-            $message = "Pengajuan berhasil dikirim.";
-        } catch (Exception $e) {
-            mysqli_rollback($conn);
-            $message = "Gagal mengajukan: " . $e->getMessage();
-        }
-    } else {
-        $message = "ID perjalanan tidak valid.";
-    }
+if (isset($_GET['success'])) {
+    $message = $_GET['success'];
+    $messageType = 'success';
+} elseif (isset($_GET['msg'])) {
+    $message = $_GET['msg'];
+    $messageType = 'success';
+} elseif (isset($_GET['error'])) {
+    $message = $_GET['error'];
+    $messageType = 'danger';
 }
 
-// Fetch list with latest status and approval info (gunakan latest pengajuan per perjalanan)
-$sql = "SELECT p.id, p.no_dokumen, p.nama, p.departemen, p.tanggal_perjalanan, p.kota_tujuan, p.tanggal_dokumen, p.budget_total,
-    pg.status,
-    pg.approval_manager_hr,
-    pg.approval_direktur,
-    pg.tanggal_pengajuan
+$tab_active = isset($_GET['tab']) ? $_GET['tab'] : 'pending';
+
+$npp_esc = mysqli_real_escape_string($conn, $npp_user);
+
+// 1. Query Pengajuan Menunggu Persetujuan Manager HR
+$sql_pending = "SELECT p.id, p.no_dokumen, p.nama, p.npp, p.departemen, p.tanggal_perjalanan, p.kota_tujuan, 
+        p.kota_asal, p.jumlah_hari, p.budget_total, p.tanggal_dokumen, p.created_at,
+        (SELECT GROUP_CONCAT(CONCAT(pk.nama, CASE WHEN pk.is_pemohon = 1 THEN ' (Pengaju)' ELSE '' END) ORDER BY pk.is_pemohon DESC SEPARATOR ', ') 
+         FROM perjalanan_karyawan pk WHERE pk.perjalanan_id = p.id) AS daftar_peserta,
+        pp.status, pp.tanggal_pengajuan, pp.pengaju, pp.catatan
+    FROM perjalanan_dinas p
+    INNER JOIN (
+        SELECT p1.id_perjalanan, p1.status, p1.tanggal_pengajuan, p1.pengaju, p1.catatan
+        FROM perjalanan_pengajuan p1
+        INNER JOIN (
+            SELECT id_perjalanan, MAX(id) AS max_id FROM perjalanan_pengajuan GROUP BY id_perjalanan
+        ) p_max ON p1.id_perjalanan = p_max.id_perjalanan AND p1.id = p_max.max_id
+    ) pp ON p.id = pp.id_perjalanan
+    WHERE pp.status IN ('DIAJUKAN', 'APPROVED_HR', 'REALISASI_DIAJUKAN', 'REALISASI_VERIFIED_HR')
+    ORDER BY pp.tanggal_pengajuan ASC, p.id DESC";
+$res_pending = mysqli_query($conn, $sql_pending);
+$count_pending = $res_pending ? mysqli_num_rows($res_pending) : 0;
+
+// 2. Query Semua Pengajuan Perjalanan Dinas Perusahaan (Riwayat)
+$sql_all = "SELECT p.id, p.no_dokumen, p.nama, p.npp, p.departemen, p.tanggal_perjalanan, p.kota_tujuan, 
+        p.kota_asal, p.jumlah_hari, p.budget_total, p.tanggal_dokumen, p.created_at,
+        (SELECT GROUP_CONCAT(CONCAT(pk.nama, CASE WHEN pk.is_pemohon = 1 THEN ' (Pengaju)' ELSE '' END) ORDER BY pk.is_pemohon DESC SEPARATOR ', ') 
+         FROM perjalanan_karyawan pk WHERE pk.perjalanan_id = p.id) AS daftar_peserta,
+        COALESCE(pp.status, 'BELUM DIAJUKAN') AS status, 
+        pp.tanggal_pengajuan, pp.pengaju, pp.catatan
     FROM perjalanan_dinas p
     LEFT JOIN (
-        SELECT p2.*
-        FROM perjalanan_pengajuan p2
+        SELECT p1.id_perjalanan, p1.status, p1.tanggal_pengajuan, p1.pengaju, p1.catatan
+        FROM perjalanan_pengajuan p1
         INNER JOIN (
-            SELECT id_perjalanan, MAX(id) AS mid FROM perjalanan_pengajuan GROUP BY id_perjalanan
-        ) m ON p2.id_perjalanan = m.id_perjalanan AND p2.id = m.mid
-    ) pg ON pg.id_perjalanan = p.id
-    ORDER BY CASE WHEN pg.status = 'DIAJUKAN' THEN 0 WHEN pg.status = 'REALISASI_VERIFIED_HR' THEN 1 ELSE 2 END ASC, p.id DESC";
-$res = mysqli_query($conn, $sql);
+            SELECT id_perjalanan, MAX(id) AS max_id FROM perjalanan_pengajuan GROUP BY id_perjalanan
+        ) p_max ON p1.id_perjalanan = p_max.id_perjalanan AND p1.id = p_max.max_id
+    ) pp ON p.id = pp.id_perjalanan
+    ORDER BY p.id DESC";
+$res_all = mysqli_query($conn, $sql_all);
+$count_all = $res_all ? mysqli_num_rows($res_all) : 0;
+
+// 3. Query Pengajuan Milik User / User sebagai Peserta
+$sql_saya = "SELECT p.id, p.no_dokumen, p.nama, p.npp, p.departemen, p.tanggal_perjalanan, p.kota_tujuan, 
+        p.kota_asal, p.jumlah_hari, p.budget_total, p.tanggal_dokumen, p.created_at,
+        (SELECT GROUP_CONCAT(CONCAT(pk.nama, CASE WHEN pk.is_pemohon = 1 THEN ' (Pengaju)' ELSE '' END) ORDER BY pk.is_pemohon DESC SEPARATOR ', ') 
+         FROM perjalanan_karyawan pk WHERE pk.perjalanan_id = p.id) AS daftar_peserta,
+        COALESCE(pp.status, 'BELUM DIAJUKAN') AS status, 
+        pp.tanggal_pengajuan, pp.pengaju, pp.catatan
+    FROM perjalanan_dinas p
+    LEFT JOIN (
+        SELECT p1.id_perjalanan, p1.status, p1.tanggal_pengajuan, p1.pengaju, p1.catatan
+        FROM perjalanan_pengajuan p1
+        INNER JOIN (
+            SELECT id_perjalanan, MAX(id) AS max_id FROM perjalanan_pengajuan GROUP BY id_perjalanan
+        ) p_max ON p1.id_perjalanan = p_max.id_perjalanan AND p1.id = p_max.max_id
+    ) pp ON p.id = pp.id_perjalanan
+    WHERE p.npp = '" . $npp_esc . "'
+       OR p.id IN (SELECT perjalanan_id FROM perjalanan_karyawan WHERE npp = '" . $npp_esc . "')
+    ORDER BY p.id DESC";
+$res_saya = mysqli_query($conn, $sql_saya);
+$count_saya = $res_saya ? mysqli_num_rows($res_saya) : 0;
+
+// Tentukan tab aktif jika tidak diset secara eksplisit
+if (!isset($_GET['tab'])) {
+    $tab_active = ($count_pending > 0) ? 'pending' : 'semua';
+}
 ?>
 <style>
-    /* Styling untuk meningkatkan readability */
-    #dataTables tbody tr:hover {
-        background-color: #f5f5f5 !important;
+    .nav-tabs>li.active>a, .nav-tabs>li.active>a:focus, .nav-tabs>li.active>a:hover {
+        font-weight: bold;
+        border-top: 3px solid #337ab7;
     }
-
-    #dataTables thead tr th {
-        background-color: #337ab7;
-        color: white;
+    .table-hover tbody tr:hover {
+        background-color: #f9f9f9 !important;
+    }
+    .table thead tr th,
+    table.dataTable thead tr th,
+    #dataTablesPending thead tr th,
+    #dataTablesAll thead tr th,
+    #dataTablesSaya thead tr th {
+        background-color: #337ab7 !important;
+        color: #ffffff !important;
         font-weight: bold;
         vertical-align: middle;
         font-size: 12px;
-        padding: 10px 6px;
+        padding: 10px 8px;
     }
-
-    .table-bordered>thead>tr>th {
-        border-bottom-width: 2px;
-    }
-
-    /* Responsive table adjustments */
-    #dataTables {
-        font-size: 13px;
-    }
-
-    #dataTables td {
-        padding: 8px 6px;
+    .table td {
+        padding: 8px;
         vertical-align: middle;
     }
-
-    /* Status badge styling */
     .status-badge {
         display: inline-block;
-        padding: 4px 10px;
-        border-radius: 3px;
+        padding: 4px 8px;
+        border-radius: 4px;
         font-size: 11px;
         font-weight: bold;
         text-transform: uppercase;
+        white-space: nowrap;
     }
-
-    .status-belum {
-        background-color: #d9edf7;
-        color: #31708f;
-    }
-
     .status-diajukan {
         background-color: #fcf8e3;
         color: #8a6d3b;
+        border: 1px solid #faebcc;
     }
-
     .status-disetujui {
         background-color: #dff0d8;
         color: #3c763d;
+        border: 1px solid #d6e9c6;
     }
-
     .status-ditolak {
         background-color: #f2dede;
         color: #a94442;
+        border: 1px solid #ebccd1;
     }
-
-    .status-approved-hr {
-        background-color: #d9edf7;
-        color: #31708f;
+    .status-belum {
+        background-color: #f5f5f5;
+        color: #777;
+        border: 1px solid #ddd;
     }
-
-    .approval-badge {
-        display: inline-block;
-        padding: 2px 6px;
-        border-radius: 2px;
-        font-size: 10px;
-        font-weight: bold;
-        margin: 2px;
-    }
-
-    .approval-ok {
-        background-color: #dff0d8;
-        color: #3c763d;
-    }
-
-    .approval-pending {
-        background-color: #fcf8e3;
-        color: #8a6d3b;
-    }
-
-    .approval-reject {
-        background-color: #f2dede;
-        color: #a94442;
-    }
-
-    .approval-revisi {
-        background-color: #d9edf7;
-        color: #31708f;
-    }
-
-    /* DataTables custom styling */
-    .dataTables_wrapper .dataTables_length select {
-        padding: 4px;
-        margin: 0 5px;
-    }
-
-    .dataTables_wrapper .dataTables_filter input {
-        margin-left: 5px;
-        padding: 4px;
-    }
-
-    .dataTables_wrapper .dataTables_info {
-        padding-top: 8px;
-        font-size: 12px;
-    }
-
-    .dataTables_wrapper .dataTables_paginate {
-        padding-top: 8px;
-    }
-
-    /* Action buttons */
-    .btn-group-action .btn {
-        margin-right: 3px;
-        margin-bottom: 3px;
-    }
-
-    /* Mobile responsiveness */
-    @media screen and (max-width: 767px) {
-        #dataTables {
-            font-size: 11px;
-        }
-
-        #dataTables thead tr th {
-            font-size: 10px;
-            padding: 8px 4px;
-        }
-
-        #dataTables td {
-            padding: 6px 4px;
-        }
-
-        .panel-heading {
-            font-size: 13px;
-        }
-
-        .btn-sm {
-            padding: 3px 8px;
-            font-size: 11px;
-        }
-
-        .table-responsive {
-            border: 0;
-            margin-bottom: 15px;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-    }
-
-    @media screen and (max-width: 480px) {
-        h1.page-header {
-            font-size: 20px;
-        }
+    .btn-action-group .btn {
+        margin: 2px 1px;
     }
 </style>
 
 <div id="page-wrapper">
     <div class="row">
         <div class="col-lg-12">
-            <h1 class="page-header">
-                <?php echo $pagedesc; ?>
-            </h1>
+            <h1 class="page-header"><i class="fa fa-check-square-o"></i> Persetujuan Perjalanan Dinas</h1>
         </div>
     </div>
 
-    <?php
-    include("layout_alert.php");
-    
-    if ($message): ?>
-        <div class="alert alert-info alert-dismissible">
+    <?php if ($message): ?>
+        <div class="alert alert-<?php echo $messageType; ?> alert-dismissible">
             <button type="button" class="close" data-dismiss="alert">&times;</button>
-            <?= htmlspecialchars($message) ?>
+            <i class="fa fa-info-circle"></i> <?php echo htmlspecialchars($message); ?>
         </div>
     <?php endif; ?>
 
     <div class="row">
         <div class="col-lg-12">
-            <!-- Data Table Panel -->
-            <div class="panel panel-primary">
-                <div class="panel-heading">
-                    <i class="fa fa-table"></i> Daftar Perjalanan Dinas
-                </div>
-                <div class="panel-body">
-                    <div style="margin-bottom: 15px;">
-                        <a href="perjalanan_dinas_export_xls.php" class="btn btn-success btn-sm" style="background-color: #5cb85c !important; border-color: #4cae4c !important; color: #fff !important; opacity: 1 !important;"><i class="fa fa-file-excel-o"></i> Export Excel</a>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-striped table-bordered table-hover" id="dataTables">
-                            <thead>
-                                <tr>
-                                    <th style="display:none">Sort</th>
-                                    <th>No</th>
-                                    <th>No. Dokumen</th>
-                                    <th>Nama</th>
-                                    <th>Departemen</th>
-                                    <th>Kota Tujuan</th>
-                                    <th>Budget</th>
-                                    <th>Tanggal Pengajuan</th>
-                                    <th>Status</th>
-                                    <th>Approval HR</th>
-                                    <th>Approval Direktur</th>
-                                    <th>Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php 
-                                $no = 1;
-                                while ($row = mysqli_fetch_assoc($res)): 
-                                    $status = $row['status'] ?? 'BELUM DIAJUKAN';
-                                    $status_class = 'status-belum';
-                                    if ($status == 'DIAJUKAN' || $status == 'REALISASI_DIAJUKAN' || $status == 'REALISASI_VERIFIED_HR') $status_class = 'status-diajukan';
-                                    elseif ($status == 'APPROVED_MANAGER_HR' || $status == 'DISETUJUI' || $status == 'REALISASI_SELESAI') $status_class = 'status-disetujui';
-                                    elseif ($status == 'DITOLAK' || $status == 'REALISASI_DITOLAK') $status_class = 'status-ditolak';
-                                    elseif ($status == 'REVISI') $status_class = 'status-revisi';
-                                    
-                                    $approval_manager_hr = $row['approval_manager_hr'] ?? null;
-                                    $approval_direktur = $row['approval_direktur'] ?? null;
-                                    
-                                    // Can approve (oleh Manager HR / Direktur) jika status adalah DIAJUKAN atau APPROVED_MANAGER_HR
-                                    $can_approve = in_array($status, ['DIAJUKAN', 'APPROVED_MANAGER_HR']);
-                                    $sort_priority = ($status === 'DIAJUKAN') ? 0 : (($status === 'REALISASI_VERIFIED_HR') ? 1 : 2);
-                                ?>
-                                    <tr>
-                                        <td style="display:none"><?php echo $sort_priority; ?></td>
-                                        <td class="text-center"><?php echo $no++; ?></td>
-                                        <td><strong><?php echo htmlspecialchars($row['no_dokumen']); ?></strong></td>
-                                        <td><?php echo htmlspecialchars($row['nama']); ?></td>
-                                        <td><?php echo htmlspecialchars($row['departemen']); ?></td>
-                                        <td><?php echo htmlspecialchars($row['kota_tujuan']); ?></td>
-                                        <td class="text-right">Rp <?php echo number_format((float)$row['budget_total'], 0, ',', '.'); ?></td>
-                                        <td><?php echo $row['tanggal_pengajuan'] ? date('d-m-Y H:i', strtotime($row['tanggal_pengajuan'])) : '-'; ?></td>
-                                        <td class="text-center">
-                                            <span class="status-badge <?php echo $status_class; ?>">
-                                                <?php echo htmlspecialchars($status); ?>
-                                            </span>
-                                        </td>
-                                        <td class="text-center">
-                                            <?php if ($approval_manager_hr == 'APPROVED'): ?>
-                                                <span class="approval-badge approval-ok"><i class="fa fa-check"></i> Approved</span>
-                                            <?php elseif ($approval_manager_hr == 'REVISI'): ?>
-                                                <span class="approval-badge approval-revisi"><i class="fa fa-edit"></i> Revisi</span>
-                                            <?php elseif ($approval_manager_hr == 'REJECTED'): ?>
-                                                <span class="approval-badge approval-reject"><i class="fa fa-times"></i> Rejected</span>
-                                            <?php else: ?>
-                                                <span class="approval-badge approval-pending"><i class="fa fa-clock-o"></i> Pending</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td class="text-center">
-                                            <?php if ($approval_direktur == 'APPROVED'): ?>
-                                                <span class="approval-badge approval-ok"><i class="fa fa-check"></i> Approved</span>
-                                            <?php elseif ($approval_direktur == 'REJECTED'): ?>
-                                                <span class="approval-badge approval-reject"><i class="fa fa-times"></i> Rejected</span>
-                                            <?php else: ?>
-                                                <span class="approval-badge approval-pending"><i class="fa fa-clock-o"></i> Pending</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td class="btn-group-action text-center">
-                                            <?php 
-                                            // Tampilkan tombol Ajukan hanya untuk status yang belum diajukan
-                                            if (in_array($status, ['BELUM DIAJUKAN'])): ?>
-                                                <a class="btn btn-primary btn-sm" 
-                                                   href="perjalanan_dinas_approve.php?id=<?php echo (int)$row['id']; ?>" 
-                                                   title="Isi nominal & ajukan ke Manager HR">
-                                                    <i class="fa fa-send"></i> Ajukan
-                                                </a>
-                                            <?php endif; ?>
+            <!-- Nav tabs -->
+            <ul class="nav nav-tabs" role="tablist" style="margin-bottom: 15px;">
+                <li role="presentation" class="<?php echo ($tab_active === 'pending') ? 'active' : ''; ?>">
+                    <a href="#tabPending" aria-controls="tabPending" role="tab" data-toggle="tab">
+                        <i class="fa fa-bell text-danger"></i> <strong>Menunggu Persetujuan HR</strong>
+                        <?php if ($count_pending > 0): ?>
+                            <span class="badge" style="background-color: #d9534f; margin-left: 4px;"><?php echo $count_pending; ?></span>
+                        <?php endif; ?>
+                    </a>
+                </li>
+                <li role="presentation" class="<?php echo ($tab_active === 'semua') ? 'active' : ''; ?>">
+                    <a href="#tabSemua" aria-controls="tabSemua" role="tab" data-toggle="tab">
+                        <i class="fa fa-list"></i> <strong>Semua Pengajuan</strong>
+                        <span class="badge" style="background-color: #777; margin-left: 4px;"><?php echo $count_all; ?></span>
+                    </a>
+                </li>
+                <li role="presentation" class="<?php echo ($tab_active === 'saya') ? 'active' : ''; ?>">
+                    <a href="#tabSaya" aria-controls="tabSaya" role="tab" data-toggle="tab">
+                        <i class="fa fa-user"></i> <strong>Pengajuan Saya</strong>
+                        <span class="badge" style="background-color: #337ab7; margin-left: 4px;"><?php echo $count_saya; ?></span>
+                    </a>
+                </li>
+            </ul>
 
-                                             <?php if ($status == 'DIAJUKAN' && $is_managerhr): ?>
-                                                 <a class="btn btn-success btn-sm" href="perjalanan_dinas_approve.php?id=<?php echo $row['id']; ?>" 
-                                                    title="Review & Approve (Admin)">
-                                                     <i class="fa fa-check-square-o"></i> Review
-                                                 </a>
-                                             <?php endif; ?>
-                                             
-                                             <?php if ($status == 'REALISASI_VERIFIED_HR'): ?>
-                                                 <a class="btn btn-warning btn-sm" href="perjalanan_dinas_approve.php?id=<?php echo $row['id']; ?>" 
-                                                    title="Review & Approve Realisasi">
-                                                     <i class="fa fa-check-circle-o"></i> Review Realisasi
-                                                 </a>
-                                             <?php endif; ?>
+            <!-- Tab panes -->
+            <div class="tab-content">
+                <!-- TAB 1: MENUNGGU PERSETUJUAN -->
+                <div role="tabpanel" class="tab-pane <?php echo ($tab_active === 'pending') ? 'active' : ''; ?>" id="tabPending">
+                    <div class="panel panel-primary">
+                        <div class="panel-heading" style="background-color: #d9534f; border-color: #d43f3a; color: white;">
+                            <i class="fa fa-clock-o"></i> Daftar Pengajuan Menunggu Persetujuan HR
+                        </div>
+                        <div class="panel-body">
+                            <?php if ($count_pending == 0): ?>
+                                <div class="alert alert-success" style="margin-bottom: 0;">
+                                    <i class="fa fa-check-circle"></i> <strong>Bagus!</strong> Saat ini tidak ada pengajuan perjalanan dinas yang menunggu persetujuan Anda.
+                                </div>
+                            <?php else: ?>
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-bordered table-hover" id="dataTablesPending" style="width:100%;">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:30px;" class="text-center">No</th>
+                                                <th style="width:110px;">No. Dokumen</th>
+                                                <th>Peserta & Departemen</th>
+                                                <th style="width:120px;">Kota Tujuan</th>
+                                                <th style="width:110px;">Tgl Perjalanan</th>
+                                                <th style="width:70px;" class="text-center">Durasi</th>
+                                                <th style="width:120px;" class="text-right">Anggaran</th>
+                                                <th style="width:110px;" class="text-center">Status</th>
+                                                <th style="width:120px;">Tgl Pengajuan</th>
+                                                <th style="width:170px;" class="text-center">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php 
+                                            $no = 1;
+                                            while ($row = mysqli_fetch_assoc($res_pending)): 
+                                                $status = $row['status'];
+                                                $status_class = 'status-diajukan';
+                                                $tgl_perjalanan = $row['tanggal_perjalanan'] ? date('d-m-Y', strtotime($row['tanggal_perjalanan'])) : '<em>Fleksibel</em>';
+                                                $tgl_pengajuan = $row['tanggal_pengajuan'] ? date('d-m-Y H:i', strtotime($row['tanggal_pengajuan'])) : '-';
+                                                $budget_formatted = 'Rp ' . number_format((float)$row['budget_total'], 0, ',', '.');
+                                                $is_realisasi = in_array($status, ['REALISASI_DIAJUKAN', 'REALISASI_VERIFIED_HR']);
+                                            ?>
+                                                <tr>
+                                                    <td class="text-center"><?php echo $no++; ?></td>
+                                                    <td><strong><?php echo htmlspecialchars($row['no_dokumen']); ?></strong></td>
+                                                    <td>
+                                                        <span class="label label-primary" style="font-size:10px;"><i class="fa fa-user"></i> Pengaju: <?php echo htmlspecialchars($row['nama']); ?></span>
+                                                        <span class="label label-default" style="font-size:10px;"><?php echo htmlspecialchars($row['departemen']); ?></span>
+                                                        <?php if (!empty($row['daftar_peserta']) && strpos($row['daftar_peserta'], ',') !== false): ?>
+                                                            <div style="font-size:11px; color:#555; margin-top:3px;">
+                                                                <i class="fa fa-users text-primary"></i> <strong>Rombongan:</strong> <?php echo htmlspecialchars($row['daftar_peserta']); ?>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td><strong><?php echo htmlspecialchars($row['kota_tujuan']); ?></strong></td>
+                                                    <td><?php echo $tgl_perjalanan; ?></td>
+                                                    <td class="text-center"><?php echo (int)$row['jumlah_hari']; ?> hari</td>
+                                                    <td class="text-right" style="font-weight:bold; color:#2e6da4; font-family: Consolas, monospace;"><?php echo $budget_formatted; ?></td>
+                                                    <td class="text-center">
+                                                        <span class="status-badge <?php echo $status_class; ?>">
+                                                            <?php echo htmlspecialchars($status); ?>
+                                                        </span>
+                                                    </td>
+                                                    <td><small><?php echo $tgl_pengajuan; ?></small></td>
+                                                    <td class="text-center btn-action-group">
+                                                        <a class="btn <?php echo $is_realisasi ? 'btn-primary' : 'btn-warning'; ?> btn-sm" 
+                                                           href="perjalanan_dinas_approve.php?id=<?php echo $row['id']; ?>" 
+                                                           style="font-weight:bold;">
+                                                            <i class="fa <?php echo $is_realisasi ? 'fa-money' : 'fa-check-square-o'; ?>"></i> 
+                                                            <?php echo $is_realisasi ? 'Approve Realisasi' : 'Proses Persetujuan'; ?>
+                                                        </a>
+                                                        <a class="btn btn-info btn-sm" href="perjalanan_dinas_detail.php?id=<?php echo $row['id']; ?>" title="Lihat Detail">
+                                                            <i class="fa fa-eye"></i> Detail
+                                                        </a>
+                                                        <a class="btn btn-danger btn-sm" href="perjalanan_dinas_hapus.php?id=<?php echo $row['id']; ?>&from=pending" 
+                                                           onclick="return confirm('Apakah Anda yakin ingin menghapus pengajuan perjalanan dinas no. <?php echo htmlspecialchars($row['no_dokumen']); ?> ini?');" 
+                                                           title="Hapus Pengajuan">
+                                                            <i class="fa fa-trash"></i> Hapus
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            <?php endwhile; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: SEMUA PENGAJUAN (RIWAYAT) -->
+                <div role="tabpanel" class="tab-pane <?php echo ($tab_active === 'semua') ? 'active' : ''; ?>" id="tabSemua">
+                    <div class="panel panel-primary">
+                        <div class="panel-heading">
+                            <i class="fa fa-list"></i> Semua Riwayat Pengajuan Perjalanan Dinas Perusahaan
+                        </div>
+                        <div class="panel-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-bordered table-hover" id="dataTablesAll" style="width:100%;">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:30px;" class="text-center">No</th>
+                                            <th style="width:110px;">No. Dokumen</th>
+                                            <th>Peserta & Departemen</th>
+                                            <th style="width:120px;">Kota Tujuan</th>
+                                            <th style="width:110px;">Tgl Perjalanan</th>
+                                            <th style="width:70px;" class="text-center">Durasi</th>
+                                            <th style="width:120px;" class="text-right">Anggaran</th>
+                                            <th style="width:110px;" class="text-center">Status</th>
+                                            <th style="width:120px;">Tgl Pengajuan</th>
+                                            <th style="width:160px;" class="text-center">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php 
+                                        $no = 1;
+                                        while ($row = mysqli_fetch_assoc($res_all)): 
+                                            $status = $row['status'];
+                                            $status_class = 'status-belum';
+                                            if (in_array($status, ['DIAJUKAN', 'REALISASI_DIAJUKAN', 'REALISASI_VERIFIED_HR'])) $status_class = 'status-diajukan';
+                                            elseif (in_array($status, ['DISETUJUI', 'APPROVED_MANAGER_HR', 'REALISASI_SELESAI'])) $status_class = 'status-disetujui';
+                                            elseif (in_array($status, ['DITOLAK', 'REALISASI_DITOLAK'])) $status_class = 'status-ditolak';
                                             
-                                            <a class="btn btn-info btn-sm" href="perjalanan_dinas_detail.php?id=<?php echo $row['id']; ?>" 
-                                               title="Lihat Detail">
-                                                <i class="fa fa-eye"></i> Lihat
-                                            </a>
-                                        </td>
-                                    </tr>
-                                <?php endwhile; ?>
-                            </tbody>
-                        </table>
+                                            $tgl_perjalanan = $row['tanggal_perjalanan'] ? date('d-m-Y', strtotime($row['tanggal_perjalanan'])) : '<em>Fleksibel</em>';
+                                            $tgl_pengajuan = $row['tanggal_pengajuan'] ? date('d-m-Y H:i', strtotime($row['tanggal_pengajuan'])) : '-';
+                                            $budget_formatted = 'Rp ' . number_format((float)$row['budget_total'], 0, ',', '.');
+                                            $can_approve = in_array($status, ['DIAJUKAN', 'APPROVED_HR', 'REALISASI_DIAJUKAN', 'REALISASI_VERIFIED_HR']);
+                                        ?>
+                                            <tr>
+                                                <td class="text-center"><?php echo $no++; ?></td>
+                                                <td><strong><?php echo htmlspecialchars($row['no_dokumen']); ?></strong></td>
+                                                <td>
+                                                    <span class="label label-primary" style="font-size:10px;"><i class="fa fa-user"></i> <?php echo htmlspecialchars($row['nama']); ?></span>
+                                                    <span class="label label-default" style="font-size:10px;"><?php echo htmlspecialchars($row['departemen']); ?></span>
+                                                    <?php if (!empty($row['daftar_peserta']) && strpos($row['daftar_peserta'], ',') !== false): ?>
+                                                        <div style="font-size:11px; color:#555; margin-top:3px;">
+                                                            <i class="fa fa-users text-primary"></i> <?php echo htmlspecialchars($row['daftar_peserta']); ?>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td><?php echo htmlspecialchars($row['kota_tujuan']); ?></td>
+                                                <td><?php echo $tgl_perjalanan; ?></td>
+                                                <td class="text-center"><?php echo (int)$row['jumlah_hari']; ?> hari</td>
+                                                <td class="text-right" style="font-family: Consolas, monospace;"><?php echo $budget_formatted; ?></td>
+                                                <td class="text-center">
+                                                    <span class="status-badge <?php echo $status_class; ?>">
+                                                        <?php echo htmlspecialchars($status); ?>
+                                                    </span>
+                                                </td>
+                                                <td><small><?php echo $tgl_pengajuan; ?></small></td>
+                                                <td class="text-center btn-action-group">
+                                                    <?php if ($can_approve): ?>
+                                                        <a class="btn btn-warning btn-sm" href="perjalanan_dinas_approve.php?id=<?php echo $row['id']; ?>" style="font-weight:bold;">
+                                                            <i class="fa fa-check-square-o"></i> Persetujuan
+                                                        </a>
+                                                    <?php endif; ?>
+                                                    <a class="btn btn-info btn-sm" href="perjalanan_dinas_detail.php?id=<?php echo $row['id']; ?>" title="Lihat Detail">
+                                                        <i class="fa fa-eye"></i> Detail
+                                                    </a>
+                                                    <?php if (in_array($status, ['DIAJUKAN', 'BELUM DIAJUKAN', 'DITOLAK'])): ?>
+                                                        <a class="btn btn-danger btn-sm" href="perjalanan_dinas_hapus.php?id=<?php echo $row['id']; ?>&from=semua" 
+                                                           onclick="return confirm('Apakah Anda yakin ingin menghapus pengajuan perjalanan dinas no. <?php echo htmlspecialchars($row['no_dokumen']); ?> ini?');" 
+                                                           title="Hapus Pengajuan">
+                                                            <i class="fa fa-trash"></i> Hapus
+                                                        </a>
+                                                    <?php endif; ?>
+                                                </td>
+                                            </tr>
+                                        <?php endwhile; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 3: PENGAJUAN SAYA -->
+                <div role="tabpanel" class="tab-pane <?php echo ($tab_active === 'saya') ? 'active' : ''; ?>" id="tabSaya">
+                    <div class="panel panel-primary">
+                        <div class="panel-heading">
+                            <i class="fa fa-user"></i> Riwayat Pengajuan Perjalanan Dinas Saya
+                            <a href="form_perjalanan_dinas.php" class="btn btn-xs btn-success pull-right" style="margin-top:-2px;">
+                                <i class="fa fa-plus"></i> Buat Pengajuan Baru
+                            </a>
+                        </div>
+                        <div class="panel-body">
+                            <?php if ($count_saya == 0): ?>
+                                <div class="alert alert-info">
+                                    <i class="fa fa-info-circle"></i> Anda belum memiliki riwayat pengajuan perjalanan dinas pribadi. 
+                                    <a href="form_perjalanan_dinas.php" class="alert-link">Buat pengajuan baru di sini</a>.
+                                </div>
+                            <?php else: ?>
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-bordered table-hover" id="dataTablesSaya" style="width:100%;">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:30px;" class="text-center">No</th>
+                                                <th style="width:110px;">No. Dokumen</th>
+                                                <th>Peran / Peserta</th>
+                                                <th style="width:120px;">Kota Tujuan</th>
+                                                <th style="width:110px;">Tgl Perjalanan</th>
+                                                <th style="width:70px;" class="text-center">Durasi</th>
+                                                <th style="width:120px;" class="text-right">Anggaran</th>
+                                                <th style="width:110px;" class="text-center">Status</th>
+                                                <th style="width:120px;">Tgl Pengajuan</th>
+                                                <th style="width:150px;" class="text-center">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php 
+                                            $no = 1;
+                                            while ($row = mysqli_fetch_assoc($res_saya)): 
+                                                $status = $row['status'];
+                                                $status_class = 'status-belum';
+                                                if (in_array($status, ['DIAJUKAN', 'REALISASI_DIAJUKAN', 'REALISASI_VERIFIED_HR'])) $status_class = 'status-diajukan';
+                                                elseif (in_array($status, ['DISETUJUI', 'APPROVED_MANAGER_HR', 'REALISASI_SELESAI'])) $status_class = 'status-disetujui';
+                                                elseif (in_array($status, ['DITOLAK', 'REALISASI_DITOLAK'])) $status_class = 'status-ditolak';
+                                                
+                                                $tgl_perjalanan = $row['tanggal_perjalanan'] ? date('d-m-Y', strtotime($row['tanggal_perjalanan'])) : '<em>Fleksibel</em>';
+                                                $tgl_pengajuan = $row['tanggal_pengajuan'] ? date('d-m-Y H:i', strtotime($row['tanggal_pengajuan'])) : '-';
+                                                $budget_formatted = 'Rp ' . number_format((float)$row['budget_total'], 0, ',', '.');
+                                                $is_pemohon = ($row['npp'] === $npp_user);
+                                            ?>
+                                                <tr>
+                                                    <td class="text-center"><?php echo $no++; ?></td>
+                                                    <td><strong><?php echo htmlspecialchars($row['no_dokumen']); ?></strong></td>
+                                                    <td>
+                                                        <?php if ($is_pemohon): ?>
+                                                            <span class="label label-primary" style="font-size:10px;"><i class="fa fa-user"></i> Pengaju Utama</span>
+                                                            <div style="font-weight:bold; margin-top:2px;"><?php echo htmlspecialchars($row['nama']); ?></div>
+                                                        <?php else: ?>
+                                                            <span class="label label-info" style="font-size:10px;"><i class="fa fa-user-plus"></i> Rekan Dinas</span>
+                                                            <div style="font-size:12px; margin-top:2px;">Diajukan: <strong><?php echo htmlspecialchars($row['nama']); ?></strong></div>
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($row['daftar_peserta']) && strpos($row['daftar_peserta'], ',') !== false): ?>
+                                                            <div style="font-size:11px; color:#555; margin-top:2px;">
+                                                                <i class="fa fa-users"></i> <?php echo htmlspecialchars($row['daftar_peserta']); ?>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td><?php echo htmlspecialchars($row['kota_tujuan']); ?></td>
+                                                    <td><?php echo $tgl_perjalanan; ?></td>
+                                                    <td class="text-center"><?php echo (int)$row['jumlah_hari']; ?> hari</td>
+                                                    <td class="text-right" style="font-family: Consolas, monospace;"><?php echo $budget_formatted; ?></td>
+                                                    <td class="text-center">
+                                                        <span class="status-badge <?php echo $status_class; ?>">
+                                                            <?php echo htmlspecialchars($status); ?>
+                                                        </span>
+                                                    </td>
+                                                    <td><small><?php echo $tgl_pengajuan; ?></small></td>
+                                                    <td class="text-center btn-action-group">
+                                                        <?php if ($is_pemohon && in_array($status, ['APPROVED_MANAGER_HR', 'DISETUJUI', 'REALISASI_DITOLAK'])): ?>
+                                                            <a class="btn btn-success btn-sm btnRealisasiModal" href="#" data-id="<?php echo $row['id']; ?>" title="Upload Realisasi">
+                                                                <i class="fa fa-upload"></i> Realisasi
+                                                            </a>
+                                                        <?php endif; ?>
+                                                        <a class="btn btn-info btn-sm" href="perjalanan_dinas_detail.php?id=<?php echo $row['id']; ?>" title="Lihat Detail">
+                                                            <i class="fa fa-eye"></i> Detail
+                                                        </a>
+                                                        <?php if ($is_pemohon && in_array($status, ['DIAJUKAN', 'BELUM DIAJUKAN', 'DITOLAK'])): ?>
+                                                            <a class="btn btn-danger btn-sm" href="perjalanan_dinas_hapus.php?id=<?php echo $row['id']; ?>&from=saya" 
+                                                               onclick="return confirm('Apakah Anda yakin ingin menghapus pengajuan perjalanan dinas no. <?php echo htmlspecialchars($row['no_dokumen']); ?> ini?');" 
+                                                               title="Hapus Pengajuan">
+                                                                <i class="fa fa-trash"></i> Hapus
+                                                            </a>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                </tr>
+                                            <?php endwhile; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -454,10 +480,9 @@ $res = mysqli_query($conn, $sql);
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     $(document).ready(function() {
-        $('#dataTables').DataTable({
+        var dtConfig = {
             responsive: true,
             pageLength: 25,
             lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Semua"]],
@@ -475,47 +500,59 @@ $res = mysqli_query($conn, $sql);
                     previous: "Sebelumnya"
                 }
             },
-            columnDefs: [
-                { visible: false, targets: [0] },
-                { 
-                    targets: 1, 
-                    orderable: false, 
-                    searchable: false,
-                    render: function (data, type, row, meta) {
-                        return meta.row + 1;
-                    }
-                },
-                { orderable: false, targets: [11] },
-                { className: "text-center", targets: [1, 8, 9, 10, 11] }
-            ],
-            dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>' +
-                '<"row"<"col-sm-12"tr>>' +
-                '<"row"<"col-sm-5"i><"col-sm-7"p>>'
-        });
+            order: [[0, 'asc']]
+        };
 
-        // Enable tooltips
-        $('[data-toggle="tooltip"]').tooltip();
+        if ($('#dataTablesPending').length > 0) {
+            $('#dataTablesPending').DataTable(dtConfig);
+        }
+        if ($('#dataTablesAll').length > 0) {
+            $('#dataTablesAll').DataTable(dtConfig);
+        }
+        if ($('#dataTablesSaya').length > 0) {
+            $('#dataTablesSaya').DataTable(dtConfig);
+        }
 
-        // SweetAlert confirmation for Ajukan
-        $(document).on('click', '.btn-ajukan', function (e) {
+        $(document).on('click', '.btnRealisasiModal', function(e) {
             e.preventDefault();
-            var btn = $(this);
-            var form = btn.closest('form');
-            Swal.fire({
-                title: 'Ajukan perjalanan dinas?',
-                text: 'Perjalanan dinas akan dikirim ke Manager HR untuk proses review.',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Ya, ajukan',
-                cancelButtonText: 'Batal',
-                reverseButtons: true
-            }).then(function(result){
-                if (result.isConfirmed) {
-                    form.submit();
-                }
+            var id = $(this).data('id');
+            $('#realisasi_id_perjalanan').val(id);
+            $('#realisasiModalBody').html('<div class="text-center" style="padding: 20px;"><i class="fa fa-spinner fa-spin fa-2x"></i> Memuat data...</div>');
+            $('#realisasiModal').modal('show');
+            
+            $.get('get_realisasi_items.php', { id: id }, function(html) {
+                $('#realisasiModalBody').html(html);
+            }).fail(function() {
+                $('#realisasiModalBody').html('<div class="alert alert-danger">Gagal memuat rincian perjalanan dinas.</div>');
             });
         });
     });
 </script>
 
-<?php include 'layout_bottom.php'; ?>
+<!-- Modal Realisasi -->
+<div id="realisasiModal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg">
+        <form action="submit_realisasi.php" method="post" enctype="multipart/form-data" id="realisasiForm">
+            <input type="hidden" name="id_perjalanan" id="realisasi_id_perjalanan">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title"><i class="fa fa-upload"></i> Laporan Realisasi Perjalanan Dinas</h4>
+                </div>
+                <div class="modal-body" id="realisasiModalBody">
+                    <div class="text-center" style="padding: 20px;">
+                        <i class="fa fa-spinner fa-spin fa-2x"></i> Memuat data...
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success" onclick="return confirm('Apakah Anda yakin data realisasi sudah benar dan siap dikirim?');">
+                        <i class="fa fa-paper-plane"></i> Kirim Laporan Realisasi
+                    </button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Batal</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<?php include("layout_bottom.php"); ?>
