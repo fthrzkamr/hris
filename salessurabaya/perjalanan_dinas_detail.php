@@ -371,35 +371,6 @@ if (is_file(__DIR__ . '/foto/logo-dua.webp')) {
         color: #fff;
     }
 
-    /* Tabel Tanda Tangan */
-    table.table-signatures {
-        width: 100%;
-        margin-top: 22px;
-        border-collapse: collapse;
-        table-layout: fixed;
-    }
-
-    table.table-signatures td {
-        text-align: center;
-        border: 1px solid #b0bec5;
-        padding: 7px 6px;
-        font-size: 11.5px;
-        vertical-align: top;
-    }
-
-    table.table-signatures td.sign-title {
-        background-color: #f4f7f9;
-        font-weight: 600;
-        color: #2c3e50;
-        height: 28px;
-        vertical-align: middle;
-    }
-
-    table.table-signatures td.sign-space {
-        height: 68px;
-        vertical-align: middle;
-    }
-
     /* Status Tracking Card */
     .status-tracking-card {
         background: #fdfefe;
@@ -475,13 +446,8 @@ if (is_file(__DIR__ . '/foto/logo-dua.webp')) {
 
         table.table-rincian-doc th,
         table.table-rincian-doc td,
-        table.table-info-trip td,
-        table.table-signatures td {
+        table.table-info-trip td {
             border: 1px solid #333 !important;
-        }
-
-        .table-signatures {
-            page-break-inside: avoid !important;
         }
     }
 </style>
