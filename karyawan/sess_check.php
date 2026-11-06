@@ -8,8 +8,12 @@ if (!isset($_SESSION['karyawan']) || empty($_SESSION['karyawan'])) {
 
 $chk_sess = $_SESSION['karyawan'];
 
-include(__DIR__ . "/../dist/config/koneksi.php");
-include(__DIR__ . "/../dist/config/library.php");
+include_once(__DIR__ . "/../dist/config/koneksi.php");
+if (is_file(__DIR__ . "/dist/config/library.php")) {
+    include_once(__DIR__ . "/dist/config/library.php");
+} else {
+    include_once(__DIR__ . "/../dist/config/library.php");
+}
 
 $chk_sess_esc = mysqli_real_escape_string($conn, $chk_sess);
 $sql_sess = "SELECT * FROM employee WHERE npp='$chk_sess_esc'";

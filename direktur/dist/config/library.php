@@ -3,6 +3,7 @@
 date_default_timezone_set("Asia/Jakarta");
 
 # Fungsi untuk membuat kode automatis
+if (!function_exists('buatKode')) {
 function buatKode($tabel, $inisial){
 	global $conn;
 	$struktur	= mysqli_query($conn, "SELECT * FROM $tabel LIMIT 1");
@@ -20,7 +21,7 @@ function buatKode($tabel, $inisial){
  	$row	= mysqli_fetch_array($qry); 
  	if ($row[0]=="") {
  		$angka=0;
-	}
+ 	}
  	else {
  		$angka		= substr($row[0], strlen($inisial));
  	}
@@ -33,8 +34,10 @@ function buatKode($tabel, $inisial){
 	}
  	return $inisial.$tmp.$angka;
 }
+}
 
 # Fungsi untuk membalik tanggal dari format Indo (d-m-Y) -> English (Y-m-d)
+if (!function_exists('InggrisTgl')) {
 function InggrisTgl($tanggal){
 	$tgl=substr($tanggal,0,2);
 	$bln=substr($tanggal,3,2);
@@ -42,8 +45,10 @@ function InggrisTgl($tanggal){
 	$tanggal="$thn-$bln-$tgl";
 	return $tanggal;
 }
+}
 
 # Fungsi untuk membalik tanggal dari format English (Y-m-d) -> Indo (d-m-Y)
+if (!function_exists('IndonesiaTgl')) {
 function IndonesiaTgl($tanggal){
 	$tgl=substr($tanggal,8,2);
 	$bln=substr($tanggal,5,2);
@@ -51,8 +56,10 @@ function IndonesiaTgl($tanggal){
 	$tanggal="$tgl-$bln-$thn";
 	return $tanggal;
 }
+}
 
 # Fungsi untuk membalik tanggal dari format English (Y-m-d) -> Indo (d-m-Y)
+if (!function_exists('Indonesia2Tgl')) {
 function Indonesia2Tgl($tanggal){
 	$namaBln = array("01" => "Januari", "02" => "Februari", "03" => "Maret", "04" => "April", "05" => "Mei", "06" => "Juni", 
 					 "07" => "Juli", "08" => "Agustus", "09" => "September", "10" => "Oktober", "11" => "November", "12" => "Desember");
@@ -63,27 +70,35 @@ function Indonesia2Tgl($tanggal){
 	$tanggal ="$tgl ".$namaBln[$bln]." $thn";
 	return $tanggal;
 }
+}
 
+if (!function_exists('hitungHari')) {
 function hitungHari($myDate1, $myDate2){
         $myDate1 = strtotime($myDate1);
         $myDate2 = strtotime($myDate2);
  
         return ($myDate2 - $myDate1)/ (24 *3600);
 }
+}
 
 # Fungsi untuk membuat format rupiah pada angka (uang)
+if (!function_exists('format_angka')) {
 function format_angka($angka) {
 	$hasil =  number_format($angka,0, ",",".");
 	return $hasil;
 }
+}
 
 # Fungsi untuk format tanggal, dipakai plugins Callendar
+if (!function_exists('form_tanggal')) {
 function form_tanggal($nama,$value=''){
 	echo" <input type='text' name='$nama' id='$nama' size='11' maxlength='20' value='$value'/>&nbsp;
 	<img src='images/calendar-add-icon.png' align='top' style='cursor:pointer; margin-top:7px;' alt='kalender'onclick=\"displayCalendar(document.getElementById('$nama'),'dd-mm-yyyy',this)\"/>			
 	";
 }
+}
 
+if (!function_exists('angkaTerbilang')) {
 function angkaTerbilang($x){
   $abil = array("", "satu", "dua", "tiga", "empat", "lima", "enam", "tujuh", "delapan", "sembilan", "sepuluh", "sebelas");
   if ($x < 12)
@@ -103,6 +118,7 @@ function angkaTerbilang($x){
   elseif ($x < 1000000000)
     return angkaTerbilang($x / 1000000) . " juta" . angkaTerbilang($x % 1000000);
 }
+}
 
 /**
  * Auto-generate Biaya Luar Kota (Uang Harian) untuk perjalanan dinas saat tahap approval jika belum ada.
@@ -111,6 +127,7 @@ function angkaTerbilang($x){
  * - Leader / Asmen / SPV: Rp 100.000 / hari
  * - Staff / Officer / Lainnya: Rp 75.000 / hari
  */
+if (!function_exists('auto_generate_biaya_luar_kota')) {
 function auto_generate_biaya_luar_kota($conn, $perjalanan_id) {
     $perjalanan_id = (int)$perjalanan_id;
     if ($perjalanan_id <= 0) return false;
@@ -200,5 +217,6 @@ function auto_generate_biaya_luar_kota($conn, $perjalanan_id) {
     ) WHERE id = $perjalanan_id");
 
     return true;
+}
 }
 ?>
