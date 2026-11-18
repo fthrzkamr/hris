@@ -516,41 +516,7 @@ if (!empty($all_cars)) {
 }
 sort($filter_cars);
 
-// URL helper for approval filters
-if (!function_exists('getApprovalFilterUrl')) {
-    function getApprovalFilterUrl($overrides = []) {
-        $params = $_GET;
-        foreach ($overrides as $k => $v) {
-            if ($v === null || $v === '') {
-                unset($params[$k]);
-            } else {
-                $params[$k] = $v;
-            }
-        }
-        foreach ($params as $k => $v) {
-            if ($v === '') unset($params[$k]);
-        }
-        $query = http_build_query($params);
-        $base = strtok($_SERVER["REQUEST_URI"] ?? '', '?');
-        return $base . ($query ? '?' . $query : '');
-    }
-}
-
-// Read filter parameters
-$filter_mobil = isset($_GET['filter_mobil']) ? trim($_GET['filter_mobil']) : '';
-$filter_status = isset($_GET['filter_status']) ? trim($_GET['filter_status']) : '';
-$filter_tgl_mulai = isset($_GET['filter_tgl_mulai']) ? trim($_GET['filter_tgl_mulai']) : '';
-$filter_tgl_selesai = isset($_GET['filter_tgl_selesai']) ? trim($_GET['filter_tgl_selesai']) : '';
-$filter_nama = isset($_GET['filter_nama']) ? trim($_GET['filter_nama']) : '';
-
-$active_filter_count = 0;
-if ($filter_mobil !== '') $active_filter_count++;
-if ($filter_status !== '' && $filter_status !== 'Semua') $active_filter_count++;
-if ($filter_tgl_mulai !== '') $active_filter_count++;
-if ($filter_tgl_selesai !== '') $active_filter_count++;
-if ($filter_nama !== '') $active_filter_count++;
-
-// Status counts for badge tabs
+// Status counts
 $status_counts = [
     'Semua' => 0,
     'Menunggu' => 0,
@@ -571,47 +537,12 @@ if ($q_sc) {
 }
 $pending_count = $status_counts['Menunggu'];
 
-// Fetch pending approvals based on role & active filters
+// Fetch all pending approvals (loaded once for instant client-side DataTables filtering without reload)
 $pending_approvals = [];
 if ($is_approver) {
-    $where_approval = [];
-
-    if ($filter_mobil !== '') {
-        $esc_mobil = mysqli_real_escape_string($conn, $filter_mobil);
-        $where_approval[] = "b.mobil LIKE '%$esc_mobil%'";
-    }
-
-    if ($filter_status !== '' && $filter_status !== 'Semua') {
-        $esc_status = mysqli_real_escape_string($conn, $filter_status);
-        $where_approval[] = "b.status = '$esc_status'";
-    }
-
-    if ($filter_tgl_mulai !== '' && $filter_tgl_selesai !== '') {
-        $esc_start = mysqli_real_escape_string($conn, $filter_tgl_mulai);
-        $esc_end = mysqli_real_escape_string($conn, $filter_tgl_selesai);
-        $where_approval[] = "(b.tgl_mulai <= '$esc_end' AND b.tgl_selesai >= '$esc_start')";
-    } elseif ($filter_tgl_mulai !== '') {
-        $esc_start = mysqli_real_escape_string($conn, $filter_tgl_mulai);
-        $where_approval[] = "b.tgl_selesai >= '$esc_start'";
-    } elseif ($filter_tgl_selesai !== '') {
-        $esc_end = mysqli_real_escape_string($conn, $filter_tgl_selesai);
-        $where_approval[] = "b.tgl_mulai <= '$esc_end'";
-    }
-
-    if ($filter_nama !== '') {
-        $esc_nama = mysqli_real_escape_string($conn, $filter_nama);
-        $where_approval[] = "(b.nama_emp LIKE '%$esc_nama%' OR b.npp LIKE '%$esc_nama%' OR e.nama_emp LIKE '%$esc_nama%')";
-    }
-
-    $where_approval_sql = "";
-    if (!empty($where_approval)) {
-        $where_approval_sql = "WHERE " . implode(" AND ", $where_approval);
-    }
-
-    // Both HR and GA see requests, sorted with 'Menunggu' first
+    // Both HR and GA see all requests, sorted with 'Menunggu' first
     $query_pending = "SELECT b.*, IFNULL(e.nama_emp, b.nama_emp) AS nama_emp, e.telp_emp FROM peminjaman_mobil b 
                       LEFT JOIN employee e ON b.npp = e.npp 
-                      $where_approval_sql 
                       ORDER BY CASE WHEN b.status = 'Menunggu' THEN 1 ELSE 2 END, b.created_at DESC";
     $res_pending = mysqli_query($conn, $query_pending);
     if ($res_pending) {
@@ -1240,50 +1171,18 @@ $pagedesc = "Peminjaman Mobil";
                         <?php endif; ?>
                     </div>
                     <div class="panel-body">
-                        <!-- Quick Status Tabs -->
-                        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; align-items: center;">
-                            <span style="font-size: 12px; font-weight: 600; color: #64748b; margin-right: 4px;">
-                                <i class="fa fa-filter"></i> Status:
-                            </span>
-                            <a href="<?php echo htmlspecialchars(getApprovalFilterUrl(['filter_status' => ''])); ?>" 
-                               class="btn btn-xs <?php echo ($filter_status === '' || $filter_status === 'Semua') ? 'btn-primary' : 'btn-default'; ?>" 
-                               style="border-radius: 14px; padding: 4px 12px; font-weight: 600;">
-                               Semua <span class="badge" style="background: rgba(0,0,0,0.15); margin-left: 3px;"><?php echo $status_counts['Semua']; ?></span>
-                            </a>
-                            <a href="<?php echo htmlspecialchars(getApprovalFilterUrl(['filter_status' => 'Menunggu'])); ?>" 
-                               class="btn btn-xs <?php echo ($filter_status === 'Menunggu') ? 'btn-warning' : 'btn-default'; ?>" 
-                               style="border-radius: 14px; padding: 4px 12px; font-weight: 600; <?php echo ($filter_status === 'Menunggu') ? 'background-color: #ff9500; border-color: #ff9500; color:#fff;' : 'color:#d97706;'; ?>">
-                               <i class="fa fa-clock-o"></i> Menunggu <span class="badge" style="background: rgba(0,0,0,0.15); margin-left: 3px;"><?php echo $status_counts['Menunggu']; ?></span>
-                            </a>
-                            <a href="<?php echo htmlspecialchars(getApprovalFilterUrl(['filter_status' => 'Disetujui'])); ?>" 
-                               class="btn btn-xs <?php echo ($filter_status === 'Disetujui') ? 'btn-success' : 'btn-default'; ?>" 
-                               style="border-radius: 14px; padding: 4px 12px; font-weight: 600; <?php echo ($filter_status === 'Disetujui') ? 'background-color: #34c759; border-color: #34c759; color:#fff;' : 'color:#15803d;'; ?>">
-                               <i class="fa fa-check-circle"></i> Disetujui <span class="badge" style="background: rgba(0,0,0,0.15); margin-left: 3px;"><?php echo $status_counts['Disetujui']; ?></span>
-                            </a>
-                            <a href="<?php echo htmlspecialchars(getApprovalFilterUrl(['filter_status' => 'Ditolak'])); ?>" 
-                               class="btn btn-xs <?php echo ($filter_status === 'Ditolak') ? 'btn-danger' : 'btn-default'; ?>" 
-                               style="border-radius: 14px; padding: 4px 12px; font-weight: 600; <?php echo ($filter_status === 'Ditolak') ? 'background-color: #ff3b30; border-color: #ff3b30; color:#fff;' : 'color:#b91c1c;'; ?>">
-                               <i class="fa fa-times-circle"></i> Ditolak <span class="badge" style="background: rgba(0,0,0,0.15); margin-left: 3px;"><?php echo $status_counts['Ditolak']; ?></span>
-                            </a>
-                            <a href="<?php echo htmlspecialchars(getApprovalFilterUrl(['filter_status' => 'Dibatalkan'])); ?>" 
-                               class="btn btn-xs <?php echo ($filter_status === 'Dibatalkan') ? 'btn-secondary' : 'btn-default'; ?>" 
-                               style="border-radius: 14px; padding: 4px 12px; font-weight: 600; <?php echo ($filter_status === 'Dibatalkan') ? 'background-color: #8e8e93; border-color: #8e8e93; color:#fff;' : 'color:#6b7280;'; ?>">
-                               <i class="fa fa-ban"></i> Dibatalkan <span class="badge" style="background: rgba(0,0,0,0.15); margin-left: 3px;"><?php echo $status_counts['Dibatalkan']; ?></span>
-                            </a>
-                        </div>
-
-                        <!-- Filter Form Box -->
+                        <!-- Filter Box (Instant Real-time Filter Without Page Reload) -->
                         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; margin-bottom: 18px;">
-                            <form method="get" action="" id="filterApprovalForm" class="form-vertical">
+                            <form id="filterApprovalForm" class="form-vertical" onsubmit="return false;">
                                 <div class="row">
                                     <div class="col-xs-12 col-sm-6 col-md-3" style="margin-bottom: 10px;">
                                         <label style="font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px; display: block;">
                                             <i class="fa fa-car"></i> Unit Kendaraan
                                         </label>
-                                        <select name="filter_mobil" class="form-control input-sm" style="border-radius: 6px;">
+                                        <select id="filter_mobil" class="form-control input-sm" style="border-radius: 6px;">
                                             <option value="">-- Semua Unit Mobil --</option>
                                             <?php foreach ($filter_cars as $fc): ?>
-                                                <option value="<?php echo htmlspecialchars($fc); ?>" <?php echo ($filter_mobil === $fc) ? 'selected' : ''; ?>>
+                                                <option value="<?php echo htmlspecialchars($fc); ?>">
                                                     <?php echo htmlspecialchars($fc); ?>
                                                 </option>
                                             <?php endforeach; ?>
@@ -1294,12 +1193,12 @@ $pagedesc = "Peminjaman Mobil";
                                         <label style="font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px; display: block;">
                                             <i class="fa fa-tag"></i> Status
                                         </label>
-                                        <select name="filter_status" class="form-control input-sm" style="border-radius: 6px;">
+                                        <select id="filter_status" class="form-control input-sm" style="border-radius: 6px;">
                                             <option value="">-- Semua Status --</option>
-                                            <option value="Menunggu" <?php echo ($filter_status === 'Menunggu') ? 'selected' : ''; ?>>Menunggu</option>
-                                            <option value="Disetujui" <?php echo ($filter_status === 'Disetujui') ? 'selected' : ''; ?>>Disetujui</option>
-                                            <option value="Ditolak" <?php echo ($filter_status === 'Ditolak') ? 'selected' : ''; ?>>Ditolak</option>
-                                            <option value="Dibatalkan" <?php echo ($filter_status === 'Dibatalkan') ? 'selected' : ''; ?>>Dibatalkan</option>
+                                            <option value="Menunggu">Menunggu</option>
+                                            <option value="Disetujui">Disetujui</option>
+                                            <option value="Ditolak">Ditolak</option>
+                                            <option value="Dibatalkan">Dibatalkan</option>
                                         </select>
                                     </div>
 
@@ -1307,45 +1206,34 @@ $pagedesc = "Peminjaman Mobil";
                                         <label style="font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px; display: block;">
                                             <i class="fa fa-calendar"></i> Dari Tanggal
                                         </label>
-                                        <input type="date" name="filter_tgl_mulai" class="form-control input-sm" value="<?php echo htmlspecialchars($filter_tgl_mulai); ?>" style="border-radius: 6px;">
+                                        <input type="date" id="filter_tgl_mulai" class="form-control input-sm" style="border-radius: 6px;">
                                     </div>
 
                                     <div class="col-xs-12 col-sm-6 col-md-2" style="margin-bottom: 10px;">
                                         <label style="font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px; display: block;">
                                             <i class="fa fa-calendar"></i> Sampai Tanggal
                                         </label>
-                                        <input type="date" name="filter_tgl_selesai" class="form-control input-sm" value="<?php echo htmlspecialchars($filter_tgl_selesai); ?>" style="border-radius: 6px;">
+                                        <input type="date" id="filter_tgl_selesai" class="form-control input-sm" style="border-radius: 6px;">
                                     </div>
 
                                     <div class="col-xs-12 col-sm-6 col-md-3" style="margin-bottom: 10px;">
                                         <label style="font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px; display: block;">
                                             <i class="fa fa-user"></i> Pemohon / NPP
                                         </label>
-                                        <input type="text" name="filter_nama" class="form-control input-sm" placeholder="Nama atau NPP..." value="<?php echo htmlspecialchars($filter_nama); ?>" style="border-radius: 6px;">
+                                        <input type="text" id="filter_nama" class="form-control input-sm" placeholder="Ketik nama atau NPP..." style="border-radius: 6px;">
                                     </div>
                                 </div>
 
                                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 5px; padding-top: 8px; border-top: 1px dashed #cbd5e1;">
-                                    <div>
-                                        <?php if ($active_filter_count > 0): ?>
-                                            <span class="text-primary" style="font-size: 12px; font-weight: 600;">
-                                                <i class="fa fa-filter"></i> Filter aktif (<strong><?php echo $active_filter_count; ?> kriteria</strong>): Ditemukan <strong><?php echo count($pending_approvals); ?></strong> data.
-                                            </span>
-                                        <?php else: ?>
-                                            <span class="text-muted" style="font-size: 12px;">
-                                                <i class="fa fa-list"></i> Menampilkan seluruh riwayat pengajuan (<strong><?php echo count($pending_approvals); ?></strong> total data).
-                                            </span>
-                                        <?php endif; ?>
+                                    <div id="filterSummaryText">
+                                        <span class="text-muted" style="font-size: 12px;">
+                                            <i class="fa fa-list"></i> Menampilkan seluruh riwayat pengajuan (<strong><?php echo count($pending_approvals); ?></strong> total data).
+                                        </span>
                                     </div>
                                     <div style="display: flex; gap: 6px;">
-                                        <button type="submit" class="btn btn-primary btn-sm" style="border-radius: 6px; padding: 5px 14px; font-weight: 600;">
-                                            <i class="fa fa-search"></i> Terapkan Filter
+                                        <button type="button" id="btnResetFilter" class="btn btn-default btn-sm" style="border-radius: 6px; padding: 5px 14px; display: none;">
+                                            <i class="fa fa-refresh"></i> Reset Filter
                                         </button>
-                                        <?php if ($active_filter_count > 0): ?>
-                                            <a href="<?php echo htmlspecialchars(strtok($_SERVER["REQUEST_URI"] ?? '', '?')); ?>" class="btn btn-default btn-sm" style="border-radius: 6px; padding: 5px 14px;">
-                                                <i class="fa fa-refresh"></i> Reset Filter
-                                            </a>
-                                        <?php endif; ?>
                                     </div>
                                 </div>
                             </form>
@@ -1372,7 +1260,11 @@ $pagedesc = "Peminjaman Mobil";
                                                 $diff = $start->diff($end);
                                                 $durasi = $diff->days + 1;
                                             ?>
-                                            <tr>
+                                            <tr data-status="<?php echo htmlspecialchars($pending['status']); ?>"
+                                                data-mobil="<?php echo htmlspecialchars($pending['mobil']); ?>"
+                                                data-tgl-mulai="<?php echo htmlspecialchars($pending['tgl_mulai']); ?>"
+                                                data-tgl-selesai="<?php echo htmlspecialchars($pending['tgl_selesai']); ?>"
+                                                data-nama="<?php echo htmlspecialchars(strtolower($pending['nama_emp'] . ' ' . $pending['npp'])); ?>">
                                                 <td class="text-center"><?php echo $no++; ?></td>
                                                 <td><?php echo $pending['nama_emp']; ?></td>
                                                 <td>
@@ -2442,9 +2334,114 @@ $(document).ready(function() {
         }
     };
     if ($('#dataTables-approval').length) {
-        $('#dataTables-approval').DataTable(Object.assign({}, dtConfig, {
+        var approvalDt = $('#dataTables-approval').DataTable(Object.assign({}, dtConfig, {
             order: [] // Maintain server-side order (Menunggu first, then latest created_at)
         }));
+
+        // Dynamic renumbering for No column based on filtered/visible rows
+        approvalDt.on('draw.dt', function () {
+            approvalDt.column(0, { search: 'applied', order: 'applied' }).nodes().each(function (cell, i) {
+                cell.innerHTML = i + 1;
+            });
+        });
+
+        // Custom client-side filter function without reloading the page
+        $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+            if (settings.nTable.id !== 'dataTables-approval') {
+                return true;
+            }
+            var row = $(settings.aoData[dataIndex].nTr);
+            
+            // 1. Filter Unit Mobil
+            var selMobil = $('#filter_mobil').val();
+            if (selMobil) {
+                var rowMobil = row.attr('data-mobil') || '';
+                if (rowMobil.indexOf(selMobil) === -1) {
+                    return false;
+                }
+            }
+
+            // 2. Filter Status
+            var selStatus = $('#filter_status').val();
+            if (selStatus && selStatus !== 'Semua') {
+                var rowStatus = row.attr('data-status') || '';
+                if (rowStatus !== selStatus) {
+                    return false;
+                }
+            }
+
+            // 3. Filter Rentang Tanggal (Overlap range)
+            var fStart = $('#filter_tgl_mulai').val();
+            var fEnd = $('#filter_tgl_selesai').val();
+            var rStart = row.attr('data-tgl-mulai') || '';
+            var rEnd = row.attr('data-tgl-selesai') || '';
+
+            if (fStart && fEnd) {
+                if (!(rStart <= fEnd && rEnd >= fStart)) {
+                    return false;
+                }
+            } else if (fStart) {
+                if (!(rEnd >= fStart)) {
+                    return false;
+                }
+            } else if (fEnd) {
+                if (!(rStart <= fEnd)) {
+                    return false;
+                }
+            }
+
+            // 4. Filter Nama / NPP Pemohon
+            var fNama = ($('#filter_nama').val() || '').toLowerCase().trim();
+            if (fNama) {
+                var rNama = (row.attr('data-nama') || '').toLowerCase();
+                if (rNama.indexOf(fNama) === -1) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
+        function updateFilterSummary() {
+            var activeCount = 0;
+            if ($('#filter_mobil').val()) activeCount++;
+            if ($('#filter_status').val() && $('#filter_status').val() !== 'Semua') activeCount++;
+            if ($('#filter_tgl_mulai').val()) activeCount++;
+            if ($('#filter_tgl_selesai').val()) activeCount++;
+            if ($('#filter_nama').val().trim()) activeCount++;
+
+            var filteredRows = approvalDt.rows({ search: 'applied' }).count();
+            var totalRows = approvalDt.rows().count();
+
+            if (activeCount > 0) {
+                $('#filterSummaryText').html('<span class="text-primary" style="font-size: 12px; font-weight: 600;"><i class="fa fa-filter"></i> Filter aktif (<strong>' + activeCount + ' kriteria</strong>): Ditemukan <strong>' + filteredRows + '</strong> data (dari total ' + totalRows + ').</span>');
+                $('#btnResetFilter').show();
+            } else {
+                $('#filterSummaryText').html('<span class="text-muted" style="font-size: 12px;"><i class="fa fa-list"></i> Menampilkan seluruh riwayat pengajuan (<strong>' + totalRows + '</strong> total data).</span>');
+                $('#btnResetFilter').hide();
+            }
+        }
+
+        // Trigger filter immediately on any change or input
+        $('#filter_mobil, #filter_status, #filter_tgl_mulai, #filter_tgl_selesai').on('change', function() {
+            approvalDt.draw();
+            updateFilterSummary();
+        });
+
+        $('#filter_nama').on('keyup input', function() {
+            approvalDt.draw();
+            updateFilterSummary();
+        });
+
+        $('#btnResetFilter').on('click', function() {
+            $('#filter_mobil').val('');
+            $('#filter_status').val('');
+            $('#filter_tgl_mulai').val('');
+            $('#filter_tgl_selesai').val('');
+            $('#filter_nama').val('');
+            approvalDt.draw();
+            updateFilterSummary();
+        });
     }
     if ($('#dataTables-my').length) {
         $('#dataTables-my').DataTable(Object.assign({}, dtConfig, {
