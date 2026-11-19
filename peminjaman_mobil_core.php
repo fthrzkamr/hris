@@ -55,9 +55,10 @@ $active_role = strtolower($sess_jabatan ?? '');
 
 // Role flags
 $folder_name = basename(dirname($_SERVER['SCRIPT_FILENAME']));
-$is_managerhr = ($folder_name === 'managerhr');
+$is_managerhr = ($folder_name === 'managerhr' || $active_npp === '24940107');
 $is_ga        = ($folder_name === 'ga');
-$is_approver  = ($is_managerhr || $is_ga || isset($sess_admid) || $active_npp == '26020216');
+$is_mobil_approver = ($is_managerhr || $active_npp === '24940107' || $active_npp === '26020216');
+$is_approver  = ($is_mobil_approver || $is_ga || isset($sess_admid));
 $is_admin_or_hr = $is_approver; // backward compat
 
 // Batas pengajuan peminjaman: hari ini s.d. H+30 hari ke depan
@@ -103,11 +104,11 @@ if ($is_approver && isset($_POST['action_approval'])) {
         } else {
             if ($is_managerhr) {
                 mysqli_query($conn, "UPDATE peminjaman_mobil SET approve_hr='Disetujui', approve_hr_by='$actor', approve_hr_at='$now', status='Disetujui' WHERE id='$booking_id'");
-                $message = "Persetujuan HR berhasil disimpan, pengajuan langsung disetujui.";
+                $message = "Persetujuan berhasil disimpan, pengajuan langsung disetujui.";
                 $message_type = "success";
-            } elseif ($is_ga) {
+            } elseif ($is_ga || $active_npp === '26020216') {
                 mysqli_query($conn, "UPDATE peminjaman_mobil SET approve_ga='Disetujui', approve_ga_by='$actor', approve_ga_at='$now', status='Disetujui' WHERE id='$booking_id'");
-                $message = "Persetujuan GA berhasil disimpan, pengajuan langsung disetujui.";
+                $message = "Persetujuan berhasil disimpan, pengajuan langsung disetujui.";
                 $message_type = "success";
             } else {
                 mysqli_query($conn, "UPDATE peminjaman_mobil SET approve_hr='Disetujui', approve_ga='Disetujui', approve_hr_by='$actor', approve_ga_by='$actor', approve_hr_at='$now', approve_ga_at='$now', status='Disetujui' WHERE id='$booking_id'");
@@ -119,7 +120,7 @@ if ($is_approver && isset($_POST['action_approval'])) {
         $reason = mysqli_real_escape_string($conn, $_POST['keterangan'] ?? '');
         if ($is_managerhr) {
             mysqli_query($conn, "UPDATE peminjaman_mobil SET approve_hr='Ditolak', approve_hr_by='$actor', approve_hr_at='$now', status='Ditolak', keterangan='$reason' WHERE id='$booking_id'");
-        } elseif ($is_ga) {
+        } elseif ($is_ga || $active_npp === '26020216') {
             mysqli_query($conn, "UPDATE peminjaman_mobil SET approve_ga='Ditolak', approve_ga_by='$actor', approve_ga_at='$now', status='Ditolak', keterangan='$reason' WHERE id='$booking_id'");
         } else {
             mysqli_query($conn, "UPDATE peminjaman_mobil SET status='Ditolak', keterangan='$reason' WHERE id='$booking_id'");
@@ -622,22 +623,17 @@ if (!function_exists('phpRenderFuelBar')) {
     }
 }
 
-// Laporan Pemakaian: Fetch all approved trips chronologically (supports filtering by mobil)
+// Laporan Pemakaian: Tersedia untuk kedua approver peminjaman mobil (Auliya Nurul & Fariz Hannan Rahmat)
 $report_trips = [];
-$is_report_allowed = ($active_npp === '26020216');
+$is_report_allowed = ($is_managerhr || $active_npp === '24940107' || $active_npp === '26020216');
 
 if ($is_report_allowed) {
-    $filter_mobil = $_GET['filter_mobil'] ?? '';
-    $where_clause = "WHERE status = 'Disetujui'";
-    if ($filter_mobil !== '') {
-        $esc_fm = mysqli_real_escape_string($conn, $filter_mobil);
-        $where_clause .= " AND mobil = '$esc_fm'";
-    }
-
     $q_rep = mysqli_query($conn, "
-        SELECT * FROM peminjaman_mobil 
-        $where_clause 
-        ORDER BY mobil ASC, tgl_mulai ASC, jam_mulai ASC
+        SELECT b.*, IFNULL(e.nama_emp, b.nama_emp) AS nama_emp
+        FROM peminjaman_mobil b
+        LEFT JOIN employee e ON b.npp = e.npp
+        WHERE b.status = 'Disetujui'
+        ORDER BY b.tgl_mulai DESC, b.jam_mulai DESC
     ");
     if ($q_rep) {
         while ($r = mysqli_fetch_assoc($q_rep)) {
@@ -657,13 +653,6 @@ if ($is_report_allowed) {
         }
     }
     unset($current);
-
-    // Sort report_trips descending (latest first) by tgl_mulai and jam_mulai
-    usort($report_trips, function($a, $b) {
-        $dateA = $a['tgl_mulai'] . ' ' . $a['jam_mulai'];
-        $dateB = $b['tgl_mulai'] . ' ' . $b['jam_mulai'];
-        return strcmp($dateB, $dateA);
-    });
 }
 
 $pagedesc = "Peminjaman Mobil";
@@ -1014,8 +1003,12 @@ $pagedesc = "Peminjaman Mobil";
     <div class="row" style="margin-bottom: 20px;">
         <div class="col-xs-12">
             <div style="display: flex; gap: 10px; border-bottom: 1px solid #e5e5ea; padding-bottom: 15px;">
-                <a href="?view=calendar" class="ios-btn-secondary" style="background: <?php echo (!isset($_GET['view']) || $_GET['view'] !== 'report') ? '#007aff; color: white;' : '#f2f2f7; color: #007aff;'; ?> padding: 8px 16px; border-radius: 8px; font-weight: 600; text-decoration: none;">
-                    <i class="fa fa-calendar"></i> &nbsp;Kalender &amp; Pengajuan
+                <a href="?view=<?php echo $is_approval_page ? 'approval' : 'calendar'; ?>" class="ios-btn-secondary" style="background: <?php echo (!isset($_GET['view']) || $_GET['view'] !== 'report') ? '#007aff; color: white;' : '#f2f2f7; color: #007aff;'; ?> padding: 8px 16px; border-radius: 8px; font-weight: 600; text-decoration: none;">
+                    <?php if ($is_approval_page): ?>
+                        <i class="fa fa-check-square-o"></i> &nbsp;Approval &amp; Master Mobil
+                    <?php else: ?>
+                        <i class="fa fa-calendar"></i> &nbsp;Kalender &amp; Pengajuan
+                    <?php endif; ?>
                 </a>
                 <a href="?view=report" class="ios-btn-secondary" style="background: <?php echo (isset($_GET['view']) && $_GET['view'] === 'report') ? '#007aff; color: white;' : '#f2f2f7; color: #007aff;'; ?> padding: 8px 16px; border-radius: 8px; font-weight: 600; text-decoration: none;">
                     <i class="fa fa-file-text-o"></i> &nbsp;Laporan Pemakaian
@@ -1038,35 +1031,70 @@ $pagedesc = "Peminjaman Mobil";
         <div class="row">
             <div class="col-xs-12">
                 <div class="ios-card">
-                    <h4 style="font-weight: 700; color: #1c1c1e; margin-bottom: 20px;"><i class="fa fa-bar-chart" style="color:#007aff;"></i> Laporan Penggunaan &amp; Pemakaian Kendaraan</h4>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 16px;">
+                        <h4 style="font-weight: 700; color: #1c1c1e; margin: 0;"><i class="fa fa-bar-chart" style="color:#007aff;"></i> Laporan Penggunaan &amp; Pemakaian Kendaraan</h4>
+                        <?php 
+                        $prefix = isset($path_prefix) ? $path_prefix : '';
+                        $export_base_url = $prefix . 'peminjaman_mobil_export_xls.php';
+                        ?>
+                        <a href="<?php echo htmlspecialchars($export_base_url); ?>" id="btnExportReportExcel" data-base-url="<?php echo htmlspecialchars($export_base_url); ?>" class="btn btn-success btn-sm" style="background-color: #34c759 !important; border-color: #34c759 !important; border-radius: 8px; font-weight: 600; padding: 6px 16px;">
+                            <i class="fa fa-file-excel-o"></i> &nbsp;Export Excel
+                        </a>
+                    </div>
                     
-                    <!-- Filter & Export Controls -->
-                    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 20px; background: #f8f8fa; padding: 15px; border-radius: 12px; border: 1px solid #e5e5ea;">
-                        <form method="get" style="display: flex; align-items: center; gap: 10px; margin: 0;">
-                            <input type="hidden" name="view" value="report">
-                            <label for="filter_mobil" style="font-weight: 600; color: #3a3a3c; margin: 0; font-size: 13px;">Filter Mobil:</label>
-                            <select name="filter_mobil" id="filter_mobil" class="form-control input-sm" style="width: 220px; height: 32px; border-radius: 8px;" onchange="this.form.submit()">
-                                <option value="">-- Semua Mobil --</option>
-                                <?php foreach ($all_cars as $car): 
-                                    $car_label = $car['nama_mobil'] . ' (' . $car['no_plat'] . ')';
-                                    $sel = (isset($_GET['filter_mobil']) && $_GET['filter_mobil'] === $car_label) ? 'selected' : '';
-                                ?>
-                                    <option value="<?php echo htmlspecialchars($car_label); ?>" <?php echo $sel; ?>>
-                                        <?php echo htmlspecialchars($car_label); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+                    <!-- Instant Client-Side Filter Controls (No Reload) -->
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; margin-bottom: 18px;">
+                        <form id="filterReportForm" class="form-vertical" onsubmit="return false;">
+                            <div class="row">
+                                <div class="col-xs-12 col-sm-6 col-md-3" style="margin-bottom: 10px;">
+                                    <label style="font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px; display: block;">
+                                        <i class="fa fa-car"></i> Unit Kendaraan
+                                    </label>
+                                    <select id="report_filter_mobil" class="form-control input-sm" style="border-radius: 6px;">
+                                        <option value="">-- Semua Unit Mobil --</option>
+                                        <?php foreach ($filter_cars as $fc): ?>
+                                            <option value="<?php echo htmlspecialchars($fc); ?>">
+                                                <?php echo htmlspecialchars($fc); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
+                                <div class="col-xs-12 col-sm-6 col-md-3" style="margin-bottom: 10px;">
+                                    <label style="font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px; display: block;">
+                                        <i class="fa fa-calendar"></i> Dari Tanggal
+                                    </label>
+                                    <input type="date" id="report_filter_tgl_mulai" class="form-control input-sm" style="border-radius: 6px;">
+                                </div>
+
+                                <div class="col-xs-12 col-sm-6 col-md-3" style="margin-bottom: 10px;">
+                                    <label style="font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px; display: block;">
+                                        <i class="fa fa-calendar"></i> Sampai Tanggal
+                                    </label>
+                                    <input type="date" id="report_filter_tgl_selesai" class="form-control input-sm" style="border-radius: 6px;">
+                                </div>
+
+                                <div class="col-xs-12 col-sm-6 col-md-3" style="margin-bottom: 10px;">
+                                    <label style="font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px; display: block;">
+                                        <i class="fa fa-user"></i> Peminjam / NPP
+                                    </label>
+                                    <input type="text" id="report_filter_nama" class="form-control input-sm" placeholder="Ketik nama atau NPP..." style="border-radius: 6px;">
+                                </div>
+                            </div>
+
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 5px; padding-top: 8px; border-top: 1px dashed #cbd5e1;">
+                                <div id="reportFilterSummaryText">
+                                    <span class="text-muted" style="font-size: 12px;">
+                                        <i class="fa fa-list"></i> Menampilkan seluruh laporan pemakaian disetujui (<strong><?php echo count($report_trips); ?></strong> total data).
+                                    </span>
+                                </div>
+                                <div style="display: flex; gap: 6px;">
+                                    <button type="button" id="btnResetReportFilter" class="btn btn-default btn-sm" style="border-radius: 6px; padding: 5px 14px; display: none;">
+                                        <i class="fa fa-refresh"></i> Reset Filter
+                                    </button>
+                                </div>
+                            </div>
                         </form>
-                        
-                        <div>
-                            <?php 
-                            $prefix = isset($path_prefix) ? $path_prefix : '';
-                            $export_url = $prefix . 'peminjaman_mobil_export_xls.php?filter_mobil=' . urlencode(isset($_GET['filter_mobil']) ? $_GET['filter_mobil'] : '');
-                            ?>
-                            <a href="<?php echo $export_url; ?>" class="btn btn-success btn-sm" style="background-color: #34c759 !important; border-color: #34c759 !important; border-radius: 8px; font-weight: 600; padding: 6px 16px;">
-                                <i class="fa fa-file-excel-o"></i> &nbsp;Export Excel
-                            </a>
-                        </div>
                     </div>
 
                     <div class="table-responsive">
@@ -1074,19 +1102,22 @@ $pagedesc = "Peminjaman Mobil";
                             <thead>
                                 <tr>
                                     <th width="5%" class="text-center">No</th>
-                                    <th width="15%">Tanggal Pinjam</th>
-                                    <th width="15%">Peminjam</th>
-                                    <th width="20%">Mobil</th>
-                                    <th width="10%" class="text-center">KM Awal</th>
-                                    <th width="10%" class="text-center">Bensin Awal</th>
-                                    <th width="10%" class="text-center">KM Tempuh</th>
-                                    <th width="10%" class="text-center">Bensin Terpakai</th>
-                                    <th width="15%">Tujuan / Keperluan</th>
+                                    <th width="14%">Tanggal Pinjam</th>
+                                    <th width="14%">Peminjam</th>
+                                    <th width="18%">Mobil</th>
+                                    <th width="10%" class="text-center">KM Awal / Akhir</th>
+                                    <th width="10%" class="text-center">Bensin Awal / Akhir</th>
+                                    <th width="9%" class="text-center">KM Tempuh</th>
+                                    <th width="9%" class="text-center">Bensin Terpakai</th>
+                                    <th width="11%">Tujuan / Keperluan</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php $no = 1; foreach ($report_trips as $trip): ?>
-                                    <tr>
+                                    <tr data-mobil="<?php echo htmlspecialchars($trip['mobil']); ?>"
+                                        data-tgl-mulai="<?php echo htmlspecialchars($trip['tgl_mulai']); ?>"
+                                        data-tgl-selesai="<?php echo htmlspecialchars($trip['tgl_selesai']); ?>"
+                                        data-nama="<?php echo htmlspecialchars(strtolower($trip['nama_emp'] . ' ' . $trip['npp'])); ?>">
                                         <td class="text-center"><?php echo $no++; ?></td>
                                         <td data-order="<?php echo $trip['tgl_mulai'] . ' ' . $trip['jam_mulai']; ?>">
                                             <?php echo date('d/m/Y', strtotime($trip['tgl_mulai'])); ?><br>
@@ -1094,8 +1125,18 @@ $pagedesc = "Peminjaman Mobil";
                                         </td>
                                         <td><strong><?php echo htmlspecialchars($trip['nama_emp']); ?></strong></td>
                                         <td><?php echo htmlspecialchars($trip['mobil']); ?></td>
-                                        <td class="text-center"><?php echo number_format($trip['km_awal'], 0, ',', '.'); ?> KM</td>
-                                        <td class="text-center"><?php echo phpRenderFuelBar($trip['bensin_awal']); ?></td>
+                                        <td class="text-center">
+                                            <?php echo $trip['km_awal'] ? number_format($trip['km_awal'], 0, ',', '.') . ' KM' : '-'; ?>
+                                            <?php if ($trip['km_akhir'] !== null && $trip['km_akhir'] !== ''): ?>
+                                                <br><small class="text-muted">Akhir: <?php echo number_format($trip['km_akhir'], 0, ',', '.'); ?> KM</small>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="text-center">
+                                            <?php echo phpRenderFuelBar($trip['bensin_awal']); ?>
+                                            <?php if ($trip['bensin_akhir'] !== null && $trip['bensin_akhir'] !== ''): ?>
+                                                <br><small class="text-muted">Akhir: <?php echo intval($trip['bensin_akhir']); ?>/8 Bar</small>
+                                            <?php endif; ?>
+                                        </td>
                                         <td class="text-center">
                                             <?php 
                                             if ($trip['km_tempuh'] !== null) {
@@ -1193,16 +1234,11 @@ $pagedesc = "Peminjaman Mobil";
 
 
             <!-- Persetujuan/Approval Tab -->
-            <?php if ($is_approver && ($is_managerhr || $is_ga || $active_npp == '26020216') && $is_approval_page): ?>
+            <?php if ($is_approver && ($is_managerhr || $is_ga || $active_npp == '24940107' || $active_npp == '26020216') && $is_approval_page): ?>
                 <div class="row"><div class="col-xs-12 col-md-12">
                 <?php
-                    if ($active_npp == '26020216') {
-                        $panel_title = 'Persetujuan Peminjaman Mobil';
-                        $panel_color = '#007aff';
-                    } else {
-                        $panel_title = $is_managerhr ? 'Persetujuan Manager HR' : 'Persetujuan GA';
-                        $panel_color = $is_managerhr ? '#007aff' : '#34c759';
-                    }
+                    $panel_title = 'Persetujuan Peminjaman Mobil';
+                    $panel_color = '#007aff';
                 ?>
                 <div class="panel panel-default" style="margin-top: 15px;">
                     <div class="panel-heading">
@@ -1346,7 +1382,14 @@ $pagedesc = "Peminjaman Mobil";
                                                         </form>
                                                     <?php elseif ($pending['status'] == 'Disetujui'): ?>
                                                         <span class="label label-success" style="font-size: 11px; padding: 4px 8px; display: inline-block;"><i class="fa fa-check-circle"></i> Disetujui</span>
-                                                        <?php if (!empty($pending['approve_hr']) || !empty($pending['approve_ga'])): ?>
+                                                        <?php
+                                                            $approved_by = !empty($pending['approve_hr_by']) ? $pending['approve_hr_by'] : (!empty($pending['approve_ga_by']) ? $pending['approve_ga_by'] : '');
+                                                        ?>
+                                                        <?php if (!empty($approved_by)): ?>
+                                                            <br><small class="text-muted" style="margin-top: 4px; display: inline-block; font-size: 11px;">
+                                                                Oleh: <?php echo htmlspecialchars($approved_by); ?>
+                                                            </small>
+                                                        <?php elseif (!empty($pending['approve_hr']) || !empty($pending['approve_ga'])): ?>
                                                             <br><small class="text-muted" style="margin-top: 4px; display: inline-block; font-size: 11px;">
                                                                 Oleh: <?php echo !empty($pending['approve_hr']) ? 'HR (' . htmlspecialchars($pending['approve_hr']) . ')' : 'GA (' . htmlspecialchars($pending['approve_ga']) . ')'; ?>
                                                             </small>
@@ -2599,9 +2642,117 @@ $(document).ready(function() {
         }));
     }
     if ($('#dataTables-report').length) {
-        $('#dataTables-report').DataTable(Object.assign({}, dtConfig, {
+        var reportDt = $('#dataTables-report').DataTable(Object.assign({}, dtConfig, {
             order: [[1, 'desc']] // Sort by Tanggal Pinjam descending (latest first)
         }));
+
+        // Dynamic renumbering for No column in Report table
+        reportDt.on('draw.dt', function () {
+            reportDt.column(0, { search: 'applied', order: 'applied' }).nodes().each(function (cell, i) {
+                cell.innerHTML = i + 1;
+            });
+        });
+
+        // Custom client-side filter for Laporan Pemakaian (No Reload)
+        $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+            if (settings.nTable.id !== 'dataTables-report') {
+                return true;
+            }
+            var row = $(settings.aoData[dataIndex].nTr);
+
+            var selMobil = $('#report_filter_mobil').val();
+            if (selMobil) {
+                var rowMobil = row.attr('data-mobil') || '';
+                if (rowMobil.indexOf(selMobil) === -1) {
+                    return false;
+                }
+            }
+
+            var fStart = $('#report_filter_tgl_mulai').val();
+            var fEnd = $('#report_filter_tgl_selesai').val();
+            var rStart = row.attr('data-tgl-mulai') || '';
+            var rEnd = row.attr('data-tgl-selesai') || '';
+
+            if (fStart && fEnd) {
+                if (!(rStart <= fEnd && rEnd >= fStart)) {
+                    return false;
+                }
+            } else if (fStart) {
+                if (!(rEnd >= fStart)) {
+                    return false;
+                }
+            } else if (fEnd) {
+                if (!(rStart <= fEnd)) {
+                    return false;
+                }
+            }
+
+            var fNama = ($('#report_filter_nama').val() || '').toLowerCase().trim();
+            if (fNama) {
+                var rNama = (row.attr('data-nama') || '').toLowerCase();
+                if (rNama.indexOf(fNama) === -1) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
+        function updateReportFilterSummaryAndExport() {
+            var mobil = $('#report_filter_mobil').val() || '';
+            var tglMulai = $('#report_filter_tgl_mulai').val() || '';
+            var tglSelesai = $('#report_filter_tgl_selesai').val() || '';
+            var nama = ($('#report_filter_nama').val() || '').trim();
+
+            var activeCount = 0;
+            if (mobil) activeCount++;
+            if (tglMulai) activeCount++;
+            if (tglSelesai) activeCount++;
+            if (nama) activeCount++;
+
+            var filteredRows = reportDt.rows({ search: 'applied' }).count();
+            var totalRows = reportDt.rows().count();
+
+            if (activeCount > 0) {
+                $('#reportFilterSummaryText').html('<span class="text-primary" style="font-size: 12px; font-weight: 600;"><i class="fa fa-filter"></i> Filter aktif (<strong>' + activeCount + ' kriteria</strong>): Ditemukan <strong>' + filteredRows + '</strong> data (dari total ' + totalRows + ').</span>');
+                $('#btnResetReportFilter').show();
+            } else {
+                $('#reportFilterSummaryText').html('<span class="text-muted" style="font-size: 12px;"><i class="fa fa-list"></i> Menampilkan seluruh laporan pemakaian disetujui (<strong>' + totalRows + '</strong> total data).</span>');
+                $('#btnResetReportFilter').hide();
+            }
+
+            // Sinkronkan URL Export Excel dengan filter yang aktif
+            var $exportBtn = $('#btnExportReportExcel');
+            if ($exportBtn.length) {
+                var baseUrl = $exportBtn.data('base-url');
+                var params = new URLSearchParams();
+                if (mobil) params.set('filter_mobil', mobil);
+                if (tglMulai) params.set('filter_tgl_mulai', tglMulai);
+                if (tglSelesai) params.set('filter_tgl_selesai', tglSelesai);
+                if (nama) params.set('filter_nama', nama);
+                var qs = params.toString();
+                $exportBtn.attr('href', baseUrl + (qs ? '?' + qs : ''));
+            }
+        }
+
+        $('#report_filter_mobil, #report_filter_tgl_mulai, #report_filter_tgl_selesai').on('change', function() {
+            reportDt.draw();
+            updateReportFilterSummaryAndExport();
+        });
+
+        $('#report_filter_nama').on('keyup input', function() {
+            reportDt.draw();
+            updateReportFilterSummaryAndExport();
+        });
+
+        $('#btnResetReportFilter').on('click', function() {
+            $('#report_filter_mobil').val('');
+            $('#report_filter_tgl_mulai').val('');
+            $('#report_filter_tgl_selesai').val('');
+            $('#report_filter_nama').val('');
+            reportDt.draw();
+            updateReportFilterSummaryAndExport();
+        });
     }
     // Booking Form Fuel Bar Selector Logic
     $('.bensin-bar-segment').on('click', function() {
