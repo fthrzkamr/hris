@@ -12,13 +12,36 @@ include("sess_check.php");
 	include("layout_top.php");
 	$now = date('Y-m-d');
 	$npp = $sess_mngid;
+	$existing_cuti = [];
+	$npp_esc_form = mysqli_real_escape_string($conn, $npp);
+	$q_existing_cuti = mysqli_query($conn, "SELECT tgl_awal, tgl_akhir, stt_cuti FROM cuti WHERE npp='$npp_esc_form' AND stt_cuti NOT LIKE '%Reject%' AND stt_cuti NOT LIKE '%Tolak%' AND stt_cuti NOT LIKE '%Batal%'");
+	if ($q_existing_cuti) {
+		while ($r_ex = mysqli_fetch_assoc($q_existing_cuti)) {
+			$existing_cuti[] = [
+				'awal' => $r_ex['tgl_awal'],
+				'akhir' => $r_ex['tgl_akhir'],
+				'status' => $r_ex['stt_cuti']
+			];
+		}
+	}
 ?>
 <script type="text/javascript">
+var existingCuti = <?php echo json_encode($existing_cuti); ?>;
 function valid()
 {
-	if(document.cuti.akhir.value < document.cuti.mulai.value){
-		alert("Tanggal akhir cuti harus lebih besar dari tanggal mulai cuti!");
+	var mulai = document.cuti.mulai.value;
+	var akhir = document.cuti.akhir.value;
+	if(akhir < mulai){
+		alert("Tanggal akhir cuti harus lebih besar atau sama dengan tanggal mulai cuti!");
 		return false;
+	}
+	for(var i = 0; i < existingCuti.length; i++){
+		if(existingCuti[i].awal <= akhir && existingCuti[i].akhir >= mulai){
+			var a = existingCuti[i].awal.split('-').reverse().join('-');
+			var b = existingCuti[i].akhir.split('-').reverse().join('-');
+			alert("Gagal! Anda sudah memiliki pengajuan cuti pada tanggal " + a + " s/d " + b + " (Status: " + existingCuti[i].status + "). Tidak dapat mengajukan cuti di tanggal yang sama atau bentrok.");
+			return false;
+		}
 	}
 
 	return true;
