@@ -28,7 +28,7 @@
 							<div class="panel-body">
 						<?php
 								$Sql = "SELECT cuti.*, employee.* FROM cuti, employee WHERE cuti.npp=employee.npp AND 
-										cuti.hrd_app='1' ORDER BY cuti.tgl_pengajuan DESC";
+										cuti.hrd_app='1' $scope_filter ORDER BY cuti.tgl_pengajuan DESC";
 								$Qry = mysqli_query($conn, $Sql);
 								
 							?>						

@@ -57,24 +57,7 @@ if (isset($conn)) {
 
 
 // Notifikasi Approval Baru (Dengan Filter Skop Dinamis)
-$scope_filter = "";
-if (isset($sess_mngid) && isset($conn)) {
-    $id_koor = '-1'; $id_man = '-1'; $id_lead = '-1';
-    
-    if ($res_k = mysqli_query($conn, "SELECT id_koordinator FROM koordinator WHERE npp='$sess_mngid'")) {
-        if ($row_k = mysqli_fetch_assoc($res_k)) $id_koor = $row_k['id_koordinator'];
-    }
-    if ($res_m = mysqli_query($conn, "SELECT id_manager FROM manager WHERE npp='$sess_mngid'")) {
-        if ($row_m = mysqli_fetch_assoc($res_m)) $id_man = $row_m['id_manager'];
-    }
-    if ($res_l = mysqli_query($conn, "SELECT id_leader FROM leader WHERE npp='$sess_mngid'")) {
-        if ($row_l = mysqli_fetch_assoc($res_l)) $id_lead = $row_l['id_leader'];
-    }
-    
-    if ($id_koor != '-1') $scope_filter = " AND employee.nama_koordinator='$id_koor' ";
-    elseif ($id_man != '-1') $scope_filter = " AND employee.nama_manager='$id_man' ";
-    elseif ($id_lead != '-1') $scope_filter = " AND employee.nama_leader='$id_lead' ";
-}
+include_once(__DIR__ . '/dist/function/scope_approval.php');
 
 $count_pending_cuti = 0;
 if (isset($conn)) {

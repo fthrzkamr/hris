@@ -5,13 +5,8 @@
 	$pagedesc = "Data Lemburan";
 	include("layout_top.php");
 
-	// Scope data: koordinator/manager/leader hanya melihat bawahannya, admin (root) melihat semua
+	// Skop data: hanya pengajuan bawahan koordinator/manager akun ini
 	$id = $sess_mngid;
-	$scope_filter = "";
-	if ($rk = mysqli_query($conn, "SELECT id_koordinator FROM koordinator WHERE npp='$id'")) { if ($r = mysqli_fetch_assoc($rk)) $scope_filter = " AND employee.nama_koordinator='".$r['id_koordinator']."' "; }
-	if ($scope_filter == "" && ($rm = mysqli_query($conn, "SELECT id_manager FROM manager WHERE npp='$id'"))) { if ($r = mysqli_fetch_assoc($rm)) $scope_filter = " AND employee.nama_manager='".$r['id_manager']."' "; }
-	if ($scope_filter == "" && ($rl = mysqli_query($conn, "SELECT id_leader FROM leader WHERE npp='$id'"))) { if ($r = mysqli_fetch_assoc($rl)) $scope_filter = " AND employee.nama_leader='".$r['id_leader']."' "; }
-
 	include("dist/function/format_tanggal.php");
 	include("dist/function/format_rupiah.php");
 ?>
