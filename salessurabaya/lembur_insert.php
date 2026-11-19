@@ -11,7 +11,7 @@
     $nama_koordinator 		= $_POST['nama_koordinator'];
 	$alasan_lembur 		    = $_POST['alasan_lembur'];
 	$status                 = "Menunggu Approval";
-	$jumlah		 		    = $_POST['jumlah'];
+	$jumlah		 		    = 1; // Jumlah karyawan lembur dihapus dari form, default 1 per pengajuan (lihat komentar di lembur_create.php)
 
 	$reject                 = "kosong";
 		

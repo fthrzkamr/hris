@@ -45,6 +45,10 @@ $active_name = $sess_mngname ?? $sess_admname ?? '';
 // Role flag: yang mengelola master data ruangan (bukan approval booking — booking bersifat self-service)
 $is_admin_ruangan = ($active_npp === '24940107');
 
+// Batas pengajuan booking: hari ini s.d. H+30 hari ke depan
+$min_booking_date = date('Y-m-d');
+$max_booking_date = date('Y-m-d', strtotime('+30 days'));
+
 $message = '';
 $message_type = '';
 
@@ -136,6 +140,12 @@ if (isset($_POST['action_edit']) && $_POST['action_edit'] == 'edit') {
         } elseif (empty($edit_ruangan) || empty($edit_tgl_booking) || empty($edit_jam_mulai) || empty($edit_jam_selesai) || empty($edit_agenda)) {
             $message = "Semua kolom input edit wajib diisi!";
             $message_type = "danger";
+        } elseif ($edit_tgl_booking < $min_booking_date) {
+            $message = "Tanggal booking tidak boleh tanggal yang sudah lewat.";
+            $message_type = "danger";
+        } elseif ($edit_tgl_booking > $max_booking_date) {
+            $message = "Booking hanya bisa diajukan maksimal 30 hari dari hari ini.";
+            $message_type = "danger";
         } elseif ($edit_jam_mulai >= $edit_jam_selesai) {
             $message = "Jam mulai harus sebelum jam selesai!";
             $message_type = "danger";
@@ -208,6 +218,12 @@ if (isset($_POST['submit_booking'])) {
 
     if (empty($ruangan) || empty($tgl_booking) || empty($jam_mulai) || empty($jam_selesai) || empty($agenda)) {
         $message = "Semua kolom input wajib diisi!";
+        $message_type = "danger";
+    } elseif ($tgl_booking < $min_booking_date) {
+        $message = "Tanggal booking tidak boleh tanggal yang sudah lewat.";
+        $message_type = "danger";
+    } elseif ($tgl_booking > $max_booking_date) {
+        $message = "Booking hanya bisa diajukan maksimal 30 hari dari hari ini.";
         $message_type = "danger";
     } elseif ($jam_mulai >= $jam_selesai) {
         $message = "Jam mulai harus sebelum jam selesai!";
@@ -720,7 +736,8 @@ $pagedesc = "Booking Ruang Meeting";
                 <div class="modal-body" style="padding: 24px;">
                     <div class="ios-form-group">
                         <label class="ios-form-label">Tanggal Booking <span class="text-danger">*</span></label>
-                        <input type="date" class="ios-input" name="tgl_booking" required>
+                        <input type="date" class="ios-input" name="tgl_booking" min="<?php echo $min_booking_date; ?>" max="<?php echo $max_booking_date; ?>" required>
+                        <small class="text-muted">Maksimal 30 hari dari hari ini</small>
                     </div>
                     <div class="row">
                         <div class="col-xs-6" style="padding-right: 8px;">
@@ -816,7 +833,7 @@ $pagedesc = "Booking Ruang Meeting";
                     <input type="hidden" name="action_edit" value="edit">
                     <div class="ios-form-group">
                         <label class="ios-form-label">Tanggal Booking <span class="text-danger">*</span></label>
-                        <input type="date" class="ios-input" name="tgl_booking" id="edit_tgl_booking" required>
+                        <input type="date" class="ios-input" name="tgl_booking" id="edit_tgl_booking" min="<?php echo $min_booking_date; ?>" max="<?php echo $max_booking_date; ?>" required>
                     </div>
                     <div class="row">
                         <div class="col-xs-6" style="padding-right: 8px;">

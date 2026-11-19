@@ -35,7 +35,9 @@ if (isset($conn)) {
         'approve_ga_at DATETIME DEFAULT NULL', 
         'tujuan TEXT DEFAULT NULL',
         'km_awal INT DEFAULT NULL',
-        'bensin_awal INT DEFAULT NULL'
+        'bensin_awal INT DEFAULT NULL',
+        'km_akhir INT DEFAULT NULL',
+        'bensin_akhir INT DEFAULT NULL'
     ];
     foreach ($cols as $col) {
         $colname = explode(' ', $col)[0];
@@ -57,6 +59,10 @@ $is_managerhr = ($folder_name === 'managerhr');
 $is_ga        = ($folder_name === 'ga');
 $is_approver  = ($is_managerhr || $is_ga || isset($sess_admid) || $active_npp == '26020216');
 $is_admin_or_hr = $is_approver; // backward compat
+
+// Batas pengajuan peminjaman: hari ini s.d. H+30 hari ke depan
+$min_booking_date = date('Y-m-d');
+$max_booking_date = date('Y-m-d', strtotime('+30 days'));
 
 $message = '';
 $message_type = '';
@@ -241,6 +247,12 @@ if (isset($_POST['action_edit']) && $_POST['action_edit'] == 'edit') {
         } elseif (empty($edit_mobil) || empty($edit_tgl_mulai) || empty($edit_tgl_selesai) || empty($edit_jam_mulai) || empty($edit_jam_selesai) || empty($edit_keperluan) || empty($edit_tujuan) || empty($edit_km_awal) || empty($edit_bensin_awal)) {
             $message = "Semua kolom input edit wajib diisi!";
             $message_type = "danger";
+        } elseif ($edit_tgl_mulai < $min_booking_date) {
+            $message = "Tanggal mulai tidak boleh tanggal yang sudah lewat.";
+            $message_type = "danger";
+        } elseif ($edit_tgl_mulai > $max_booking_date) {
+            $message = "Pengajuan peminjaman mobil hanya bisa maksimal 30 hari dari hari ini.";
+            $message_type = "danger";
         } elseif ($edit_tgl_mulai > $edit_tgl_selesai) {
             $message = "Tanggal mulai tidak boleh melebihi tanggal selesai!";
             $message_type = "danger";
@@ -285,6 +297,38 @@ if (isset($_POST['action_edit']) && $_POST['action_edit'] == 'edit') {
                     $message_type = "danger";
                 }
             }
+        }
+    }
+}
+
+// ---------- LAPOR SELESAI PAKAI (KM AKHIR & BENSIN AKHIR) ----------
+if (isset($_POST['action_selesai']) && $_POST['action_selesai'] == 'selesai') {
+    $sp_booking_id   = mysqli_real_escape_string($conn, $_POST['booking_id']);
+    $sp_km_akhir     = intval($_POST['km_akhir'] ?? 0);
+    $sp_bensin_akhir = intval($_POST['bensin_akhir'] ?? 0);
+
+    $q_sp = mysqli_query($conn, "SELECT * FROM peminjaman_mobil WHERE id='$sp_booking_id'");
+    if (mysqli_num_rows($q_sp) == 0) {
+        $message = "Data peminjaman tidak ditemukan.";
+        $message_type = "danger";
+    } else {
+        $sp_data = mysqli_fetch_assoc($q_sp);
+        if (!$is_approver && $sp_data['npp'] !== $active_npp) {
+            $message = "Anda tidak memiliki akses untuk melaporkan peminjaman ini.";
+            $message_type = "danger";
+        } elseif ($sp_data['status'] !== 'Disetujui') {
+            $message = "Hanya peminjaman yang sudah disetujui yang bisa dilaporkan selesai.";
+            $message_type = "danger";
+        } elseif (empty($sp_km_akhir) || $sp_bensin_akhir === '') {
+            $message = "Kilometer akhir dan bensin akhir wajib diisi!";
+            $message_type = "danger";
+        } elseif ($sp_km_akhir < $sp_data['km_awal']) {
+            $message = "Kilometer akhir tidak boleh lebih kecil dari kilometer awal (" . number_format($sp_data['km_awal'], 0, ',', '.') . " KM).";
+            $message_type = "danger";
+        } else {
+            mysqli_query($conn, "UPDATE peminjaman_mobil SET km_akhir=$sp_km_akhir, bensin_akhir=$sp_bensin_akhir WHERE id='$sp_booking_id'");
+            $message = "Laporan selesai pakai berhasil disimpan. Terima kasih!";
+            $message_type = "success";
         }
     }
 }
@@ -378,6 +422,12 @@ if (isset($_POST['submit_booking'])) {
     // Validasi input
     if (empty($mobil) || empty($tgl_mulai) || empty($tgl_selesai) || empty($jam_mulai) || empty($jam_selesai) || empty($keperluan) || empty($tujuan) || empty($km_awal) || empty($bensin_awal)) {
         $message = "Semua kolom input wajib diisi!";
+        $message_type = "danger";
+    } elseif ($tgl_mulai < $min_booking_date) {
+        $message = "Tanggal mulai tidak boleh tanggal yang sudah lewat.";
+        $message_type = "danger";
+    } elseif ($tgl_mulai > $max_booking_date) {
+        $message = "Pengajuan peminjaman mobil hanya bisa maksimal 30 hari dari hari ini.";
         $message_type = "danger";
     } elseif ($tgl_mulai > $tgl_selesai) {
         $message = "Tanggal mulai tidak boleh melebihi tanggal selesai!";
@@ -577,6 +627,7 @@ $report_trips = [];
 $is_report_allowed = ($active_npp === '26020216');
 
 if ($is_report_allowed) {
+    $filter_mobil = $_GET['filter_mobil'] ?? '';
     $where_clause = "WHERE status = 'Disetujui'";
     if ($filter_mobil !== '') {
         $esc_fm = mysqli_real_escape_string($conn, $filter_mobil);
@@ -594,28 +645,18 @@ if ($is_report_allowed) {
         }
     }
 
-    // Calculate differences per vehicle chronologically
+    // Hitung KM tempuh & bensin terpakai langsung dari laporan selesai pakai (km_akhir/bensin_akhir)
     for ($idx = 0; $idx < count($report_trips); $idx++) {
         $current = &$report_trips[$idx];
-        $current_car = $current['mobil'];
-        
-        // Find next trip of the SAME car
-        $next = null;
-        for ($j = $idx + 1; $j < count($report_trips); $j++) {
-            if ($report_trips[$j]['mobil'] === $current_car) {
-                $next = $report_trips[$j];
-                break;
-            }
-        }
-        
-        if ($next) {
-            $current['km_tempuh'] = $next['km_awal'] - $current['km_awal'];
-            $current['bensin_terpakai'] = $current['bensin_awal'] - $next['bensin_awal'];
+        if ($current['km_akhir'] !== null && $current['km_akhir'] !== '') {
+            $current['km_tempuh'] = $current['km_akhir'] - $current['km_awal'];
+            $current['bensin_terpakai'] = $current['bensin_awal'] - $current['bensin_akhir'];
         } else {
             $current['km_tempuh'] = null;
             $current['bensin_terpakai'] = null;
         }
     }
+    unset($current);
 
     // Sort report_trips descending (latest first) by tgl_mulai and jam_mulai
     usort($report_trips, function($a, $b) {
@@ -948,15 +989,15 @@ $pagedesc = "Peminjaman Mobil";
     color: #ff3b30;
 }
 /* Fuel Bar Custom Styles */
-.bensin-bar-segment.active-low, .edit-bensin-bar-segment.active-low {
+.bensin-bar-segment.active-low, .edit-bensin-bar-segment.active-low, .selesai-bensin-bar-segment.active-low {
     background-color: #ff3b30 !important;
     box-shadow: 0 0 6px rgba(255, 59, 48, 0.4);
 }
-.bensin-bar-segment.active-mid, .edit-bensin-bar-segment.active-mid {
+.bensin-bar-segment.active-mid, .edit-bensin-bar-segment.active-mid, .selesai-bensin-bar-segment.active-mid {
     background-color: #ff9500 !important;
     box-shadow: 0 0 6px rgba(255, 149, 0, 0.4);
 }
-.bensin-bar-segment.active-high, .edit-bensin-bar-segment.active-high {
+.bensin-bar-segment.active-high, .edit-bensin-bar-segment.active-high, .selesai-bensin-bar-segment.active-high {
     background-color: #34c759 !important;
     box-shadow: 0 0 6px rgba(52, 199, 89, 0.4);
 }
@@ -1064,12 +1105,12 @@ $pagedesc = "Peminjaman Mobil";
                                                     echo '<span class="text-danger" title="Input salah (KM turun)"><i class="fa fa-warning"></i> ' . number_format($trip['km_tempuh'], 0, ',', '.') . ' KM</span>';
                                                 }
                                             } else {
-                                                echo '<span class="text-muted">-</span>';
+                                                echo '<span class="label label-warning" style="font-size:10px;">Belum Lapor Kembali</span>';
                                             }
                                             ?>
                                         </td>
                                         <td class="text-center">
-                                            <?php 
+                                            <?php
                                             if ($trip['bensin_terpakai'] !== null) {
                                                 if ($trip['bensin_terpakai'] > 0) {
                                                     echo '<strong>' . $trip['bensin_terpakai'] . ' Bar</strong>';
@@ -1267,12 +1308,24 @@ $pagedesc = "Peminjaman Mobil";
                                                 data-nama="<?php echo htmlspecialchars(strtolower($pending['nama_emp'] . ' ' . $pending['npp'])); ?>">
                                                 <td class="text-center"><?php echo $no++; ?></td>
                                                 <td><?php echo $pending['nama_emp']; ?></td>
-                                                <td>
-                                                    <strong>Mobil:</strong> <?php echo $pending['mobil']; ?><br>
-                                                    <strong>KM Awal:</strong> <?php echo $pending['km_awal'] ? number_format($pending['km_awal'], 0, ',', '.') . ' KM' : '-'; ?><br>
-                                                    <strong>Bensin Awal:</strong> <?php echo phpRenderFuelBar($pending['bensin_awal']); ?><br>
-                                                    <strong>Keperluan:</strong> <?php echo htmlspecialchars($pending['keperluan']); ?><br>
-                                                    <strong>Tujuan:</strong> <?php echo htmlspecialchars($pending['tujuan'] ?? '-'); ?>
+                                                <td style="padding: 10px 8px;">
+                                                    <div style="font-size: 13px; font-weight: 700; color: #1c1c1e; margin-bottom: 4px;">
+                                                        <?php echo htmlspecialchars($pending['mobil']); ?>
+                                                    </div>
+                                                    <div style="font-size: 12px; color: #3a3a3c; margin-bottom: 4px;"><?php echo htmlspecialchars($pending['keperluan']); ?></div>
+                                                    <div style="font-size: 12px; color: #3a3a3c; margin-bottom: 7px; line-height: 1.4;"><?php echo nl2br(htmlspecialchars($pending['tujuan'] ?? '-')); ?></div>
+                                                    <div style="font-size: 11px; color: #8e8e93; border-top: 1px solid #f2f2f7; padding-top: 6px;">
+                                                        KM Awal: <?php echo $pending['km_awal'] ? number_format($pending['km_awal'], 0, ',', '.') . ' KM' : '-'; ?> &nbsp;|&nbsp;
+                                                        Bensin: <?php echo $pending['bensin_awal'] ? $pending['bensin_awal'] . '/8 Bar' : '-'; ?>
+                                                        <?php if ($pending['status'] == 'Disetujui'): ?>
+                                                            <br>
+                                                            <?php if (!empty($pending['km_akhir'])): ?>
+                                                                KM Akhir: <?php echo number_format($pending['km_akhir'], 0, ',', '.'); ?> KM
+                                                            <?php else: ?>
+                                                                <span style="font-style: italic;">Belum lapor KM akhir</span>
+                                                            <?php endif; ?>
+                                                        <?php endif; ?>
+                                                    </div>
                                                 </td>
                                                 <td data-order="<?php echo $pending['tgl_mulai'] . ' ' . $pending['jam_mulai']; ?>">
                                                     <?php echo date('d/m/Y', strtotime($pending['tgl_mulai'])) . ' - ' . date('d/m/Y', strtotime($pending['tgl_selesai'])); ?><br>
@@ -1391,8 +1444,12 @@ $pagedesc = "Peminjaman Mobil";
                                                 <td>
                                                     <strong><?php echo $my['mobil']; ?></strong><br>
                                                     <small class="text-muted">
-                                                        <strong>KM Awal:</strong> <?php echo $my['km_awal'] ? number_format($my['km_awal'], 0, ',', '.') . ' KM' : '-'; ?> | 
+                                                        <strong>KM Awal:</strong> <?php echo $my['km_awal'] ? number_format($my['km_awal'], 0, ',', '.') . ' KM' : '-'; ?> |
                                                         <strong>Bensin:</strong> <?php echo $my['bensin_awal'] ? $my['bensin_awal'] . '/8 Bar' : '-'; ?>
+                                                        <?php if (!empty($my['km_akhir'])): ?>
+                                                            <br><strong>KM Akhir:</strong> <?php echo number_format($my['km_akhir'], 0, ',', '.') . ' KM'; ?> |
+                                                            <strong>Bensin Akhir:</strong> <?php echo $my['bensin_akhir']; ?>/8 Bar
+                                                        <?php endif; ?>
                                                     </small>
                                                 </td>
                                                 <td data-order="<?php echo $my['tgl_mulai'] . ' ' . $my['jam_mulai']; ?>">
@@ -1434,7 +1491,13 @@ $pagedesc = "Peminjaman Mobil";
                                                             </button>
                                                         </div>
                                                     <?php elseif ($my['status'] == 'Disetujui'): ?>
-                                                        <span class="text-muted" style="font-size: 11px;">-</span>
+                                                        <?php if (empty($my['km_akhir'])): ?>
+                                                            <button type="button" class="btn btn-success btn-xs" style="border-radius: 4px;" onclick="openSelesaiModal('<?php echo $my['id']; ?>', '<?php echo $my['km_awal']; ?>')">
+                                                                <i class="fa fa-flag-checkered"></i> Selesai Pakai
+                                                            </button>
+                                                        <?php else: ?>
+                                                            <span class="label label-success" style="font-size: 11px; padding: 5px 10px; display: inline-block;"><i class="fa fa-check"></i> Sudah Lapor</span>
+                                                        <?php endif; ?>
                                                     <?php else: ?>
                                                         <span class="text-muted" style="font-size: 11px;">-</span>
                                                     <?php endif; ?>
@@ -1579,13 +1642,14 @@ $pagedesc = "Peminjaman Mobil";
                         <div class="col-xs-6" style="padding-right: 8px;">
                             <div class="ios-form-group">
                                 <label class="ios-form-label">Tanggal Mulai <span class="text-danger">*</span></label>
-                                <input type="date" class="ios-input" name="tgl_mulai" required>
+                                <input type="date" class="ios-input" name="tgl_mulai" min="<?php echo $min_booking_date; ?>" max="<?php echo $max_booking_date; ?>" required>
+                                <small class="text-muted">Maksimal 30 hari dari hari ini</small>
                             </div>
                         </div>
                         <div class="col-xs-6" style="padding-left: 8px;">
                             <div class="ios-form-group">
                                 <label class="ios-form-label">Tanggal Selesai <span class="text-danger">*</span></label>
-                                <input type="date" class="ios-input" name="tgl_selesai" required>
+                                <input type="date" class="ios-input" name="tgl_selesai" min="<?php echo $min_booking_date; ?>" required>
                             </div>
                         </div>
                     </div>
@@ -1736,6 +1800,55 @@ $pagedesc = "Peminjaman Mobil";
     </div>
 </div>
 
+<!-- Modal: Lapor Selesai Pakai (KM Akhir & Bensin Akhir) -->
+<div class="modal fade" id="selesaiModal" tabindex="-1" role="dialog" aria-labelledby="selesaiModalLabel" aria-hidden="true" style="font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+    <div class="modal-dialog" role="document" style="max-width: 450px;">
+        <div class="modal-content" style="border-radius: 20px; border: none; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+            <div class="modal-header ios-modal-header" style="background: white; border-bottom: 1px solid #f2f2f7; padding: 20px;">
+                <h4 class="modal-title ios-modal-title" id="selesaiModalLabel" style="color: #34c759;">Lapor Selesai Pakai</h4>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="font-size: 24px; font-weight: 300; opacity: 0.5;">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form method="post">
+                <div class="modal-body" style="padding: 20px;">
+                    <input type="hidden" name="booking_id" id="selesai_booking_id">
+                    <input type="hidden" name="action_selesai" value="selesai">
+                    <div style="background: #f0fff4; border: 1px solid #34c759; border-radius: 10px; padding: 12px; margin-bottom: 15px; font-size: 12px; color: #1a6b2d;">
+                        <i class="fa fa-info-circle"></i> Isi kondisi mobil saat dikembalikan supaya tercatat jarak tempuh & bensin yang terpakai.
+                    </div>
+                    <div class="ios-form-group">
+                        <label class="ios-form-label">Kilometer Awal</label>
+                        <input type="text" class="ios-input" id="selesai_km_awal_display" readonly style="background:#f2f2f7;">
+                    </div>
+                    <div class="ios-form-group">
+                        <label class="ios-form-label">Kilometer Akhir <span class="text-danger">*</span></label>
+                        <input type="number" class="ios-input" name="km_akhir" id="selesai_km_akhir" placeholder="Masukkan kilometer akhir pada dashboard..." min="0" required>
+                    </div>
+                    <div class="ios-form-group">
+                        <label class="ios-form-label">Bar Bensin Akhir <span class="text-danger">*</span></label>
+                        <div style="display: flex; gap: 4px; align-items: center; background: #f2f2f7; padding: 12px; border-radius: 12px; border: 1px solid #e5e5ea;">
+                            <input type="hidden" name="bensin_akhir" id="selesai_bensin_akhir" required>
+                            <span style="font-size: 13px; font-weight: bold; color: #ff3b30; width: 20px; text-align: center;">E</span>
+                            <div style="display: flex; flex: 1; gap: 4px;" id="selesaiBensinBarContainer">
+                                <?php for ($b = 1; $b <= 8; $b++): ?>
+                                    <div class="selesai-bensin-bar-segment" data-val="<?php echo $b; ?>" style="height: 24px; flex: 1; background: #c7c7cc; border-radius: 4px; cursor: pointer; transition: all 0.2s;"></div>
+                                <?php endfor; ?>
+                            </div>
+                            <span style="font-size: 13px; font-weight: bold; color: #34c759; width: 20px; text-align: center;">F</span>
+                        </div>
+                        <div style="font-size: 12px; color: #8e8e93; margin-top: 5px; text-align: center;" id="selesaiBensinLabel">Silakan klik bar di atas (1 s/d 8 Bar)</div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #f2f2f7; padding: 15px 20px; background: #f8f8fa; display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" class="ios-btn-secondary" data-dismiss="modal">Tutup</button>
+                    <button type="submit" class="ios-btn-primary" style="background: #34c759; box-shadow: 0 4px 12px rgba(52, 199, 89, 0.2);"><i class="fa fa-check"></i> Simpan Laporan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Modal: Edit Booking Form (Apple Slide Sheet Style) -->
 <div class="modal fade" id="editBookingModal" tabindex="-1" role="dialog" aria-labelledby="editBookingModalLabel" aria-hidden="true" style="font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
     <div class="modal-dialog" role="document" style="max-width: 500px;">
@@ -1755,13 +1868,13 @@ $pagedesc = "Peminjaman Mobil";
                         <div class="col-xs-6" style="padding-right: 8px;">
                             <div class="ios-form-group">
                                 <label class="ios-form-label">Tanggal Mulai <span class="text-danger">*</span></label>
-                                <input type="date" class="ios-input" name="tgl_mulai" id="edit_tgl_mulai" required>
+                                <input type="date" class="ios-input" name="tgl_mulai" id="edit_tgl_mulai" min="<?php echo $min_booking_date; ?>" max="<?php echo $max_booking_date; ?>" required>
                             </div>
                         </div>
                         <div class="col-xs-6" style="padding-left: 8px;">
                             <div class="ios-form-group">
                                 <label class="ios-form-label">Tanggal Selesai <span class="text-danger">*</span></label>
-                                <input type="date" class="ios-input" name="tgl_selesai" id="edit_tgl_selesai" required>
+                                <input type="date" class="ios-input" name="tgl_selesai" id="edit_tgl_selesai" min="<?php echo $min_booking_date; ?>" required>
                             </div>
                         </div>
                     </div>
@@ -2092,6 +2205,38 @@ function openCancelModal(bookingId) {
     document.getElementById("cancel_booking_id").value = bookingId;
     document.getElementById("cancel_reason").value = "";
     $('#cancelModal').modal('show');
+}
+
+function openSelesaiModal(bookingId, kmAwal) {
+    document.getElementById("selesai_booking_id").value = bookingId;
+    document.getElementById("selesai_km_awal_display").value = kmAwal ? Number(kmAwal).toLocaleString('id-ID') + ' KM' : '-';
+    document.getElementById("selesai_km_akhir").value = "";
+    document.getElementById("selesai_km_akhir").min = kmAwal || 0;
+    setSelesaiFuelBar(0);
+    $('#selesaiModal').modal('show');
+}
+
+function setSelesaiFuelBar(val) {
+    val = parseInt(val) || 0;
+    $('#selesai_bensin_akhir').val(val);
+    let colorClass = 'active-high';
+    if (val <= 2) {
+        colorClass = 'active-low';
+    } else if (val <= 5) {
+        colorClass = 'active-mid';
+    }
+    $('.selesai-bensin-bar-segment').each(function() {
+        const segVal = parseInt($(this).data('val'));
+        $(this).removeClass('active-low active-mid active-high');
+        if (segVal <= val) {
+            $(this).addClass(colorClass);
+        }
+    });
+    if (val > 0) {
+        $('#selesaiBensinLabel').html(`<strong>Bensin terpilih: ${val} Bar</strong>`);
+    } else {
+        $('#selesaiBensinLabel').text('Silakan klik bar di atas (1 s/d 8 Bar)');
+    }
 }
 
 function setEditFuelBar(val) {
@@ -2485,6 +2630,11 @@ $(document).ready(function() {
     $('.edit-bensin-bar-segment').on('click', function() {
         const val = parseInt($(this).data('val'));
         setEditFuelBar(val);
+    });
+
+    $('.selesai-bensin-bar-segment').on('click', function() {
+        const val = parseInt($(this).data('val'));
+        setSelesaiFuelBar(val);
     });
 });
 </script>

@@ -406,6 +406,24 @@ if (isset($conn)) {
 							</ul><!-- /.nav-second-level -->
 						</li>
 
+						<!-- Persetujuan Cuti Menu -->
+						<li <?php echo (isset($menuparent) && $menuparent == "approval") ? 'class="active"' : ''; ?>>
+							<a href="#"><i class="fa fa-calendar fa-fw"></i>&nbsp;Persetujuan Cuti<?php echo ($count_pending_cuti > 0) ? ' <span class="badge" style="background-color: #d9534f;">' . $count_pending_cuti . '</span>' : ''; ?><span class="fa arrow"></span></a>
+							<ul class="nav nav-second-level">
+								<li><a href="app_wait.php" <?php echo ($pagedesc == "Waiting Approval") ? 'class="active"' : ''; ?>>Menunggu Approval<?php echo ($count_pending_cuti > 0) ? ' <span class="badge" style="background-color: #d9534f; float: right;">' . $count_pending_cuti . '</span>' : ''; ?></a></li>
+								<li><a href="app.php" <?php echo ($pagedesc == "Approved") ? 'class="active"' : ''; ?>>Approved</a></li>
+								<li><a href="app_all.php" <?php echo ($pagedesc == "Semua Data") ? 'class="active"' : ''; ?>>Semua Data</a></li>
+							</ul>
+						</li>
+
+						<!-- Persetujuan Lembur Menu -->
+						<li <?php echo (isset($menuparent) && $menuparent == "approval_lembur") ? 'class="active"' : ''; ?>>
+							<a href="#"><i class="fa fa-clock-o fa-fw"></i>&nbsp;Persetujuan Lembur<?php echo ($count_pending_lembur > 0) ? ' <span class="badge" style="background-color: #d9534f;">' . $count_pending_lembur . '</span>' : ''; ?><span class="fa arrow"></span></a>
+							<ul class="nav nav-second-level">
+								<li><a href="lembur_wait.php" <?php echo ($pagedesc == "Data Lemburan") ? 'class="active"' : ''; ?>>Menunggu Approval<?php echo ($count_pending_lembur > 0) ? ' <span class="badge" style="background-color: #d9534f; float: right;">' . $count_pending_lembur . '</span>' : ''; ?></a></li>
+							</ul>
+						</li>
+
 						<!-- Menu Pinjaman -->
 						<?php
 						if (isset($pagedesc) && $pagedesc == "Pengajuan Pinjaman") {

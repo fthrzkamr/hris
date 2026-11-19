@@ -98,12 +98,6 @@ $(document).ready(function() {
 											<input type="text" name="total_kwitansi" class="form-control" value="<?php echo $data['jam_berakhir_lembur'];?> " readonly>
 										</div>
 									</div>
-                                    <div class="form-group">
-										<label class="control-label col-sm-3">Jumlah Karyawan Lembur</label>
-										<div class="col-sm-4">
-											<input type="text" name="total_rembes" class="form-control" value="<?php echo $data['jumlah'];?> " readonly>
-										</div>
-									</div>
 									
 									<div class="form-group">
 										<label class="control-label col-sm-3">Status</label>

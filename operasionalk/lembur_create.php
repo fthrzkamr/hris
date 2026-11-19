@@ -123,12 +123,6 @@ $(document).ready(function() {
 										</div>
 									</div>
 
-									<div class="form-group">
-										<label class="control-label col-sm-3">Jumlah Karyawan Lembur</label>
-										<div class="col-sm-4">
-											<input type="number" name="jumlah" class="form-control" placeholder="" required>
-										</div>
-									</div>
 								</div>
 								<div class="panel-footer">
 									<button type="submit" name="simpan" class="btn btn-success">Simpan</button>
