@@ -6,8 +6,7 @@ include("sess_check.php");
 include("dist/function/format_tanggal.php");
 if($_GET) {
 	$kode = $_GET['code'];
-	$sql = "SELECT * FROM employee 
-	 AS A LEFT JOIN bagian AS B ON  A.nama_bagian=b.id WHERE npp='". $_GET['code'] ."'";
+	$sql = "SELECT A.*, B.nama_bagian FROM employee AS A LEFT JOIN bagian AS B ON A.nama_bagian = B.id_bagian WHERE A.npp='". mysqli_real_escape_string($conn, $_GET['code']) ."'";
 	$query = mysqli_query($conn,$sql);
 	$result = mysqli_fetch_array($query);
 }
