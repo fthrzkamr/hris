@@ -623,9 +623,9 @@ if (!function_exists('phpRenderFuelBar')) {
     }
 }
 
-// Laporan Pemakaian: Tersedia untuk kedua approver peminjaman mobil (Auliya Nurul & Fariz Hannan Rahmat)
+// Laporan Pemakaian: Hanya tampil di halaman Approval untuk kedua approver (Auliya Nurul & Fariz Hannan Rahmat)
 $report_trips = [];
-$is_report_allowed = ($is_managerhr || $active_npp === '24940107' || $active_npp === '26020216');
+$is_report_allowed = ($is_approval_page && ($is_managerhr || $active_npp === '24940107' || $active_npp === '26020216'));
 
 if ($is_report_allowed) {
     $q_rep = mysqli_query($conn, "
@@ -1003,12 +1003,8 @@ $pagedesc = "Peminjaman Mobil";
     <div class="row" style="margin-bottom: 20px;">
         <div class="col-xs-12">
             <div style="display: flex; gap: 10px; border-bottom: 1px solid #e5e5ea; padding-bottom: 15px;">
-                <a href="?view=<?php echo $is_approval_page ? 'approval' : 'calendar'; ?>" class="ios-btn-secondary" style="background: <?php echo (!isset($_GET['view']) || $_GET['view'] !== 'report') ? '#007aff; color: white;' : '#f2f2f7; color: #007aff;'; ?> padding: 8px 16px; border-radius: 8px; font-weight: 600; text-decoration: none;">
-                    <?php if ($is_approval_page): ?>
-                        <i class="fa fa-check-square-o"></i> &nbsp;Approval &amp; Master Mobil
-                    <?php else: ?>
-                        <i class="fa fa-calendar"></i> &nbsp;Kalender &amp; Pengajuan
-                    <?php endif; ?>
+                <a href="?view=approval" class="ios-btn-secondary" style="background: <?php echo (!isset($_GET['view']) || $_GET['view'] !== 'report') ? '#007aff; color: white;' : '#f2f2f7; color: #007aff;'; ?> padding: 8px 16px; border-radius: 8px; font-weight: 600; text-decoration: none;">
+                    <i class="fa fa-check-square-o"></i> &nbsp;Approval &amp; Master Mobil
                 </a>
                 <a href="?view=report" class="ios-btn-secondary" style="background: <?php echo (isset($_GET['view']) && $_GET['view'] === 'report') ? '#007aff; color: white;' : '#f2f2f7; color: #007aff;'; ?> padding: 8px 16px; border-radius: 8px; font-weight: 600; text-decoration: none;">
                     <i class="fa fa-file-text-o"></i> &nbsp;Laporan Pemakaian
@@ -2730,10 +2726,16 @@ $(document).ready(function() {
                 if (tglMulai) params.set('filter_tgl_mulai', tglMulai);
                 if (tglSelesai) params.set('filter_tgl_selesai', tglSelesai);
                 if (nama) params.set('filter_nama', nama);
+                var dtSearch = (reportDt.search() || '').trim();
+                if (dtSearch) params.set('search', dtSearch);
                 var qs = params.toString();
                 $exportBtn.attr('href', baseUrl + (qs ? '?' + qs : ''));
             }
         }
+
+        reportDt.on('search.dt', function() {
+            updateReportFilterSummaryAndExport();
+        });
 
         $('#report_filter_mobil, #report_filter_tgl_mulai, #report_filter_tgl_selesai').on('change', function() {
             reportDt.draw();
