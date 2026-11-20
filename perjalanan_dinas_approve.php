@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aksi']) && $id > 0) {
     $res_last = mysqli_stmt_get_result($stmt_last);
     $last = mysqli_fetch_assoc($res_last);
     
-    if ($last && $last['status'] === 'REALISASI_VERIFIED_HR') {
+    if ($last && in_array($last['status'], ['REALISASI_DIAJUKAN', 'REALISASI_VERIFIED_HR'])) {
         $pengajuan_id = (int)$last['id'];
         if ($aksi === 'approve_realisasi') {
             $status = 'REALISASI_SELESAI';
@@ -226,7 +226,7 @@ mysqli_stmt_bind_param($stmt_p, 'i', $id);
 mysqli_stmt_execute($stmt_p);
 $res_p = mysqli_stmt_get_result($stmt_p);
 $pengajuan = mysqli_fetch_assoc($res_p);
-$is_realisasi_mode = $pengajuan && $pengajuan['status'] === 'REALISASI_VERIFIED_HR';
+$is_realisasi_mode = $pengajuan && in_array($pengajuan['status'], ['REALISASI_DIAJUKAN', 'REALISASI_VERIFIED_HR']);
 $prefix = is_file(__DIR__ . '/../dist/config/koneksi.php') ? '../' : '';
 ?>
 <style>

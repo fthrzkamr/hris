@@ -157,7 +157,7 @@ $is_realisasi_active = $submission && in_array($submission['status'], ['DISETUJU
 if ($submission && in_array($submission['status'], ['REALISASI_DIAJUKAN', 'REALISASI_VERIFIED_HR', 'REALISASI_SELESAI', 'REALISASI_DITOLAK'])) {
     $is_realisasi_active = true;
 }
-$prefix = is_file(__DIR__ . '/dist/config/koneksi.php') ? '' : '../';
+$prefix = is_dir(__DIR__ . '/uploads/bukti_realisasi') ? '' : '../';
 
 // Status Label & Class
 $status = $submission['status'] ?? 'DIAJUKAN';

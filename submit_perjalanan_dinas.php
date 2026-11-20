@@ -34,8 +34,19 @@ function clean_digits($val) {
     return $clean === '' ? 0 : (int)$clean;
 }
 
-$nama = mysqli_real_escape_string($conn, input('nama'));
-$departemen = mysqli_real_escape_string($conn, input('departemen'));
+// Validasi konsistensi sesi: NPP pada form harus sama dengan NPP akun yang sedang login.
+// (Mencegah data tertukar jika di browser yang sama ada login akun lain sebelum form dikirim)
+$posted_npp = isset($_POST['npp']) ? trim($_POST['npp']) : '';
+if ($posted_npp !== '' && $posted_npp !== (string)$npp) {
+    header('Location: form_perjalanan_dinas.php?error=' . urlencode('Sesi login berubah (akun lain login di browser yang sama). Silakan muat ulang halaman form dan ajukan kembali.'));
+    exit;
+}
+
+// Nama & departemen pengaju utama selalu diambil dari data karyawan sesuai akun login, bukan dari input form
+$q_self = mysqli_query($conn, "SELECT e.nama_emp, COALESCE(b.nama_bagian, e.nama_bagian) AS nama_bagian FROM employee e LEFT JOIN bagian b ON b.id_bagian = e.nama_bagian OR b.nama_bagian = e.nama_bagian WHERE e.npp = '" . mysqli_real_escape_string($conn, (string)$npp) . "' LIMIT 1");
+$row_self = $q_self ? mysqli_fetch_assoc($q_self) : null;
+$nama = mysqli_real_escape_string($conn, ($row_self && trim($row_self['nama_emp']) !== '') ? trim($row_self['nama_emp']) : (string)input('nama'));
+$departemen = mysqli_real_escape_string($conn, ($row_self && trim((string)$row_self['nama_bagian']) !== '') ? trim($row_self['nama_bagian']) : (string)input('departemen'));
 $tanggal_perjalanan = input('tanggal_perjalanan');
 $jumlah_hari = (int) input('jumlah_hari');
 $kota_asal = mysqli_real_escape_string($conn, input('kota_asal'));

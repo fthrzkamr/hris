@@ -100,10 +100,12 @@ try {
         throw new Exception('Data perjalanan tidak ditemukan.');
     }
     
-    $allowed_statuses = ['DISETUJUI', 'APPROVED_MANAGER_HR', 'REALISASI_DITOLAK'];
+    $allowed_statuses = ['DISETUJUI', 'APPROVED_MANAGER_HR', 'REALISASI_DITOLAK', 'REALISASI_DIAJUKAN', 'REALISASI_VERIFIED_HR'];
     if (!in_array($perjalanan['status'], $allowed_statuses)) {
         throw new Exception('Status perjalanan tidak valid untuk pengajuan realisasi.');
     }
+
+    $npp_pemohon = $perjalanan['npp'];
     
     // Create uploads directory if not exists
     $upload_dir = __DIR__ . '/../uploads/bukti_realisasi/';
@@ -142,16 +144,21 @@ try {
         $nominal_real = $val_clean === '' ? 0 : floatval($val_clean);
         
         // Fetch current rincian to get qty
-        $stmt_r = mysqli_prepare($conn, "SELECT qty, bukti_realisasi FROM perjalanan_rincian WHERE id = ? AND perjalanan_id = ?");
+        $stmt_r = mysqli_prepare($conn, "SELECT qty, bukti_realisasi, npp_karyawan FROM perjalanan_rincian WHERE id = ? AND perjalanan_id = ?");
         mysqli_stmt_bind_param($stmt_r, 'ii', $rid, $id_perjalanan);
         mysqli_stmt_execute($stmt_r);
         $res_r = mysqli_stmt_get_result($stmt_r);
         $curr_r = mysqli_fetch_assoc($res_r);
-        
+
         if (!$curr_r) continue;
-        
+
+        // Hanya izinkan user mengupdate rincian miliknya sendiri, meskipun pengajuan berisi beberapa karyawan
+        $item_npp = !empty($curr_r['npp_karyawan']) ? trim($curr_r['npp_karyawan']) : $npp_pemohon;
+        if ($item_npp !== $npp_user) continue;
+
         $qty = floatval(($curr_r['qty'] ?? 1) ?: 1);
         $total_real = $nominal_real * $qty;
+        $dibelikan_kantor = (isset($_POST['dibelikan_kantor'][$rid]) && $_POST['dibelikan_kantor'][$rid] == '1') ? 1 : 0;
         
         // Process file uploads for this rincian
         $existing_bukti = [];
@@ -178,8 +185,8 @@ try {
         $bukti_json = json_encode($existing_bukti);
         
         // Update DB
-        $stmt_upd = mysqli_prepare($conn, "UPDATE perjalanan_rincian SET nominal_realisasi = ?, total_realisasi = ?, bukti_realisasi = ? WHERE id = ?");
-        mysqli_stmt_bind_param($stmt_upd, 'ddsi', $nominal_real, $total_real, $bukti_json, $rid);
+        $stmt_upd = mysqli_prepare($conn, "UPDATE perjalanan_rincian SET nominal_realisasi = ?, total_realisasi = ?, bukti_realisasi = ?, dibelikan_kantor = ? WHERE id = ?");
+        mysqli_stmt_bind_param($stmt_upd, 'ddsii', $nominal_real, $total_real, $bukti_json, $dibelikan_kantor, $rid);
         mysqli_stmt_execute($stmt_upd);
     }
     
