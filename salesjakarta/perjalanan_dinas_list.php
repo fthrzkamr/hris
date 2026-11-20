@@ -238,7 +238,7 @@ $res = mysqli_query($conn, $sql);
                                         </td>
                                         <td><?php echo $tgl_pengajuan; ?></td>
                                         <td class="btn-group-action text-center">
-                                            <?php if ($is_pemohon && in_array($status, ['APPROVED_MANAGER_HR', 'DISETUJUI', 'REALISASI_DITOLAK'])): ?>
+                                            <?php if (in_array($status, ['APPROVED_MANAGER_HR', 'DISETUJUI', 'REALISASI_DITOLAK', 'REALISASI_DIAJUKAN', 'REALISASI_VERIFIED_HR'])): ?>
                                                 <a class="btn btn-success btn-sm btnRealisasiModal" href="#" data-id="<?php echo $row['id']; ?>" title="Upload Realisasi">
                                                     <i class="fa fa-upload"></i> Realisasi
                                                 </a>
