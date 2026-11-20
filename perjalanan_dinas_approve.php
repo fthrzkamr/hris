@@ -17,11 +17,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aksi']) && $id > 0) {
     $user_npp = $sess_mngid ?? ($sess_admid ?? null);
 
     // Ambil data pengajuan terakhir (opsional)
-    $stmt_last = mysqli_prepare($conn, "SELECT id, status FROM perjalanan_pengajuan WHERE id_perjalanan = ? ORDER BY id DESC LIMIT 1");
+    $stmt_last = mysqli_prepare($conn, "SELECT id, status, catatan_manager_hr FROM perjalanan_pengajuan WHERE id_perjalanan = ? ORDER BY id DESC LIMIT 1");
     mysqli_stmt_bind_param($stmt_last, 'i', $id);
     mysqli_stmt_execute($stmt_last);
     $res_last = mysqli_stmt_get_result($stmt_last);
     $last = mysqli_fetch_assoc($res_last);
+
+    // Jika aksi pembatalan approval
+    if ($aksi === 'batal_approval') {
+        if (!$last || empty($last['id'])) {
+            header("Location: perjalanan_dinas_list.php?err=" . urlencode("Data pengajuan tidak ditemukan"));
+            exit;
+        }
+        $pengajuan_id = (int)$last['id'];
+        $current_st = $last['status'] ?? '';
+        $target_status = ($current_st === 'REALISASI_SELESAI') ? 'REALISASI_DIAJUKAN' : 'DIAJUKAN';
+        $audit_note = " [Approval dibatalkan oleh $user_nama pada " . date('d-m-Y H:i') . "]";
+        $new_catatan = trim(($catatan ?: ($last['catatan_manager_hr'] ?? '')) . $audit_note);
+
+        if ($target_status === 'DIAJUKAN') {
+            $upd = mysqli_prepare($conn, "UPDATE perjalanan_pengajuan 
+                SET status = 'DIAJUKAN', 
+                    approval_manager_hr = NULL, 
+                    approver_manager_hr = NULL, 
+                    tanggal_approval_manager_hr = NULL, 
+                    approval_direktur = NULL, 
+                    approver_direktur = NULL, 
+                    tanggal_approval_direktur = NULL, 
+                    catatan_manager_hr = ? 
+                WHERE id = ?");
+            mysqli_stmt_bind_param($upd, 'si', $new_catatan, $pengajuan_id);
+        } else {
+            $upd = mysqli_prepare($conn, "UPDATE perjalanan_pengajuan 
+                SET status = 'REALISASI_DIAJUKAN', 
+                    approval_manager_hr = NULL, 
+                    approver_manager_hr = NULL, 
+                    tanggal_approval_manager_hr = NULL, 
+                    catatan_manager_hr = ? 
+                WHERE id = ?");
+            mysqli_stmt_bind_param($upd, 'si', $new_catatan, $pengajuan_id);
+        }
+        $ok = mysqli_stmt_execute($upd);
+
+        $log_stmt = mysqli_prepare($conn, "INSERT INTO perjalanan_rincian_log (rincian_id, perjalanan_id, old_nominal, old_total, old_keterangan, changed_by, note) VALUES (0, ?, '0', '0', '', ?, ?)");
+        $log_note = "Approval perjalanan dinas ID $id dibatalkan oleh $user_nama dan status dikembalikan ke $target_status";
+        mysqli_stmt_bind_param($log_stmt, 'iss', $id, $user_nama, $log_note);
+        @mysqli_stmt_execute($log_stmt);
+
+        if ($ok) {
+            header("Location: perjalanan_dinas_list.php?tab=semua&msg=" . urlencode("Approval berhasil dibatalkan. Status dikembalikan ke $target_status"));
+            exit;
+        } else {
+            $err = mysqli_error($conn);
+            header("Location: perjalanan_dinas_list.php?err=" . urlencode("Gagal membatalkan approval: $err"));
+            exit;
+        }
+    }
     
     if ($last && in_array($last['status'], ['REALISASI_DIAJUKAN', 'REALISASI_VERIFIED_HR'])) {
         $pengajuan_id = (int)$last['id'];
@@ -633,6 +684,11 @@ $prefix = is_file(__DIR__ . '/../dist/config/koneksi.php') ? '../' : '';
                             <button type="submit" name="aksi" value="reject" class="btn btn-danger btn-lg" onclick="return confirm('Yakin ingin menolak pengajuan ini?');">
                                 <i class="fa fa-times"></i> Reject
                             </button>
+                            <?php if ($pengajuan && in_array($pengajuan['status'], ['APPROVED_MANAGER_HR', 'DISETUJUI', 'REALISASI_SELESAI'])): ?>
+                                <button type="submit" name="aksi" value="batal_approval" class="btn btn-warning btn-lg" onclick="return confirm('Apakah Anda yakin ingin membatalkan approval dan mengembalikan pengajuan ini ke status sebelumnya?');">
+                                    <i class="fa fa-undo"></i> Kembalikan Approval
+                                </button>
+                            <?php endif; ?>
                             <a href="perjalanan_dinas_list.php" class="btn btn-default btn-lg">Batal / Kembali</a>
                         </div>
 

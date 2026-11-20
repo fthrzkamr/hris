@@ -309,7 +309,7 @@ if (!isset($_GET['tab'])) {
                                             <th style="width:120px;" class="text-right">Anggaran</th>
                                             <th style="width:110px;" class="text-center">Status</th>
                                             <th style="width:120px;">Tgl Pengajuan</th>
-                                            <th style="width:160px;" class="text-center">Aksi</th>
+                                            <th style="width:175px;" class="text-center">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -358,6 +358,13 @@ if (!isset($_GET['tab'])) {
                                                     <a class="btn btn-info btn-sm" href="perjalanan_dinas_detail.php?id=<?php echo $row['id']; ?>" title="Lihat Detail">
                                                         <i class="fa fa-eye"></i> Detail
                                                     </a>
+                                                    <?php if (in_array($status, ['APPROVED_MANAGER_HR', 'DISETUJUI', 'REALISASI_SELESAI'])): ?>
+                                                        <a class="btn btn-warning btn-sm" href="perjalanan_dinas_batal_approve.php?id=<?php echo $row['id']; ?>&from=semua" 
+                                                           onclick="return confirm('Apakah Anda yakin ingin membatalkan approval dan mengembalikan status pengajuan no. <?php echo htmlspecialchars($row['no_dokumen']); ?> ini?');" 
+                                                           title="Kembalikan / Batalkan Approval" style="font-weight:bold;">
+                                                            <i class="fa fa-undo"></i> Kembalikan
+                                                        </a>
+                                                    <?php endif; ?>
                                                     <?php if (in_array($status, ['DIAJUKAN', 'BELUM DIAJUKAN', 'DITOLAK'])): ?>
                                                         <a class="btn btn-danger btn-sm" href="perjalanan_dinas_hapus.php?id=<?php echo $row['id']; ?>&from=semua" 
                                                            onclick="return confirm('Apakah Anda yakin ingin menghapus pengajuan perjalanan dinas no. <?php echo htmlspecialchars($row['no_dokumen']); ?> ini?');" 

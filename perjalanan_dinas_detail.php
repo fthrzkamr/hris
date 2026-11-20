@@ -469,6 +469,15 @@ if (is_file(__DIR__ . '/foto/logo-dua.webp')) {
                     <i class="fa fa-check-square-o"></i> Proses Persetujuan HR
                 </a>
             <?php endif; ?>
+            <?php if ((!empty($_SESSION['managerhr']) || !empty($_SESSION['admin'])) && in_array($status, ['APPROVED_MANAGER_HR', 'DISETUJUI', 'REALISASI_SELESAI'])): ?>
+                <a href="perjalanan_dinas_batal_approve.php?id=<?php echo $id; ?>&from=detail" 
+                   class="btn btn-warning btn-sm" 
+                   style="margin-left: 5px; font-weight: bold;" 
+                   onclick="return confirm('Apakah Anda yakin ingin membatalkan approval dan mengembalikan pengajuan ini?');"
+                   title="Kembalikan / Batalkan Approval">
+                    <i class="fa fa-undo"></i> Kembalikan Approval
+                </a>
+            <?php endif; ?>
             <button onclick="window.print()" class="btn btn-primary btn-sm" style="margin-left: 5px;">
                 <i class="fa fa-print"></i> Cetak Dokumen
             </button>
