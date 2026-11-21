@@ -37,6 +37,14 @@ if (!in_array($status, $allowed_statuses)) {
     exit;
 }
 
+// Status realisasi milik user ini sendiri (dilacak per-karyawan, independen dari karyawan lain di trip yang sama)
+$stmt_k = mysqli_prepare($conn, "SELECT status_realisasi, catatan_realisasi, verified_by_realisasi, verified_at_realisasi FROM perjalanan_karyawan WHERE perjalanan_id = ? AND npp = ?");
+mysqli_stmt_bind_param($stmt_k, 'is', $id, $npp_user);
+mysqli_stmt_execute($stmt_k);
+$karyawan_row = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_k));
+$status_realisasi_saya = $karyawan_row['status_realisasi'] ?? 'BELUM';
+$is_locked = ($status_realisasi_saya === 'DISETUJUI');
+
 // Fetch rincian items MILIK SENDIRI SAJA
 // Item dianggap milik user ini jika npp_karyawan = npp user, ATAU npp_karyawan kosong (belum ditandai) DAN user ini adalah pemohon
 $stmt_r = mysqli_prepare($conn, "SELECT * FROM perjalanan_rincian WHERE perjalanan_id = ? ORDER BY nomor");
@@ -58,6 +66,25 @@ $prefix = '../'; // karena berada di subfolder (it/, managerhr/, direktur/)
     Rincian biaya peserta lain pada perjalanan ini dilaporkan sendiri-sendiri oleh masing-masing peserta.
 </div>
 
+<?php if ($status_realisasi_saya === 'DISETUJUI'): ?>
+    <div class="alert alert-success">
+        <i class="fa fa-check-circle"></i> Realisasi Anda sudah <strong>disetujui final</strong> oleh HR
+        <?php echo !empty($karyawan_row['verified_by_realisasi']) ? ' (' . htmlspecialchars($karyawan_row['verified_by_realisasi']) . ')' : ''; ?>
+        <?php echo !empty($karyawan_row['verified_at_realisasi']) ? ' pada ' . date('d-m-Y H:i', strtotime($karyawan_row['verified_at_realisasi'])) : ''; ?>.
+        Data di bawah ini tidak bisa diubah lagi.
+    </div>
+<?php elseif ($status_realisasi_saya === 'DITOLAK'): ?>
+    <div class="alert alert-danger">
+        <i class="fa fa-times-circle"></i> Realisasi Anda <strong>ditolak</strong> oleh HR.
+        <?php if (!empty($karyawan_row['catatan_realisasi'])): ?>
+            <br>Alasan: <?php echo htmlspecialchars($karyawan_row['catatan_realisasi']); ?>
+        <?php endif; ?>
+        Silakan perbaiki dan kirim ulang.
+    </div>
+<?php elseif ($status_realisasi_saya === 'DIAJUKAN'): ?>
+    <div class="alert alert-warning"><i class="fa fa-clock-o"></i> Laporan realisasi Anda sedang menunggu review HR. Anda masih bisa mengubahnya sampai disetujui final.</div>
+<?php endif; ?>
+
 <?php if (empty($rincian_items)): ?>
     <div class="alert alert-warning">Tidak ada rincian biaya yang terdaftar atas nama Anda pada perjalanan dinas ini.</div>
 <?php else: ?>
@@ -69,32 +96,38 @@ $prefix = '../'; // karena berada di subfolder (it/, managerhr/, direktur/)
             <tr class="info" style="background-color: #d9edf7; color: #31708f;">
                 <th>Keterangan</th>
                 <th style="width:10%; text-align:center">Qty</th>
-                <th style="width:25%; text-align:right">Nominal Budget</th>
-                <th style="width:30%; text-align:right">Nominal Realisasi (Aktual)</th>
+                <th style="width:25%; text-align:right">Total Budget</th>
+                <th style="width:30%; text-align:right">Total Realisasi (Aktual)</th>
                 <th style="width:35%">Upload Foto Bukti Nota</th>
             </tr>
         </thead>
         <tbody>
-            <?php foreach ($rincian_items as $item): ?>
+            <?php foreach ($rincian_items as $item):
+                $qty_item = max(1, (float)($item['qty'] ?? 1));
+                $total_budget_item = (float)($item['nominal'] ?? 0) * $qty_item;
+                $total_realisasi_default = (!empty($item['total_realisasi']) && (float)$item['total_realisasi'] > 0) ? (float)$item['total_realisasi'] : $total_budget_item;
+            ?>
                 <tr>
                     <td><?php echo htmlspecialchars($item['ket']); ?></td>
                     <td class="text-center"><?php echo htmlspecialchars($item['qty']); ?></td>
-                    <td class="text-right">Rp <?php echo number_format((float)($item['nominal'] ?? 0), 0, ',', '.'); ?></td>
+                    <td class="text-right">Rp <?php echo number_format($total_budget_item, 0, ',', '.'); ?></td>
                     <td>
                         <div class="input-group">
                             <span class="input-group-addon">Rp</span>
                             <input type="text" name="nominal_realisasi[<?php echo $item['id']; ?>]"
-                                   value="<?php echo (!empty($item['nominal_realisasi']) && (float)$item['nominal_realisasi'] > 0) ? number_format((float)$item['nominal_realisasi'], 0, ',', '.') : number_format((float)($item['nominal'] ?? 0), 0, ',', '.'); ?>"
-                                   class="form-control nominal-input" style="text-align:right" required>
+                                   value="<?php echo number_format($total_realisasi_default, 0, ',', '.'); ?>"
+                                   class="form-control nominal-input" style="text-align:right" required <?php echo $is_locked ? 'readonly disabled' : ''; ?>>
                         </div>
                     </td>
                     <td>
                         <?php $sudah_dibelikan = !empty($item['dibelikan_kantor']); ?>
                         <label style="font-weight:400; font-size:12px; margin-bottom:6px; display:block;">
-                            <input type="checkbox" name="dibelikan_kantor[<?php echo $item['id']; ?>]" value="1" class="chk-dibelikan-kantor" data-target="file-<?php echo $item['id']; ?>" <?php echo $sudah_dibelikan ? 'checked' : ''; ?>>
+                            <input type="checkbox" name="dibelikan_kantor[<?php echo $item['id']; ?>]" value="1" class="chk-dibelikan-kantor" data-target="file-<?php echo $item['id']; ?>" <?php echo $sudah_dibelikan ? 'checked' : ''; ?> <?php echo $is_locked ? 'disabled' : ''; ?>>
                             Sudah dibelikan/dibayar kantor (tanpa nota)
                         </label>
+                        <?php if (!$is_locked): ?>
                         <input type="file" id="file-<?php echo $item['id']; ?>" name="bukti_realisasi[<?php echo $item['id']; ?>][]" multiple accept="image/*" class="form-control" style="<?php echo $sudah_dibelikan ? 'display:none;' : ''; ?>">
+                        <?php endif; ?>
                         <?php if (!empty($item['bukti_realisasi'])):
                             $buktis = json_decode($item['bukti_realisasi'] ?? '', true) ?: [];
                             if (!empty($buktis)): ?>
@@ -139,6 +172,12 @@ $(function() {
             target.show();
         }
     });
+
+    <?php if ($is_locked): ?>
+    $('#realisasiModal .modal-footer .btn-success').hide();
+    <?php else: ?>
+    $('#realisasiModal .modal-footer .btn-success').show();
+    <?php endif; ?>
 });
 </script>
 <?php endif; ?>

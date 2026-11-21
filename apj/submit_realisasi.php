@@ -106,7 +106,18 @@ try {
     }
 
     $npp_pemohon = $perjalanan['npp'];
-    
+    $user_nama = isset($sess_mngname) ? $sess_mngname : ($sess_admname ?? 'User');
+
+    // Cek status realisasi milik user ini - kalau sudah final disetujui HR, kunci (tidak bisa diubah lagi)
+    $stmt_chk_k = mysqli_prepare($conn, "SELECT status_realisasi FROM perjalanan_karyawan WHERE perjalanan_id = ? AND npp = ?");
+    mysqli_stmt_bind_param($stmt_chk_k, 'is', $id_perjalanan, $npp_user);
+    mysqli_stmt_execute($stmt_chk_k);
+    $chk_k = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_chk_k));
+    $karyawan_row_exists = ($chk_k !== null);
+    if ($karyawan_row_exists && $chk_k['status_realisasi'] === 'DISETUJUI') {
+        throw new Exception('Realisasi Anda sudah disetujui HR dan tidak dapat diubah lagi.');
+    }
+
     // Create uploads directory if not exists
     $upload_dir = __DIR__ . '/../uploads/bukti_realisasi/';
     if (!is_dir($upload_dir)) {
@@ -138,11 +149,13 @@ try {
     }
     
     // Update each rincian
+    // Catatan: nominal yang diposting dari form ($nominals) adalah TOTAL (sudah termasuk qty),
+    // bukan nominal per-unit - lebih natural untuk karyawan yang input dari 1 nota/kuitansi utuh.
     foreach ($nominals as $rid => $val) {
         $rid = intval($rid);
         $val_clean = preg_replace('/[^0-9]/', '', $val);
-        $nominal_real = $val_clean === '' ? 0 : floatval($val_clean);
-        
+        $total_real = $val_clean === '' ? 0 : floatval($val_clean);
+
         // Fetch current rincian to get qty
         $stmt_r = mysqli_prepare($conn, "SELECT qty, bukti_realisasi, npp_karyawan FROM perjalanan_rincian WHERE id = ? AND perjalanan_id = ?");
         mysqli_stmt_bind_param($stmt_r, 'ii', $rid, $id_perjalanan);
@@ -157,7 +170,9 @@ try {
         if ($item_npp !== $npp_user) continue;
 
         $qty = floatval(($curr_r['qty'] ?? 1) ?: 1);
-        $total_real = $nominal_real * $qty;
+        // nominal_realisasi disimpan per-unit (konsisten dengan kolom nominal budget per-unit),
+        // total_realisasi = yang benar-benar diinput karyawan (total)
+        $nominal_real = $qty > 0 ? ($total_real / $qty) : $total_real;
         $dibelikan_kantor = (isset($_POST['dibelikan_kantor'][$rid]) && $_POST['dibelikan_kantor'][$rid] == '1') ? 1 : 0;
         
         // Process file uploads for this rincian
@@ -189,7 +204,19 @@ try {
         mysqli_stmt_bind_param($stmt_upd, 'ddsii', $nominal_real, $total_real, $bukti_json, $dibelikan_kantor, $rid);
         mysqli_stmt_execute($stmt_upd);
     }
-    
+
+    // Tandai status realisasi milik karyawan ini jadi "DIAJUKAN" (tracking approval per-karyawan oleh HR)
+    if ($karyawan_row_exists) {
+        $upd_k = mysqli_prepare($conn, "UPDATE perjalanan_karyawan SET status_realisasi = 'DIAJUKAN', catatan_realisasi = NULL WHERE perjalanan_id = ? AND npp = ?");
+        mysqli_stmt_bind_param($upd_k, 'is', $id_perjalanan, $npp_user);
+        mysqli_stmt_execute($upd_k);
+    } else {
+        $is_pemohon_flag = ($npp_user === $npp_pemohon) ? 1 : 0;
+        $ins_k = mysqli_prepare($conn, "INSERT INTO perjalanan_karyawan (perjalanan_id, npp, nama, departemen, is_pemohon, status_realisasi) VALUES (?, ?, ?, '-', ?, 'DIAJUKAN')");
+        mysqli_stmt_bind_param($ins_k, 'issi', $id_perjalanan, $npp_user, $user_nama, $is_pemohon_flag);
+        mysqli_stmt_execute($ins_k);
+    }
+
     // 3. Update status in perjalanan_pengajuan
     // Get last pengajuan record
     $stmt_p = mysqli_prepare($conn, "SELECT id FROM perjalanan_pengajuan WHERE id_perjalanan = ? ORDER BY id DESC LIMIT 1");
@@ -198,7 +225,6 @@ try {
     $res_p = mysqli_stmt_get_result($stmt_p);
     $last_p = mysqli_fetch_assoc($res_p);
     
-    $user_nama = isset($sess_mngname) ? $sess_mngname : ($sess_admname ?? 'User');
     $status = 'REALISASI_DIAJUKAN';
     
     if ($last_p) {

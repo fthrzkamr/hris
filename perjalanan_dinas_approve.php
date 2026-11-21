@@ -74,25 +74,93 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aksi']) && $id > 0) {
         }
     }
     
-    if ($last && in_array($last['status'], ['REALISASI_DIAJUKAN', 'REALISASI_VERIFIED_HR'])) {
-        $pengajuan_id = (int)$last['id'];
-        if ($aksi === 'approve_realisasi') {
-            $status = 'REALISASI_SELESAI';
-            $approval_manager = 'APPROVED';
-        } else {
-            $status = 'REALISASI_DITOLAK';
-            $approval_manager = 'REJECTED';
+    // Approval realisasi PER KARYAWAN (bukan sekaligus untuk seluruh trip, karena satu trip bisa multi-karyawan
+    // dan masing-masing lapor & disetujui terpisah agar tidak saling tabrak/menimpa status)
+    if (in_array($aksi, ['approve_realisasi_karyawan', 'reject_realisasi_karyawan'])) {
+        if (!$last || !in_array($last['status'], ['REALISASI_DIAJUKAN', 'REALISASI_VERIFIED_HR'])) {
+            header("Location: perjalanan_dinas_list.php?err=" . urlencode("Status perjalanan tidak valid untuk approval realisasi."));
+            exit;
         }
-        
-        $upd = mysqli_prepare($conn, "UPDATE perjalanan_pengajuan SET approval_manager_hr = ?, approver_manager_hr = ?, tanggal_approval_manager_hr = NOW(), catatan_manager_hr = ?, status = ? WHERE id = ?");
-        mysqli_stmt_bind_param($upd, 'ssssi', $approval_manager, $user_nama, $catatan, $status, $pengajuan_id);
-        $ok = mysqli_stmt_execute($upd);
+        $target_npp = trim($_POST['target_npp'] ?? '');
+        if ($target_npp === '') {
+            header("Location: perjalanan_dinas_list.php?err=" . urlencode("NPP karyawan tidak valid."));
+            exit;
+        }
+
+        if ($aksi === 'approve_realisasi_karyawan') {
+            // Simpan nominal final yang sudah disesuaikan HR (kalau beda dari input karyawan, dicatat di log)
+            // Catatan: nominal_final yang diposting adalah TOTAL (sama seperti input karyawan), bukan per-unit
+            $nominal_finals = $_POST['nominal_final'] ?? [];
+            foreach ($nominal_finals as $rid => $val) {
+                $rid = intval($rid);
+                $val_clean = preg_replace('/[^0-9]/', '', $val);
+                $total_final = $val_clean === '' ? 0 : floatval($val_clean);
+
+                $stmt_r = mysqli_prepare($conn, "SELECT qty, nominal_realisasi, total_realisasi, npp_karyawan FROM perjalanan_rincian WHERE id = ? AND perjalanan_id = ?");
+                mysqli_stmt_bind_param($stmt_r, 'ii', $rid, $id);
+                mysqli_stmt_execute($stmt_r);
+                $old_r = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_r));
+                if (!$old_r) continue;
+
+                // Jaga-jaga: pastikan item ini memang milik target_npp, jangan sampai HR tidak sengaja ubah item karyawan lain
+                $item_npp = !empty($old_r['npp_karyawan']) ? trim($old_r['npp_karyawan']) : $data['npp'];
+                if ($item_npp !== $target_npp) continue;
+
+                $qty = floatval(($old_r['qty'] ?? 1) ?: 1);
+                $nominal_final = $qty > 0 ? ($total_final / $qty) : $total_final;
+                $old_total_real = (float) ($old_r['total_realisasi'] ?? 0);
+
+                if (abs($old_total_real - $total_final) > 0.01) {
+                    $note_log = "Penyesuaian nominal realisasi oleh Manager HR ($user_nama) untuk karyawan $target_npp. Total realisasi input karyawan: Rp " . number_format($old_total_real, 0, ',', '.') . " -> Total final HR: Rp " . number_format($total_final, 0, ',', '.') . ($catatan ? ". Catatan: $catatan" : "");
+                    $old_nominal_str = (string) ($old_r['nominal_realisasi'] ?? '0');
+                    $old_total_str = (string) ($old_r['total_realisasi'] ?? '0');
+                    $ins_log = mysqli_prepare($conn, "INSERT INTO perjalanan_rincian_log (rincian_id, perjalanan_id, old_nominal, old_total, old_keterangan, changed_by, note) VALUES (?,?,?,?,?,?,?)");
+                    mysqli_stmt_bind_param($ins_log, 'iisssss', $rid, $id, $old_nominal_str, $old_total_str, $target_npp, $user_nama, $note_log);
+                    @mysqli_stmt_execute($ins_log);
+                }
+
+                $upd_r = mysqli_prepare($conn, "UPDATE perjalanan_rincian SET nominal_realisasi = ?, total_realisasi = ? WHERE id = ?");
+                mysqli_stmt_bind_param($upd_r, 'ddi', $nominal_final, $total_final, $rid);
+                mysqli_stmt_execute($upd_r);
+            }
+
+            $upd_k = mysqli_prepare($conn, "UPDATE perjalanan_karyawan SET status_realisasi = 'DISETUJUI', catatan_realisasi = NULL, verified_by_realisasi = ?, verified_at_realisasi = NOW() WHERE perjalanan_id = ? AND npp = ?");
+            mysqli_stmt_bind_param($upd_k, 'sis', $user_nama, $id, $target_npp);
+            mysqli_stmt_execute($upd_k);
+            $action_msg = "Realisasi $target_npp disetujui.";
+        } else {
+            $upd_k = mysqli_prepare($conn, "UPDATE perjalanan_karyawan SET status_realisasi = 'DITOLAK', catatan_realisasi = ?, verified_by_realisasi = ?, verified_at_realisasi = NOW() WHERE perjalanan_id = ? AND npp = ?");
+            mysqli_stmt_bind_param($upd_k, 'ssis', $catatan, $user_nama, $id, $target_npp);
+            mysqli_stmt_execute($upd_k);
+            $action_msg = "Realisasi $target_npp ditolak.";
+        }
+
+        // Trip dianggap selesai total hanya kalau SEMUA peserta sudah disetujui HR
+        $stmt_chk = mysqli_prepare($conn, "SELECT COUNT(*) AS belum FROM perjalanan_karyawan WHERE perjalanan_id = ? AND (status_realisasi IS NULL OR status_realisasi != 'DISETUJUI')");
+        mysqli_stmt_bind_param($stmt_chk, 'i', $id);
+        mysqli_stmt_execute($stmt_chk);
+        $chk = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_chk));
+        $semua_selesai = ((int) ($chk['belum'] ?? 1) === 0);
+
+        $pengajuan_id = (int) $last['id'];
+        $status_final = $semua_selesai ? 'REALISASI_SELESAI' : 'REALISASI_DIAJUKAN';
+
+        if ($semua_selesai) {
+            $upd_p = mysqli_prepare($conn, "UPDATE perjalanan_pengajuan SET status = ?, approval_manager_hr = 'APPROVED', approver_manager_hr = ?, tanggal_approval_manager_hr = NOW() WHERE id = ?");
+            mysqli_stmt_bind_param($upd_p, 'ssi', $status_final, $user_nama, $pengajuan_id);
+        } else {
+            $upd_p = mysqli_prepare($conn, "UPDATE perjalanan_pengajuan SET status = ? WHERE id = ?");
+            mysqli_stmt_bind_param($upd_p, 'si', $status_final, $pengajuan_id);
+        }
+        $ok = mysqli_stmt_execute($upd_p);
+
         if ($ok) {
-            header("Location: perjalanan_dinas_list.php?msg=" . urlencode("Approval realisasi berhasil: $status"));
+            if ($semua_selesai) $action_msg .= " Semua karyawan sudah selesai - realisasi trip ini ditandai selesai.";
+            header("Location: perjalanan_dinas_list.php?msg=" . urlencode($action_msg));
             exit;
         } else {
             $err = mysqli_error($conn);
-            header("Location: perjalanan_dinas_list.php?err=" . urlencode("Gagal menyimpan approval: $err"));
+            header("Location: perjalanan_dinas_detail.php?id=$id&err=" . urlencode("Gagal menyimpan approval: $err"));
             exit;
         }
     }
@@ -277,7 +345,7 @@ mysqli_stmt_bind_param($stmt_p, 'i', $id);
 mysqli_stmt_execute($stmt_p);
 $res_p = mysqli_stmt_get_result($stmt_p);
 $pengajuan = mysqli_fetch_assoc($res_p);
-$is_realisasi_mode = $pengajuan && in_array($pengajuan['status'], ['REALISASI_DIAJUKAN', 'REALISASI_VERIFIED_HR']);
+$is_realisasi_mode = $pengajuan && in_array($pengajuan['status'], ['REALISASI_DIAJUKAN', 'REALISASI_VERIFIED_HR', 'REALISASI_SELESAI', 'REALISASI_DITOLAK']);
 $prefix = is_file(__DIR__ . '/../dist/config/koneksi.php') ? '../' : '';
 ?>
 <style>
@@ -343,7 +411,7 @@ $prefix = is_file(__DIR__ . '/../dist/config/koneksi.php') ? '../' : '';
                 <div class="panel-heading"><?php echo $is_realisasi_mode ? "Review & Approve Realisasi" : "Review & Approve Anggaran"; ?></div>
                 <div class="panel-body">
                     <div class="info-header">
-                        <div class="logo"><img src="foto/logo-dua.webp" alt="logo"></div>
+                        <div class="logo"></div>
                         <div class="doc-title"><?php echo $is_realisasi_mode ? "Review Realisasi Perjalanan Dinas" : "Form Anggaran Perjalanan Dinas"; ?></div>
                         <div class="doc-meta">
                             <div><strong>No:</strong> <?php echo htmlspecialchars($data['no_dokumen']); ?></div>
@@ -396,116 +464,173 @@ $prefix = is_file(__DIR__ . '/../dist/config/koneksi.php') ? '../' : '';
                     </div>
 
                     <?php if ($is_realisasi_mode): ?>
-                    <form method="post" id="frmApprove" autocomplete="off">
-                        <input type="hidden" name="id" value="<?php echo (int) $id; ?>">
-                        <input type="hidden" name="aksi" id="formAksi" value="approve_realisasi">
-
-                        <div class="table-responsive">
-                            <table class="table table-striped table-bordered rincian-table">
-                                <thead>
-                                    <tr class="info" style="background-color: #d9edf7; color: #31708f;">
-                                        <th style="width:5%;text-align:center">No</th>
-                                        <th>Keterangan Biaya</th>
-                                        <th style="width:5%;text-align:center">Qty</th>
-                                        <th style="width:12%;text-align:right">Nominal Budget</th>
-                                        <th style="width:12%;text-align:right">Total Budget</th>
-                                        <th style="width:12%;text-align:right">Nominal Realisasi</th>
-                                        <th style="width:12%;text-align:right">Total Realisasi</th>
-                                        <th style="width:25%;text-align:center">Bukti / Keterangan</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php 
-                                    $total_budget = 0;
-                                    $total_real = 0;
-                                    foreach ($grouped_rincian as $g_npp => $group): 
-                                        $p_info = $group['peserta'];
-                                        $is_lead = !empty($p_info['is_pemohon']);
-                                        $header_bg = $is_lead ? '#eaf2f8' : '#f0f9fb';
-                                        $header_color = $is_lead ? '#2e6da4' : '#2a7991';
-                                        $badge_class = $is_lead ? 'label-primary' : 'label-info';
-                                        $badge_text = $is_lead ? 'Pengaju Utama (PIC)' : 'Rekan Dinas';
-                                        $dept_info = !empty($p_info['departemen']) ? ' - ' . htmlspecialchars($p_info['departemen']) : '';
-                                        $sub_budget_p = 0;
-                                        $sub_real_p = 0;
-                                    ?>
-                                    <tr style="background-color: <?php echo $header_bg; ?>; border-top: 2px solid <?php echo $header_color; ?>;">
-                                        <td colspan="8" style="padding: 10px 12px;">
-                                            <span class="label <?php echo $badge_class; ?>" style="font-size: 11px; padding: 4px 8px; margin-right: 8px;">
-                                                <i class="fa fa-user"></i> <?php echo $badge_text; ?>
-                                            </span>
-                                            <strong style="color: <?php echo $header_color; ?>; font-size: 14px;">
-                                                <?php echo htmlspecialchars($p_info['nama']); ?> (<?php echo htmlspecialchars($p_info['npp']); ?><?php echo $dept_info; ?>)
-                                            </strong>
-                                        </td>
-                                    </tr>
-                                    <?php if (!empty($group['items'])): ?>
-                                        <?php foreach ($group['items'] as $it):
-                                            $nominal = (float) ($it['nominal'] ?? 0);
-                                            $qty = (int) ($it['qty'] ?? 1) ?: 1;
-                                            $line_budget = $nominal * $qty;
-                                            $sub_budget_p += $line_budget;
-                                            $total_budget += $line_budget;
-                                            
-                                            $nominal_real = (float) ($it['nominal_realisasi'] ?? 0);
-                                            $total_real_item = isset($it['total_realisasi']) && $it['total_realisasi'] !== null ? (float) $it['total_realisasi'] : ($nominal_real * $qty);
-                                            $sub_real_p += $total_real_item;
-                                            $total_real += $total_real_item;
-                                        ?>
-                                        <tr>
-                                            <td class="text-center"><?php echo (int) ($it['nomor'] ?? 0); ?></td>
-                                            <td><?php echo htmlspecialchars($it['ket'] ?? ''); ?></td>
-                                            <td class="text-center"><?php echo $qty; ?></td>
-                                            <td style="text-align:right">Rp <?php echo number_format($nominal, 0, ',', '.'); ?></td>
-                                            <td style="text-align:right">Rp <?php echo number_format($line_budget, 0, ',', '.'); ?></td>
-                                            <td style="text-align:right; font-weight:bold; color:#31708f;">Rp <?php echo number_format($nominal_real, 0, ',', '.'); ?></td>
-                                            <td style="text-align:right; font-weight:bold; color:#31708f;">Rp <?php echo number_format($total_real_item, 0, ',', '.'); ?></td>
-                                            <td>
-                                                <?php if (!empty($it['bukti_realisasi'])): 
-                                                    $buktis = json_decode($it['bukti_realisasi'] ?? '', true) ?: [];
-                                                    foreach ($buktis as $b):
-                                                        if (strpos($b, 'uploads/bukti_realisasi/') !== 0) continue; ?>
-                                                        <a href="<?php echo htmlspecialchars($prefix . $b); ?>" target="_blank" style="margin-right: 5px;">
-                                                            <img src="<?php echo htmlspecialchars($prefix . $b); ?>" style="width: 40px; height: 40px; object-fit: cover; border: 1px solid #ccc; border-radius: 4px;">
-                                                        </a>
-                                                    <?php endforeach; ?>
-                                                <?php endif; ?>
-                                                <?php if (!empty($it['keterangan'])): ?>
-                                                    <div style="font-size:11px; color:#555;"><?php echo htmlspecialchars($it['keterangan']); ?></div>
-                                                <?php endif; ?>
-                                            </td>
-                                        </tr>
-                                        <?php endforeach; ?>
-                                    <?php else: ?>
-                                        <tr>
-                                            <td colspan="8" class="text-center text-muted"><em>Belum ada rincian biaya untuk karyawan ini.</em></td>
-                                        </tr>
-                                    <?php endif; ?>
-                                    <tr style="background-color: #fafbfc; font-weight:bold">
-                                        <td colspan="4" style="text-align:right">Subtotal Budget <?php echo htmlspecialchars($p_info['nama']); ?>:</td>
-                                        <td style="text-align:right">Rp <?php echo number_format($sub_budget_p, 0, ',', '.'); ?></td>
-                                        <td style="text-align:right; color:#31708f;">Subtotal Realisasi:</td>
-                                        <td style="text-align:right; color:#31708f;">Rp <?php echo number_format($sub_real_p, 0, ',', '.'); ?></td>
-                                        <td></td>
-                                    </tr>
-                                    <?php endforeach; ?>
-                                    <tr style="background-color: #f5f5f5; font-weight:bold; border-top: 2px solid #aaa;">
-                                        <td colspan="4" style="text-align:right">TOTAL BUDGET:</td>
-                                        <td style="text-align:right">Rp <?php echo number_format($total_budget, 0, ',', '.'); ?></td>
-                                        <td style="text-align:right; color:#31708f;">TOTAL REALISASI:</td>
-                                        <td style="text-align:right; color:#31708f;">Rp <?php echo number_format($total_real, 0, ',', '.'); ?></td>
-                                        <td></td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <?php
+                        $total_budget = 0;
+                        $total_real = 0;
+                        foreach ($grouped_rincian as $g_npp => $group) {
+                            foreach ($group['items'] as $it) {
+                                $qty = (int) ($it['qty'] ?? 1) ?: 1;
+                                $total_budget += (float) ($it['nominal'] ?? 0) * $qty;
+                                $nr = (float) ($it['nominal_realisasi'] ?? 0);
+                                $total_real += isset($it['total_realisasi']) && $it['total_realisasi'] !== null ? (float) $it['total_realisasi'] : ($nr * $qty);
+                            }
+                        }
+                        ?>
+                        <div class="alert alert-info">
+                            <strong>Ringkasan Seluruh Peserta:</strong> Total Budget: Rp <?php echo number_format($total_budget, 0, ',', '.'); ?>
+                            &nbsp;|&nbsp; Total Realisasi (input karyawan): Rp <?php echo number_format($total_real, 0, ',', '.'); ?>
+                            <br><small>Setiap karyawan direview &amp; disetujui terpisah. Anda bisa menyesuaikan "Nominal Final" sesuai nota asli sebelum menyetujui masing-masing karyawan.</small>
                         </div>
 
-                        <?php 
-                        $selisih = $total_real - $total_budget;
+                        <?php foreach ($grouped_rincian as $g_npp => $group):
+                            $p_info = $group['peserta'];
+                            $is_lead = !empty($p_info['is_pemohon']);
+                            $header_bg = $is_lead ? '#eaf2f8' : '#f0f9fb';
+                            $header_color = $is_lead ? '#2e6da4' : '#2a7991';
+                            $badge_class = $is_lead ? 'label-primary' : 'label-info';
+                            $badge_text = $is_lead ? 'Pengaju Utama (PIC)' : 'Rekan Dinas';
+                            $dept_info = !empty($p_info['departemen']) && $p_info['departemen'] !== '-' ? ' - ' . htmlspecialchars($p_info['departemen']) : '';
+                            $status_k = $p_info['status_realisasi'] ?? 'BELUM';
+                            $sub_budget_p = 0;
+                            $sub_real_p = 0;
+                            $sub_final_p = 0;
                         ?>
-                        <div class="alert alert-info" style="margin-top: 15px;">
-                            <strong>Selisih Anggaran vs Realisasi:</strong><br>
-                            <?php 
+                        <div class="panel panel-default" style="margin-bottom: 18px;">
+                            <div class="panel-heading" style="background-color: <?php echo $header_bg; ?>;">
+                                <span class="label <?php echo $badge_class; ?>" style="font-size: 11px; padding: 4px 8px; margin-right: 8px;">
+                                    <i class="fa fa-user"></i> <?php echo $badge_text; ?>
+                                </span>
+                                <strong style="color: <?php echo $header_color; ?>; font-size: 14px;">
+                                    <?php echo htmlspecialchars($p_info['nama']); ?> (<?php echo htmlspecialchars($p_info['npp']); ?><?php echo $dept_info; ?>)
+                                </strong>
+                                <span style="float: right;">
+                                    <?php if ($status_k === 'DISETUJUI'): ?>
+                                        <span class="label label-success"><i class="fa fa-check"></i> Realisasi Disetujui<?php echo !empty($p_info['verified_at_realisasi']) ? ' - ' . date('d-m-Y H:i', strtotime($p_info['verified_at_realisasi'])) : ''; ?></span>
+                                    <?php elseif ($status_k === 'DITOLAK'): ?>
+                                        <span class="label label-danger"><i class="fa fa-times"></i> Ditolak - Menunggu Revisi Karyawan</span>
+                                    <?php elseif ($status_k === 'DIAJUKAN'): ?>
+                                        <span class="label label-warning"><i class="fa fa-clock-o"></i> Menunggu Review HR</span>
+                                    <?php else: ?>
+                                        <span class="label label-default">Belum Lapor Realisasi</span>
+                                    <?php endif; ?>
+                                </span>
+                            </div>
+                            <div class="panel-body">
+                                <form method="post" class="form-realisasi-karyawan" autocomplete="off">
+                                    <input type="hidden" name="id" value="<?php echo (int) $id; ?>">
+                                    <input type="hidden" name="target_npp" value="<?php echo htmlspecialchars($g_npp); ?>">
+                                    <input type="hidden" name="aksi" class="formAksiKaryawan" value="approve_realisasi_karyawan">
+
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-bordered rincian-table">
+                                            <thead>
+                                                <tr class="info" style="background-color: #d9edf7; color: #31708f;">
+                                                    <th style="width:4%;text-align:center">No</th>
+                                                    <th>Keterangan Biaya</th>
+                                                    <th style="width:5%;text-align:center">Qty</th>
+                                                    <th style="width:11%;text-align:right">Nominal Budget</th>
+                                                    <th style="width:11%;text-align:right">Total Budget</th>
+                                                    <th style="width:11%;text-align:right">Realisasi (Karyawan)</th>
+                                                    <th style="width:16%;text-align:right">Nominal Final (HR)</th>
+                                                    <th style="width:22%;text-align:center">Bukti / Keterangan</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php if (!empty($group['items'])): $no_item = 1; foreach ($group['items'] as $it):
+                                                    $qty = (int) ($it['qty'] ?? 1) ?: 1;
+                                                    $nominal = (float) ($it['nominal'] ?? 0);
+                                                    $line_budget = $nominal * $qty;
+                                                    $sub_budget_p += $line_budget;
+
+                                                    $nominal_real = (float) ($it['nominal_realisasi'] ?? 0);
+                                                    $total_real_item = isset($it['total_realisasi']) && $it['total_realisasi'] !== null ? (float) $it['total_realisasi'] : ($nominal_real * $qty);
+                                                    $sub_real_p += $total_real_item;
+
+                                                    // Nominal final HR dalam satuan TOTAL (sama seperti input karyawan), bukan per-unit
+                                                    $total_final = $total_real_item;
+                                                    $sub_final_p += $total_final;
+                                                    $field_locked = ($status_k === 'DISETUJUI');
+                                                ?>
+                                                <tr>
+                                                    <td class="text-center"><?php echo $no_item++; ?></td>
+                                                    <td>
+                                                        <?php echo htmlspecialchars($it['ket'] ?? ''); ?>
+                                                        <?php if (!empty($it['dibelikan_kantor'])): ?><br><span class="label label-default" style="font-weight:400;">Dibelikan kantor</span><?php endif; ?>
+                                                    </td>
+                                                    <td class="text-center"><?php echo $qty; ?></td>
+                                                    <td style="text-align:right">Rp <?php echo number_format($nominal, 0, ',', '.'); ?></td>
+                                                    <td style="text-align:right">Rp <?php echo number_format($line_budget, 0, ',', '.'); ?></td>
+                                                    <td style="text-align:right; font-weight:bold; color:#31708f;">Rp <?php echo number_format($total_real_item, 0, ',', '.'); ?></td>
+                                                    <td>
+                                                        <div class="input-group">
+                                                            <span class="input-group-addon">Rp</span>
+                                                            <input type="text" name="nominal_final[<?php echo $it['id']; ?>]"
+                                                                   value="<?php echo number_format($total_final, 0, ',', '.'); ?>"
+                                                                   class="form-control text-right nominal-final-field" data-qty="<?php echo $qty; ?>"
+                                                                   <?php echo $field_locked ? 'readonly disabled' : ''; ?>>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <?php if (!empty($it['bukti_realisasi'])):
+                                                            $buktis = json_decode($it['bukti_realisasi'] ?? '', true) ?: [];
+                                                            foreach ($buktis as $b):
+                                                                if (strpos($b, 'uploads/bukti_realisasi/') !== 0) continue; ?>
+                                                                <a href="<?php echo htmlspecialchars($prefix . $b); ?>" target="_blank" style="margin-right: 4px;">
+                                                                    <img src="<?php echo htmlspecialchars($prefix . $b); ?>" style="width: 36px; height: 36px; object-fit: cover; border: 1px solid #ccc; border-radius: 3px;">
+                                                                </a>
+                                                            <?php endforeach; ?>
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($it['keterangan'])): ?>
+                                                            <div style="font-size:11px; color:#777;"><?php echo htmlspecialchars($it['keterangan']); ?></div>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                </tr>
+                                                <?php endforeach; else: ?>
+                                                    <tr>
+                                                        <td colspan="8" class="text-center text-muted"><em>Belum ada rincian biaya untuk karyawan ini.</em></td>
+                                                    </tr>
+                                                <?php endif; ?>
+                                                <tr style="background-color: #fafbfc; font-weight:bold">
+                                                    <td colspan="4" style="text-align:right">Subtotal:</td>
+                                                    <td style="text-align:right">Rp <?php echo number_format($sub_budget_p, 0, ',', '.'); ?></td>
+                                                    <td style="text-align:right; color:#31708f;">Rp <?php echo number_format($sub_real_p, 0, ',', '.'); ?></td>
+                                                    <td class="text-right subtotal-final" style="color:#3c763d;">Rp <?php echo number_format($sub_final_p, 0, ',', '.'); ?></td>
+                                                    <td></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <?php if ($status_k === 'DIAJUKAN'): ?>
+                                        <div class="actions">
+                                            <button type="button" class="btn btn-success btnApproveRealKaryawan">
+                                                <i class="fa fa-check"></i> Setujui Realisasi <?php echo htmlspecialchars($p_info['nama']); ?>
+                                            </button>
+                                        </div>
+                                    <?php elseif ($status_k === 'DITOLAK'): ?>
+                                        <div class="alert alert-danger" style="margin-bottom:0;">
+                                            <strong>Ditolak:</strong> <?php echo htmlspecialchars($p_info['catatan_realisasi'] ?? '-'); ?>
+                                            <br><small>Menunggu karyawan ini mengirim ulang laporan realisasinya.</small>
+                                        </div>
+                                    <?php elseif ($status_k === 'DISETUJUI'): ?>
+                                        <div class="alert alert-success" style="margin-bottom:0;">
+                                            <i class="fa fa-check-circle"></i> Realisasi sudah disetujui final oleh <?php echo htmlspecialchars($p_info['verified_by_realisasi'] ?? '-'); ?>
+                                            <?php if (!empty($p_info['verified_at_realisasi'])): ?> pada <?php echo date('d-m-Y H:i', strtotime($p_info['verified_at_realisasi'])); ?><?php endif; ?>.
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="alert" style="background:#f5f5f5; margin-bottom:0;">
+                                            Karyawan ini belum mengirimkan laporan realisasi.
+                                        </div>
+                                    <?php endif; ?>
+                                </form>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+
+                        <?php $selisih = $total_real - $total_budget; ?>
+                        <div class="alert alert-info">
+                            <strong>Selisih Anggaran vs Realisasi (sesuai input karyawan):</strong><br>
+                            <?php
                             if ($selisih < 0) {
                                 echo 'Kurang Bayar (Sisa Uang Muka dikembalikan ke Perusahaan): Rp ' . number_format(abs($selisih), 0, ',', '.');
                             } elseif ($selisih > 0) {
@@ -515,24 +640,11 @@ $prefix = is_file(__DIR__ . '/../dist/config/koneksi.php') ? '../' : '';
                             }
                             ?>
                         </div>
-
-                        <div class="form-group" style="margin-top:15px">
-                            <label>Catatan / Alasan Penolakan (Hanya wajib diisi jika menolak realisasi)</label>
-                            <textarea name="catatan" id="catatanTolak" class="form-control" placeholder="Masukkan alasan penolakan di sini..."></textarea>
-                        </div>
-
                         <div class="actions">
-                            <button type="button" id="btnApproveReal" class="btn btn-success btn-lg">
-                                <i class="fa fa-check"></i> Setujui Laporan Realisasi
-                            </button>
-                            <button type="button" id="btnRejectReal" class="btn btn-danger btn-lg">
-                                <i class="fa fa-times"></i> Tolak Realisasi
-                            </button>
                             <a href="perjalanan_dinas_list.php" class="btn btn-default btn-lg">
                                 <i class="fa fa-arrow-left"></i> Kembali
                             </a>
                         </div>
-                    </form>
                     <?php else: ?>
                     <form method="post" id="frmApprove" autocomplete="off">
                         <input type="hidden" name="id" value="<?php echo (int) $id; ?>">
@@ -706,12 +818,13 @@ $prefix = is_file(__DIR__ . '/../dist/config/koneksi.php') ? '../' : '';
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
         $(function () {
-            // Realisasi Actions
-            $('#btnApproveReal').on('click', function(e) {
+            // Realisasi Actions (per-karyawan, karena satu trip bisa multi-karyawan dan disetujui terpisah)
+            $(document).on('click', '.btnApproveRealKaryawan', function(e) {
                 e.preventDefault();
+                var $form = $(this).closest('form');
                 Swal.fire({
                     title: 'Setujui Realisasi?',
-                    text: 'Laporan realisasi akan disetujui secara final',
+                    text: 'Nominal final akan disimpan dan status realisasi karyawan ini menjadi selesai.',
                     icon: 'question',
                     showCancelButton: true,
                     confirmButtonText: 'Ya, setujui',
@@ -719,39 +832,22 @@ $prefix = is_file(__DIR__ . '/../dist/config/koneksi.php') ? '../' : '';
                     confirmButtonColor: '#5cb85c'
                 }).then(function(res) {
                     if (res.isConfirmed) {
-                        $('#formAksi').val('approve_realisasi');
-                        $('#frmApprove')[0].submit();
+                        $form.find('.formAksiKaryawan').val('approve_realisasi_karyawan');
+                        $form[0].submit();
                     }
                 });
             });
 
-            $('#btnRejectReal').on('click', function(e) {
-                e.preventDefault();
-                var catatan = $('#catatanTolak').val().trim();
-                if (catatan === '') {
-                    Swal.fire({
-                        title: 'Catatan Wajib Diisi',
-                        text: 'Silakan masukkan alasan penolakan pada kolom catatan.',
-                        icon: 'warning',
-                        confirmButtonColor: '#d9534f'
-                    });
-                    return;
-                }
-                
-                Swal.fire({
-                    title: 'Tolak Realisasi?',
-                    text: 'Laporan realisasi ini akan ditolak dan dikembalikan ke user',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonText: 'Ya, tolak',
-                    cancelButtonText: 'Batal',
-                    confirmButtonColor: '#d9534f'
-                }).then(function(res) {
-                    if (res.isConfirmed) {
-                        $('#formAksi').val('reject_realisasi');
-                        $('#frmApprove')[0].submit();
-                    }
-                });
+            // Format input nominal-final-field seperti field rupiah lainnya
+            $(document).on('input keyup', '.nominal-final-field', function() {
+                var v = $(this).val().replace(/\D/g, '');
+                if (v === '') $(this).val('');
+                else $(this).val(formatRp(v));
+            });
+            $(document).on('blur', '.nominal-final-field', function() {
+                var v = $(this).val().replace(/\D/g, '');
+                if (v === '' || v === '0') $(this).val('0');
+                else $(this).val(formatRp(v));
             });
 
             // Handlers for add/edit/delete rincian within approve page

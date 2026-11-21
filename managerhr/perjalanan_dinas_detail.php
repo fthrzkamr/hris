@@ -191,12 +191,6 @@ if ($status == 'DIAJUKAN') {
 }
 
 // Logo Path
-$logo_src = '';
-if (is_file(__DIR__ . '/foto/logo-dua.webp')) {
-    $logo_src = 'foto/logo-dua.webp';
-} elseif (is_file(__DIR__ . '/../foto/logo-dua.webp')) {
-    $logo_src = '../foto/logo-dua.webp';
-}
 ?>
 
 <style>
@@ -469,7 +463,7 @@ if (is_file(__DIR__ . '/foto/logo-dua.webp')) {
                     <i class="fa fa-check-square-o"></i> Proses Persetujuan HR
                 </a>
             <?php endif; ?>
-            <?php if ((!empty($_SESSION['managerhr']) || !empty($_SESSION['admin'])) && in_array($status, ['APPROVED_MANAGER_HR', 'DISETUJUI', 'REALISASI_SELESAI'])): ?>
+            <?php if ((!empty($_SESSION['managerhr']) || !empty($_SESSION['admin'])) && in_array($status, ['APPROVED_MANAGER_HR', 'DISETUJUI'])): ?>
                 <a href="perjalanan_dinas_batal_approve.php?id=<?php echo $id; ?>&from=detail" 
                    class="btn btn-warning btn-sm" 
                    style="margin-left: 5px; font-weight: bold;" 
@@ -546,13 +540,7 @@ if (is_file(__DIR__ . '/foto/logo-dua.webp')) {
     <div class="document-paper">
         <!-- HEADER DOKUMEN -->
         <div class="doc-header">
-            <div class="doc-header-logo">
-                <?php if (!empty($logo_src)): ?>
-                    <img src="<?php echo htmlspecialchars($logo_src); ?>" alt="Logo Perusahaan">
-                <?php else: ?>
-                    <strong style="font-size: 16px; color: #2e6da4;">DF GROUP</strong>
-                <?php endif; ?>
-            </div>
+            <div class="doc-header-logo"></div>
             <div class="doc-header-title">
                 <h3>PT DUA FARMA MAHAKARSA</h3>
                 <h4>FORM ANGGARAN PERJALANAN BISNIS (DINAS)</h4>
@@ -634,11 +622,21 @@ if (is_file(__DIR__ . '/foto/logo-dua.webp')) {
                         $dept_info = !empty($p_info['departemen']) && $p_info['departemen'] !== '-' ? ' - ' . htmlspecialchars($p_info['departemen']) : '';
                         $sub_budget_p = 0;
                         $sub_real_p = 0;
+                        $status_realisasi_k = $p_info['status_realisasi'] ?? 'BELUM';
                     ?>
                         <tr class="<?php echo $row_cls; ?>">
                             <td colspan="8">
                                 <span class="badge-role <?php echo $badge_cls; ?>"><?php echo $role_label; ?></span>
                                 <?php echo htmlspecialchars($p_info['nama']); ?> (<?php echo htmlspecialchars($p_info['npp']); ?><?php echo $dept_info; ?>)
+                                <?php if ($status_realisasi_k === 'DISETUJUI'): ?>
+                                    <span class="label label-success no-print" style="margin-left: 6px;"><i class="fa fa-check"></i> Realisasi Disetujui</span>
+                                <?php elseif ($status_realisasi_k === 'DITOLAK'): ?>
+                                    <span class="label label-danger no-print" style="margin-left: 6px;"><i class="fa fa-times"></i> Realisasi Ditolak</span>
+                                <?php elseif ($status_realisasi_k === 'DIAJUKAN'): ?>
+                                    <span class="label label-warning no-print" style="margin-left: 6px;"><i class="fa fa-clock-o"></i> Menunggu Review HR</span>
+                                <?php else: ?>
+                                    <span class="label label-default no-print" style="margin-left: 6px;">Belum Lapor Realisasi</span>
+                                <?php endif; ?>
                             </td>
                         </tr>
                         <?php if (!empty($group['items'])): 
@@ -659,7 +657,12 @@ if (is_file(__DIR__ . '/foto/logo-dua.webp')) {
                         ?>
                             <tr>
                                 <td class="text-center"><?php echo $no_item++; ?></td>
-                                <td><strong><?php echo htmlspecialchars($item['ket']); ?></strong></td>
+                                <td>
+                                    <strong><?php echo htmlspecialchars($item['ket']); ?></strong>
+                                    <?php if (!empty($item['dibelikan_kantor'])): ?>
+                                        <br><span class="label label-default no-print" style="font-weight:400;">Dibelikan kantor (tanpa nota)</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="text-center"><?php echo $qty; ?></td>
                                 <td class="text-right num-col">Rp <?php echo number_format($used_budget, 0, ',', '.'); ?></td>
                                 <td class="text-right num-col">Rp <?php echo number_format($line_budget, 0, ',', '.'); ?></td>

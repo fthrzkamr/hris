@@ -63,11 +63,12 @@ $status = $row['status'] ?? '';
 $pengajuan_id = (int)$row['pengajuan_id'];
 
 // Tentukan status kembalian
+// Catatan: REALISASI_SELESAI sengaja TIDAK bisa dikembalikan lewat sini, karena status realisasi
+// sudah dilacak per-karyawan (perjalanan_karyawan.status_realisasi) dan sudah dikunci final per orang;
+// membalikkan status di level trip saja akan membuatnya tidak sinkron dengan status per-karyawan.
 $target_status = '';
 if ($status === 'APPROVED_MANAGER_HR' || $status === 'DISETUJUI') {
     $target_status = 'DIAJUKAN';
-} elseif ($status === 'REALISASI_SELESAI') {
-    $target_status = 'REALISASI_DIAJUKAN';
 } else {
     $sep = (strpos($redirect_url, '?') !== false) ? '&' : '?';
     header("Location: " . $redirect_url . $sep . "err=" . urlencode("Pengajuan ini tidak berstatus approval yang dapat dikembalikan ($status)"));
@@ -80,29 +81,17 @@ try {
     $audit_note = " [Approval dibatalkan oleh $user_nama pada " . date('d-m-Y H:i') . "]";
     $new_catatan = trim(($row['catatan_manager_hr'] ?? '') . $audit_note);
 
-    if ($target_status === 'DIAJUKAN') {
-        $upd = mysqli_prepare($conn, "UPDATE perjalanan_pengajuan 
-            SET status = 'DIAJUKAN', 
-                approval_manager_hr = NULL, 
-                approver_manager_hr = NULL, 
-                tanggal_approval_manager_hr = NULL, 
-                approval_direktur = NULL, 
-                approver_direktur = NULL, 
-                tanggal_approval_direktur = NULL, 
-                catatan_manager_hr = ? 
-            WHERE id = ?");
-        mysqli_stmt_bind_param($upd, 'si', $new_catatan, $pengajuan_id);
-    } else {
-        // REALISASI_DIAJUKAN
-        $upd = mysqli_prepare($conn, "UPDATE perjalanan_pengajuan 
-            SET status = 'REALISASI_DIAJUKAN', 
-                approval_manager_hr = NULL, 
-                approver_manager_hr = NULL, 
-                tanggal_approval_manager_hr = NULL, 
-                catatan_manager_hr = ? 
-            WHERE id = ?");
-        mysqli_stmt_bind_param($upd, 'si', $new_catatan, $pengajuan_id);
-    }
+    $upd = mysqli_prepare($conn, "UPDATE perjalanan_pengajuan
+        SET status = 'DIAJUKAN',
+            approval_manager_hr = NULL,
+            approver_manager_hr = NULL,
+            tanggal_approval_manager_hr = NULL,
+            approval_direktur = NULL,
+            approver_direktur = NULL,
+            tanggal_approval_direktur = NULL,
+            catatan_manager_hr = ?
+        WHERE id = ?");
+    mysqli_stmt_bind_param($upd, 'si', $new_catatan, $pengajuan_id);
 
     $ok = mysqli_stmt_execute($upd);
     if (!$ok) {

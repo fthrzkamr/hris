@@ -358,7 +358,7 @@ if (!isset($_GET['tab'])) {
                                                     <a class="btn btn-info btn-sm" href="perjalanan_dinas_detail.php?id=<?php echo $row['id']; ?>" title="Lihat Detail">
                                                         <i class="fa fa-eye"></i> Detail
                                                     </a>
-                                                    <?php if (in_array($status, ['APPROVED_MANAGER_HR', 'DISETUJUI', 'REALISASI_SELESAI'])): ?>
+                                                    <?php if (in_array($status, ['APPROVED_MANAGER_HR', 'DISETUJUI'])): ?>
                                                         <a class="btn btn-warning btn-sm" href="perjalanan_dinas_batal_approve.php?id=<?php echo $row['id']; ?>&from=semua" 
                                                            onclick="return confirm('Apakah Anda yakin ingin membatalkan approval dan mengembalikan status pengajuan no. <?php echo htmlspecialchars($row['no_dokumen']); ?> ini?');" 
                                                            title="Kembalikan / Batalkan Approval" style="font-weight:bold;">
