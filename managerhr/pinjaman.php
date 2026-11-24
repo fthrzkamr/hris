@@ -52,39 +52,59 @@ if (isset($_SESSION['auto_payment_processed']) && $_SESSION['auto_payment_proces
         justify-content: space-between;
     }
 
+    .table-responsive {
+        border: none !important;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin-bottom: 0;
+    }
+
+    #tabel-data, #tabel-approval {
+        width: 100% !important;
+        font-size: 12px;
+    }
+
+    #tabel-data th, #tabel-data td,
+    #tabel-approval th, #tabel-approval td {
+        padding: 6px 4px !important;
+        vertical-align: middle !important;
+    }
+
+    #tabel-data th, #tabel-approval th {
+        font-size: 11px;
+        white-space: nowrap;
+        text-align: center;
+        background-color: #f9f9f9;
+    }
+
     .status-display {
         display: inline-block;
-        padding: 5px 10px;
-        border-radius: 5px;
+        padding: 3px 6px;
+        border-radius: 4px;
         font-weight: bold;
         text-align: center;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         font-size: 10px;
+        white-space: nowrap;
     }
 
     .status-display.aktif {
-        background-color:rgb(149, 0, 0);
-        /* Warna abu-abu */
-        color:rgb(255, 255, 255);
-        /* Warna teks hitam */
+        background-color: rgb(149, 0, 0);
+        color: rgb(255, 255, 255);
     }
 
     .status-display.lunas {
-        background-color:rgb(11, 142, 11);
-        /* Warna hijau */
+        background-color: rgb(11, 142, 11);
         color: #ffffff;
-        /* Warna teks putih */
     }
 
     .status-display.menunggu {
         background-color: #f0ad4e;
-        /* Warna orange */
         color: #ffffff;
     }
 
     .status-display.ditolak {
         background-color: #d9534f;
-        /* Warna merah */
         color: #ffffff;
     }
 </style>
@@ -113,21 +133,21 @@ if (isset($_SESSION['auto_payment_processed']) && $_SESSION['auto_payment_proces
                                 <a href="pinjaman_tambah.php" class="btn btn-primary btn-sm">+ Tambah Pinjaman</a>
                             </div>
                         </div>
+                        <div class="table-responsive">
                         <table class="table table-striped table-bordered table-hover" id="tabel-data">
-                            <br>
                             <thead>
                                 <tr>
-                                    <th>No</th>
+                                    <th style="width:30px;">No</th>
                                     <th>Nama</th>
-                                    <th>Tgl Pinjam</th>
-                                    <th>Tgl Approve</th>
-                                    <th>Jumlah</th>
-                                    <th>Tenor (x)</th>
-                                    <th>Cicilan</th>
-                                    <th>Sisa Pinjaman</th>
-                                    <th>Sisa Tenor</th>
-                                    <th>Status</th>
-                                    <th style="width:110px">Aksi</th>
+                                    <th style="width:75px;">Tgl Pinjam</th>
+                                    <th style="width:75px;">Tgl Approve</th>
+                                    <th style="width:90px;">Jumlah</th>
+                                    <th style="width:45px;">Tenor</th>
+                                    <th style="width:85px;">Cicilan</th>
+                                    <th style="width:90px;">Sisa Pinjaman</th>
+                                    <th style="width:45px;">Sisa Tenor</th>
+                                    <th style="width:65px;">Status</th>
+                                    <th style="width:85px;">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -163,24 +183,24 @@ if (isset($_SESSION['auto_payment_processed']) && $_SESSION['auto_payment_proces
                                 ?>
                                     <tr>
                                         <td class="text-center"><?= $i ?></td>
-                                        <td class="text-center"><?= $data['nama_emp'] ?></td>
-                                        <td class="text-center"><?= format_tanggal($data['tanggal_pengajuan']) ?></td>
-                                        <td class="text-center"><?= !empty($data['tanggal_approval_hrd']) ? format_tanggal($data['tanggal_approval_hrd']) : '-' ?></td>
-                                        <td class="text-center"><?= format_rupiah($data['jumlah_pinjaman']) ?></td>
-                                        <td class="text-center"><?= $data['tenor'] ?>x</td>
-                                        <td class="text-center"><?= format_rupiah($data['cicilan_per_bulan']) ?></td>
-                                        <td class="text-center"><?= format_rupiah($sisa_pinjaman) ?></td> <!-- sisa pinjaman ditampilkan -->
-                                        <td class="text-center"><?= $sisa_tenor ?>x</td> <!-- sisa tenor ditampilkan -->
-                                        <td class="text-center status <?= $data['status'] ?>">
+                                        <td><?= $data['nama_emp'] ?></td>
+                                        <td class="text-center" style="white-space: nowrap;"><?= format_tanggal($data['tanggal_pengajuan']) ?></td>
+                                        <td class="text-center" style="white-space: nowrap;"><?= !empty($data['tanggal_approval_hrd']) ? format_tanggal($data['tanggal_approval_hrd']) : '-' ?></td>
+                                        <td class="text-right" style="white-space: nowrap;"><?= format_rupiah($data['jumlah_pinjaman']) ?></td>
+                                        <td class="text-center" style="white-space: nowrap;"><?= $data['tenor'] ?>x</td>
+                                        <td class="text-right" style="white-space: nowrap;"><?= format_rupiah($data['cicilan_per_bulan']) ?></td>
+                                        <td class="text-right" style="white-space: nowrap;"><?= format_rupiah($sisa_pinjaman) ?></td>
+                                        <td class="text-center" style="white-space: nowrap;"><?= $sisa_tenor ?>x</td>
+                                        <td class="text-center status <?= $data['status'] ?>" style="white-space: nowrap;">
                                             <div class="status-display <?= $data['status'] ?>">
                                                 <?= ucfirst($data['status']) ?>
                                             </div>
                                         </td>
-                                        <td class="text-center">
-                                            <div style="min-width:200px; display:inline-block;">
-                                                <a href="pinjaman_detail.php?id=<?= $data['id_pinjaman'] ?>" class="btn btn-info btn-sm" style="margin-right:4px;" title="Lihat Detail & Jadwal Angsuran"><i class="fa fa-eye"></i></a>
-                                                <a href="pinjaman_edit.php?id=<?= $data['id_pinjaman'] ?>" class="btn btn-primary btn-sm" style="margin-right:4px;" title="Edit"><i class="fa fa-edit"></i></a>
-                                                <a href="pinjaman_hapus.php?id=<?= $data['id_pinjaman'] ?>" class="btn btn-warning btn-sm" onclick="return confirm('Apakah Anda yakin ingin menghapus pinjaman ini?')" title="Hapus"><i class="fa fa-trash"></i></a>
+                                        <td class="text-center" style="white-space: nowrap;">
+                                            <div style="display:inline-flex; gap:3px;">
+                                                <a href="pinjaman_detail.php?id=<?= $data['id_pinjaman'] ?>" class="btn btn-info btn-xs" title="Lihat Detail & Jadwal Angsuran"><i class="fa fa-eye"></i></a>
+                                                <a href="pinjaman_edit.php?id=<?= $data['id_pinjaman'] ?>" class="btn btn-primary btn-xs" title="Edit"><i class="fa fa-edit"></i></a>
+                                                <a href="pinjaman_hapus.php?id=<?= $data['id_pinjaman'] ?>" class="btn btn-warning btn-xs" onclick="return confirm('Apakah Anda yakin ingin menghapus pinjaman ini?')" title="Hapus"><i class="fa fa-trash"></i></a>
                                             </div>
                                         </td>
                                     </tr>
@@ -188,6 +208,7 @@ if (isset($_SESSION['auto_payment_processed']) && $_SESSION['auto_payment_proces
                                 } ?>
                             </tbody>
                         </table>
+                        </div> <!-- /.table-responsive -->
                     </div> <!-- /.panel-body -->
                 </div> <!-- /.panel -->
             </div>
@@ -201,17 +222,18 @@ if (isset($_SESSION['auto_payment_processed']) && $_SESSION['auto_payment_proces
                         <div class="panel-heading" style="margin-bottom: 15px;">
                             <h4 class="mb-0">Persetujuan Pinjaman</h4>
                         </div>
+                        <div class="table-responsive">
                         <table class="table table-striped table-bordered table-hover" id="tabel-approval">
                             <thead>
                                 <tr>
-                                    <th>No</th>
+                                    <th style="width:30px;">No</th>
                                     <th>Nama</th>
-                                    <th>Tgl Pinjam</th>
-                                    <th>Jumlah</th>
-                                    <th>Tenor (x)</th>
-                                    <th>Cicilan</th>
-                                    <th>Status</th>
-                                    <th style="width:230px">Aksi</th>
+                                    <th style="width:80px;">Tgl Pinjam</th>
+                                    <th style="width:95px;">Jumlah</th>
+                                    <th style="width:50px;">Tenor</th>
+                                    <th style="width:90px;">Cicilan</th>
+                                    <th style="width:70px;">Status</th>
+                                    <th style="width:150px;">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -227,20 +249,20 @@ if (isset($_SESSION['auto_payment_processed']) && $_SESSION['auto_payment_proces
                                 ?>
                                     <tr>
                                         <td class="text-center"><?= $i ?></td>
-                                        <td class="text-center"><?= $data_app['nama_emp'] ?></td>
-                                        <td class="text-center"><?= format_tanggal($data_app['tanggal_pengajuan']) ?></td>
-                                        <td class="text-center"><?= format_rupiah($data_app['jumlah_pinjaman']) ?></td>
-                                        <td class="text-center"><?= $data_app['tenor'] ?>x</td>
-                                        <td class="text-center"><?= format_rupiah($data_app['cicilan_per_bulan']) ?></td>
-                                        <td class="text-center status <?= $data_app['status'] ?>">
+                                        <td><?= $data_app['nama_emp'] ?></td>
+                                        <td class="text-center" style="white-space: nowrap;"><?= format_tanggal($data_app['tanggal_pengajuan']) ?></td>
+                                        <td class="text-right" style="white-space: nowrap;"><?= format_rupiah($data_app['jumlah_pinjaman']) ?></td>
+                                        <td class="text-center" style="white-space: nowrap;"><?= $data_app['tenor'] ?>x</td>
+                                        <td class="text-right" style="white-space: nowrap;"><?= format_rupiah($data_app['cicilan_per_bulan']) ?></td>
+                                        <td class="text-center status <?= $data_app['status'] ?>" style="white-space: nowrap;">
                                             <div class="status-display <?= $data_app['status'] ?>">
                                                 <?= ucfirst($data_app['status']) ?>
                                             </div>
                                         </td>
-                                        <td class="text-center">
-                                            <div style="display:inline-block; white-space: nowrap;">
-                                                <a href="pinjaman_approve.php?id=<?= $data_app['id_pinjaman'] ?>" class="btn btn-success btn-xs" style="margin-right:4px;" title="Setujui" onclick="return confirm('Apakah Anda yakin ingin menyetujui pinjaman ini?')"><i class="fa fa-check"></i> Setuju</a>
-                                                <a href="pinjaman_reject.php?id=<?= $data_app['id_pinjaman'] ?>" class="btn btn-danger btn-xs" style="margin-right:4px;" title="Tolak" onclick="return confirm('Apakah Anda yakin ingin menolak pinjaman ini?')"><i class="fa fa-close"></i> Tolak</a>
+                                        <td class="text-center" style="white-space: nowrap;">
+                                            <div style="display:inline-flex; gap:3px;">
+                                                <a href="pinjaman_approve.php?id=<?= $data_app['id_pinjaman'] ?>" class="btn btn-success btn-xs" title="Setujui" onclick="return confirm('Apakah Anda yakin ingin menyetujui pinjaman ini?')"><i class="fa fa-check"></i> Setuju</a>
+                                                <a href="pinjaman_reject.php?id=<?= $data_app['id_pinjaman'] ?>" class="btn btn-danger btn-xs" title="Tolak" onclick="return confirm('Apakah Anda yakin ingin menolak pinjaman ini?')"><i class="fa fa-close"></i> Tolak</a>
                                                 <a href="pinjaman_detail.php?id=<?= $data_app['id_pinjaman'] ?>" class="btn btn-info btn-xs" title="Detail"><i class="fa fa-eye"></i> Detail</a>
                                             </div>
                                         </td>
@@ -249,6 +271,7 @@ if (isset($_SESSION['auto_payment_processed']) && $_SESSION['auto_payment_proces
                                 } ?>
                             </tbody>
                         </table>
+                        </div> <!-- /.table-responsive -->
                     </div> <!-- /.panel-body -->
                 </div> <!-- /.panel -->
             </div>
@@ -260,12 +283,16 @@ if (isset($_SESSION['auto_payment_processed']) && $_SESSION['auto_payment_proces
     $(document).ready(function() {
         $('#tabel-data').DataTable({
             "responsive": true,
-            "processing": true
+            "processing": true,
+            "autoWidth": false
         });
         $('#tabel-approval').DataTable({
             "responsive": true,
-            "processing": true
+            "processing": true,
+            "autoWidth": false
         });
+        $('#tabel-data').parent().addClass("table-responsive");
+        $('#tabel-approval').parent().addClass("table-responsive");
     });
 </script>
 
