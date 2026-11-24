@@ -120,6 +120,7 @@ if (isset($_SESSION['auto_payment_processed']) && $_SESSION['auto_payment_proces
                                     <th>No</th>
                                     <th>Nama</th>
                                     <th>Tgl Pinjam</th>
+                                    <th>Tgl Approve</th>
                                     <th>Jumlah</th>
                                     <th>Tenor (x)</th>
                                     <th>Cicilan</th>
@@ -132,7 +133,7 @@ if (isset($_SESSION['auto_payment_processed']) && $_SESSION['auto_payment_proces
                             <tbody>
                                 <?php
                                 $i = 1;
-                                 $sql = "SELECT p.id_pinjaman, p.npp, e.nama_emp, p.tanggal_pengajuan, p.jumlah_pinjaman, p.tenor, p.status, p.cicilan_per_bulan
+                                 $sql = "SELECT p.id_pinjaman, p.npp, e.nama_emp, p.tanggal_pengajuan, p.tanggal_approval_hrd, p.jumlah_pinjaman, p.tenor, p.status, p.cicilan_per_bulan
                                         FROM pinjaman p
                                         JOIN employee e ON p.npp = e.npp
                                         WHERE p.status IN ('aktif', 'lunas')
@@ -164,6 +165,7 @@ if (isset($_SESSION['auto_payment_processed']) && $_SESSION['auto_payment_proces
                                         <td class="text-center"><?= $i ?></td>
                                         <td class="text-center"><?= $data['nama_emp'] ?></td>
                                         <td class="text-center"><?= format_tanggal($data['tanggal_pengajuan']) ?></td>
+                                        <td class="text-center"><?= !empty($data['tanggal_approval_hrd']) ? format_tanggal($data['tanggal_approval_hrd']) : '-' ?></td>
                                         <td class="text-center"><?= format_rupiah($data['jumlah_pinjaman']) ?></td>
                                         <td class="text-center"><?= $data['tenor'] ?>x</td>
                                         <td class="text-center"><?= format_rupiah($data['cicilan_per_bulan']) ?></td>

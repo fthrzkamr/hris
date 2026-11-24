@@ -79,6 +79,10 @@ include("dist/function/format_rupiah.php");
                                         <th>Tanggal Pengajuan</th>
                                         <td><?= format_tanggal($data['tanggal_pengajuan']) ?></td>
                                     </tr>
+                                    <tr>
+                                        <th>Tanggal Approval HRD</th>
+                                        <td><?= !empty($data['tanggal_approval_hrd']) ? format_tanggal($data['tanggal_approval_hrd']) : '-' ?></td>
+                                    </tr>
                                 </table>
                             </div>
                             <div class="col-md-6">
