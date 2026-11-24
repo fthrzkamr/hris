@@ -24,23 +24,31 @@ if (isset($_GET['id'])) {
         $tanggal_pengajuan = $data['tanggal_pengajuan'];
         $cicilan = $data['cicilan_per_bulan'];
         
-        // Calculate payment schedule dates
-        $tgl_pengajuan_obj = new DateTime($tanggal_pengajuan);
-        $hari_pengajuan = (int)$tgl_pengajuan_obj->format('d');
-        
-        if ($hari_pengajuan <= 26) {
-            $tanggal_potong_pertama = $tgl_pengajuan_obj->format('Y-m') . '-26';
-        } else {
-            $tgl_pengajuan_obj->modify('+1 month');
-            $tanggal_potong_pertama = $tgl_pengajuan_obj->format('Y-m') . '-26';
+        // Pastikan kolom tanggal approval HRD tersedia
+        $chk_col = mysqli_query($conn, "SHOW COLUMNS FROM pinjaman LIKE 'tanggal_approval_hrd'");
+        if ($chk_col && mysqli_num_rows($chk_col) == 0) {
+            mysqli_query($conn, "ALTER TABLE pinjaman ADD COLUMN tanggal_approval_hrd DATE NULL");
         }
+
+        // Jadwal potongan berdasarkan TANGGAL APPROVE HRD (bukan tanggal pengajuan):
+        // approve tanggal 1-15  -> potongan pertama tanggal 26 bulan berjalan
+        // approve tanggal 16-31 -> potongan pertama tanggal 26 bulan berikutnya
+        // (pencairan pinjaman tanggal 15, potongan tidak boleh terjadi sebelum pinjaman cair)
+        $tanggal_approval_hrd = date('Y-m-d');
+        $tgl_approve_obj = new DateTime($tanggal_approval_hrd);
+        $hari_approve = (int)$tgl_approve_obj->format('d');
+        
+        if ($hari_approve > 15) {
+            $tgl_approve_obj->modify('first day of next month');
+        }
+        $tanggal_potong_pertama = $tgl_approve_obj->format('Y-m') . '-26';
         
         $tgl_lunas_obj = new DateTime($tanggal_potong_pertama);
         $tgl_lunas_obj->modify('+' . ($tenor - 1) . ' months');
         $tanggal_lunas = $tgl_lunas_obj->format('Y-m-d');
         
-        // Update loan status to 'aktif' and set the tanggal_lunas
-        $sql_update = "UPDATE pinjaman SET status = 'aktif', tanggal_lunas = ? WHERE id_pinjaman = ?";
+        // Update loan status to 'aktif', set tanggal_lunas & tanggal approval HRD
+        $sql_update = "UPDATE pinjaman SET status = 'aktif', tanggal_lunas = ?, tanggal_approval_hrd = '$tanggal_approval_hrd' WHERE id_pinjaman = ?";
         $stmt_update = mysqli_prepare($conn, $sql_update);
         mysqli_stmt_bind_param($stmt_update, "ss", $tanggal_lunas, $id_pinjaman);
         $update_res = mysqli_stmt_execute($stmt_update);

@@ -24,18 +24,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Hitung cicilan per bulan
     $cicilan = $jumlah_pinjaman / $tenor;
 
-    // Hitung tanggal potong pertama (selalu tanggal 26)
-    $tgl_pengajuan_obj = new DateTime($tanggal_pengajuan);
-    $hari_pengajuan = (int)$tgl_pengajuan_obj->format('d');
-    
-    // Jika pengajuan tanggal 1-26: potong di tanggal 26 bulan yang sama
-    // Jika pengajuan tanggal 27-31: potong di tanggal 26 bulan berikutnya
-    if ($hari_pengajuan <= 26) {
-        $tanggal_potong_pertama = $tgl_pengajuan_obj->format('Y-m') . '-26';
-    } else {
-        $tgl_pengajuan_obj->modify('+1 month');
-        $tanggal_potong_pertama = $tgl_pengajuan_obj->format('Y-m') . '-26';
+    // Dasar jadwal potongan = tanggal approve HRD (bukan tanggal pengajuan).
+    // Jika pinjaman sudah punya tanggal approve tersimpan, pakai itu agar jadwal tidak bergeser saat diedit.
+    $tanggal_approval_hrd = $tanggal_pengajuan;
+    $chk_col = mysqli_query($conn, "SHOW COLUMNS FROM pinjaman LIKE 'tanggal_approval_hrd'");
+    if ($chk_col && mysqli_num_rows($chk_col) > 0) {
+        $id_esc = mysqli_real_escape_string($conn, $id_pinjaman);
+        $r_app = mysqli_fetch_assoc(mysqli_query($conn, "SELECT tanggal_approval_hrd FROM pinjaman WHERE id_pinjaman = '$id_esc'"));
+        if (!empty($r_app['tanggal_approval_hrd'])) {
+            $tanggal_approval_hrd = $r_app['tanggal_approval_hrd'];
+        }
     }
+    // tanggal 1-15 -> potong tanggal 26 bulan berjalan, tanggal 16-31 -> tanggal 26 bulan berikutnya
+    $tgl_approve_obj = new DateTime($tanggal_approval_hrd);
+    if ((int)$tgl_approve_obj->format('d') > 15) {
+        $tgl_approve_obj->modify('first day of next month');
+    }
+    $tanggal_potong_pertama = $tgl_approve_obj->format('Y-m') . '-26';
     
     // Hitung tanggal lunas (tanggal 26 di bulan tenor terakhir)
     $tgl_lunas_obj = new DateTime($tanggal_potong_pertama);
