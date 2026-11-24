@@ -24,9 +24,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Hitung cicilan per bulan
     $cicilan = $jumlah_pinjaman / $tenor;
 
-    // Dasar jadwal potongan = tanggal approve HRD (bukan tanggal pengajuan).
-    // Jika pinjaman sudah punya tanggal approve tersimpan atau diinput di form, pakai itu.
-    $tanggal_approval_hrd = $tanggal_pengajuan;
+    // Dasar jadwal potongan:
+    // Jika ada tanggal approve HRD (diinput di form atau tersimpan sebelumnya), gunakan itu.
+    // Jika belum ada (data lama), gunakan tanggal_pengajuan sebagai acuan cutoff.
+    $tanggal_approval_hrd = null;
     if (isset($_POST['tanggal_approval_hrd']) && !empty($_POST['tanggal_approval_hrd'])) {
         $tanggal_approval_hrd = $_POST['tanggal_approval_hrd'];
     } else {
@@ -39,22 +40,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
     }
+
+    $base_date = !empty($tanggal_approval_hrd) ? $tanggal_approval_hrd : $tanggal_pengajuan;
     // tanggal 1-15 -> potong tanggal 26 bulan berjalan, tanggal 16-31 -> tanggal 26 bulan berikutnya
-    $tgl_approve_obj = new DateTime($tanggal_approval_hrd);
-    if ((int)$tgl_approve_obj->format('d') > 15) {
-        $tgl_approve_obj->modify('first day of next month');
+    $tgl_obj = new DateTime($base_date);
+    if ((int)$tgl_obj->format('d') > 15) {
+        $tgl_obj->modify('first day of next month');
     }
-    $tanggal_potong_pertama = $tgl_approve_obj->format('Y-m') . '-26';
+    $tanggal_potong_pertama = $tgl_obj->format('Y-m') . '-26';
     
     // Hitung tanggal lunas (tanggal 26 di bulan tenor terakhir)
     $tgl_lunas_obj = new DateTime($tanggal_potong_pertama);
     $tgl_lunas_obj->modify('+' . ($tenor - 1) . ' months');
     $tanggal_lunas = $tgl_lunas_obj->format('Y-m-d');
 
+    $val_tgl_approve = !empty($tanggal_approval_hrd) ? "'$tanggal_approval_hrd'" : "NULL";
+
     // Update data pinjaman
     $sql = "UPDATE pinjaman SET 
                 tanggal_pengajuan = '$tanggal_pengajuan',
-                tanggal_approval_hrd = '$tanggal_approval_hrd',
+                tanggal_approval_hrd = $val_tgl_approve,
                 jumlah_pinjaman = '$jumlah_pinjaman',
                 tenor = '$tenor',
                 cicilan_per_bulan = '$cicilan',
