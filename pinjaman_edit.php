@@ -128,6 +128,13 @@ function hanyaAngka(evt) {
 							</div>
 
 							<div class="form-group">
+								<label class="control-label col-sm-3">Tanggal Approval HRD</label>
+								<div class="col-sm-4">
+									<input type="date" name="tanggal_approval_hrd" class="form-control" value="<?= $data['tanggal_approval_hrd'] ?>">
+								</div>
+							</div>
+
+							<div class="form-group">
 								<label class="control-label col-sm-3">Jumlah Pinjaman</label>
 								<div class="col-sm-4">
 									<input type="text" id="jumlah_pinjaman" name="jumlah_pinjaman" class="form-control" placeholder="Masukkan jumlah pinjaman" required value="<?= number_format($data['jumlah_pinjaman'], 0, ',', '.') ?>" onkeyup="this.value = formatRupiah(this.value); hitungCicilan();" onkeypress="return hanyaAngka(event)">

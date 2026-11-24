@@ -25,14 +25,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $cicilan = $jumlah_pinjaman / $tenor;
 
     // Dasar jadwal potongan = tanggal approve HRD (bukan tanggal pengajuan).
-    // Jika pinjaman sudah punya tanggal approve tersimpan, pakai itu agar jadwal tidak bergeser saat diedit.
+    // Jika pinjaman sudah punya tanggal approve tersimpan atau diinput di form, pakai itu.
     $tanggal_approval_hrd = $tanggal_pengajuan;
-    $chk_col = mysqli_query($conn, "SHOW COLUMNS FROM pinjaman LIKE 'tanggal_approval_hrd'");
-    if ($chk_col && mysqli_num_rows($chk_col) > 0) {
-        $id_esc = mysqli_real_escape_string($conn, $id_pinjaman);
-        $r_app = mysqli_fetch_assoc(mysqli_query($conn, "SELECT tanggal_approval_hrd FROM pinjaman WHERE id_pinjaman = '$id_esc'"));
-        if (!empty($r_app['tanggal_approval_hrd'])) {
-            $tanggal_approval_hrd = $r_app['tanggal_approval_hrd'];
+    if (isset($_POST['tanggal_approval_hrd']) && !empty($_POST['tanggal_approval_hrd'])) {
+        $tanggal_approval_hrd = $_POST['tanggal_approval_hrd'];
+    } else {
+        $chk_col = mysqli_query($conn, "SHOW COLUMNS FROM pinjaman LIKE 'tanggal_approval_hrd'");
+        if ($chk_col && mysqli_num_rows($chk_col) > 0) {
+            $id_esc = mysqli_real_escape_string($conn, $id_pinjaman);
+            $r_app = mysqli_fetch_assoc(mysqli_query($conn, "SELECT tanggal_approval_hrd FROM pinjaman WHERE id_pinjaman = '$id_esc'"));
+            if (!empty($r_app['tanggal_approval_hrd'])) {
+                $tanggal_approval_hrd = $r_app['tanggal_approval_hrd'];
+            }
         }
     }
     // tanggal 1-15 -> potong tanggal 26 bulan berjalan, tanggal 16-31 -> tanggal 26 bulan berikutnya
@@ -50,6 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Update data pinjaman
     $sql = "UPDATE pinjaman SET 
                 tanggal_pengajuan = '$tanggal_pengajuan',
+                tanggal_approval_hrd = '$tanggal_approval_hrd',
                 jumlah_pinjaman = '$jumlah_pinjaman',
                 tenor = '$tenor',
                 cicilan_per_bulan = '$cicilan',
