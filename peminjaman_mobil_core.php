@@ -44,6 +44,11 @@ if (isset($conn)) {
         $checkCol = mysqli_query($conn, "SHOW COLUMNS FROM peminjaman_mobil LIKE '$colname'");
         if (mysqli_num_rows($checkCol) == 0) {
             mysqli_query($conn, "ALTER TABLE peminjaman_mobil ADD COLUMN $col");
+        } elseif ($colname === 'km_awal' || $colname === 'bensin_awal') {
+            $colData = mysqli_fetch_assoc($checkCol);
+            if (isset($colData['Null']) && $colData['Null'] === 'NO') {
+                @mysqli_query($conn, "ALTER TABLE peminjaman_mobil MODIFY km_awal INT NULL DEFAULT NULL, MODIFY bensin_awal INT NULL DEFAULT NULL");
+            }
         }
     }
 }
