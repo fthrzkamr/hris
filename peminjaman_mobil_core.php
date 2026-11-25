@@ -328,8 +328,8 @@ if (isset($_POST['action_selesai']) && $_POST['action_selesai'] == 'selesai') {
         } elseif ($sp_data['status'] !== 'Disetujui') {
             $message = "Hanya peminjaman yang sudah disetujui yang bisa dilaporkan selesai.";
             $message_type = "danger";
-        } elseif (empty($sp_km_akhir) || $sp_bensin_akhir === '') {
-            $message = "Kilometer akhir dan bensin akhir wajib diisi!";
+        } elseif (empty($sp_km_akhir) || $sp_bensin_akhir === '' || empty($final_km_awal)) {
+            $message = "Kilometer awal, kilometer akhir, dan bensin akhir wajib diisi!";
             $message_type = "danger";
         } elseif ($final_km_awal !== null && $final_km_awal > 0 && $sp_km_akhir < $final_km_awal) {
             $message = "Kilometer akhir tidak boleh lebih kecil dari kilometer awal (" . number_format($final_km_awal, 0, ',', '.') . " KM).";
@@ -343,36 +343,6 @@ if (isset($_POST['action_selesai']) && $_POST['action_selesai'] == 'selesai') {
     }
 }
 
-// ---------- UPDATE KM AWAL & BENSIN AWAL SETELAH DISETUJUI ----------
-if (isset($_POST['action_update_km_awal']) && $_POST['action_update_km_awal'] == 'update_km_awal') {
-    $uk_booking_id   = mysqli_real_escape_string($conn, $_POST['booking_id']);
-    $uk_km_awal      = (isset($_POST['km_awal']) && $_POST['km_awal'] !== '') ? intval($_POST['km_awal']) : "NULL";
-    $uk_bensin_awal  = (isset($_POST['bensin_awal']) && $_POST['bensin_awal'] !== '') ? intval($_POST['bensin_awal']) : "NULL";
-
-    $q_uk = mysqli_query($conn, "SELECT * FROM peminjaman_mobil WHERE id='$uk_booking_id'");
-    if (mysqli_num_rows($q_uk) == 0) {
-        $message = "Data peminjaman tidak ditemukan.";
-        $message_type = "danger";
-    } else {
-        $uk_data = mysqli_fetch_assoc($q_uk);
-        if (!$is_approver && $uk_data['npp'] !== $active_npp) {
-            $message = "Anda tidak memiliki akses untuk mengubah data ini.";
-            $message_type = "danger";
-        } elseif ($uk_data['status'] !== 'Disetujui' && $uk_data['status'] !== 'Menunggu') {
-            $message = "KM awal hanya dapat diubah pada pengajuan yang berstatus Menunggu atau Disetujui.";
-            $message_type = "danger";
-        } elseif (!empty($uk_data['km_akhir']) && $uk_km_awal !== "NULL" && $uk_km_awal > $uk_data['km_akhir']) {
-            $message = "KM awal tidak boleh lebih besar dari KM akhir yang sudah dilaporkan (" . number_format($uk_data['km_akhir'], 0, ',', '.') . " KM).";
-            $message_type = "danger";
-        } else {
-            $sql_km = ($uk_km_awal !== "NULL") ? "km_awal=$uk_km_awal" : "km_awal=NULL";
-            $sql_bensin = ($uk_bensin_awal !== "NULL") ? "bensin_awal=$uk_bensin_awal" : "bensin_awal=NULL";
-            mysqli_query($conn, "UPDATE peminjaman_mobil SET $sql_km, $sql_bensin WHERE id='$uk_booking_id'");
-            $message = "Kilometer awal & bensin awal berhasil diperbarui!";
-            $message_type = "success";
-        }
-    }
-}
 
 // ---------- MASTER MOBIL LOGIC ----------
 if ($is_approver && isset($_POST['action_master']) && $_POST['action_master'] == 'update_status') {
@@ -1018,15 +988,15 @@ $pagedesc = "Peminjaman Mobil";
     color: #ff3b30;
 }
 /* Fuel Bar Custom Styles */
-.bensin-bar-segment.active-low, .edit-bensin-bar-segment.active-low, .selesai-bensin-bar-segment.active-low, .update-bensin-bar-segment.active-low {
+.bensin-bar-segment.active-low, .edit-bensin-bar-segment.active-low, .selesai-bensin-bar-segment.active-low {
     background-color: #ff3b30 !important;
     box-shadow: 0 0 6px rgba(255, 59, 48, 0.4);
 }
-.bensin-bar-segment.active-mid, .edit-bensin-bar-segment.active-mid, .selesai-bensin-bar-segment.active-mid, .update-bensin-bar-segment.active-mid {
+.bensin-bar-segment.active-mid, .edit-bensin-bar-segment.active-mid, .selesai-bensin-bar-segment.active-mid {
     background-color: #ff9500 !important;
     box-shadow: 0 0 6px rgba(255, 149, 0, 0.4);
 }
-.bensin-bar-segment.active-high, .edit-bensin-bar-segment.active-high, .selesai-bensin-bar-segment.active-high, .update-bensin-bar-segment.active-high {
+.bensin-bar-segment.active-high, .edit-bensin-bar-segment.active-high, .selesai-bensin-bar-segment.active-high {
     background-color: #34c759 !important;
     box-shadow: 0 0 6px rgba(52, 199, 89, 0.4);
 }
@@ -1461,8 +1431,7 @@ $pagedesc = "Peminjaman Mobil";
                                                                     <button type="submit" class="btn btn-primary btn-xs" style="padding: 4px 8px; font-size: 11px; white-space: nowrap;" onclick="return confirm('Lakukan pergantian mobil untuk pengajuan ini?')"><i class="fa fa-exchange"></i> Ganti</button>
                                                                 </div>
                                                             </form>
-                                                            <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
-                                                                <button type="button" class="btn btn-primary btn-xs" style="border-radius: 4px; padding: 3px 8px; font-size: 11px;" onclick="openUpdateKmModal('<?php echo $pending['id']; ?>', '<?php echo $pending['km_awal'] ?? ''; ?>', '<?php echo $pending['bensin_awal'] ?? ''; ?>', '<?php echo htmlspecialchars($pending['mobil'], ENT_QUOTES, 'UTF-8'); ?>')"><i class="fa fa-tachometer"></i> Edit KM Awal</button>
+                                                            <div style="display: flex; gap: 4px; justify-content: center;">
                                                                 <button type="button" class="btn btn-info btn-xs" style="border-radius: 4px; padding: 3px 8px; font-size: 11px;" onclick="openEditModal(<?php echo htmlspecialchars(json_encode($pending), ENT_QUOTES, 'UTF-8'); ?>)"><i class="fa fa-pencil"></i> Edit</button>
                                                                 <button type="button" class="btn btn-danger btn-xs" style="border-radius: 4px; padding: 3px 8px; font-size: 11px;" onclick="openCancelModal('<?php echo $pending['id']; ?>')"><i class="fa fa-ban"></i> Batalkan</button>
                                                             </div>
@@ -1572,14 +1541,9 @@ $pagedesc = "Peminjaman Mobil";
                                                         </div>
                                                     <?php elseif ($my['status'] == 'Disetujui'): ?>
                                                         <?php if (empty($my['km_akhir'])): ?>
-                                                            <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
-                                                                <button type="button" class="btn btn-primary btn-xs" style="border-radius: 4px;" onclick="openUpdateKmModal('<?php echo $my['id']; ?>', '<?php echo $my['km_awal'] ?? ''; ?>', '<?php echo $my['bensin_awal'] ?? ''; ?>', '<?php echo htmlspecialchars($my['mobil'], ENT_QUOTES, 'UTF-8'); ?>')">
-                                                                    <i class="fa fa-tachometer"></i> Edit KM Awal
-                                                                </button>
-                                                                <button type="button" class="btn btn-success btn-xs" style="border-radius: 4px;" onclick="openSelesaiModal('<?php echo $my['id']; ?>', '<?php echo $my['km_awal']; ?>')">
-                                                                    <i class="fa fa-flag-checkered"></i> Selesai Pakai
-                                                                </button>
-                                                            </div>
+                                                            <button type="button" class="btn btn-success btn-xs" style="border-radius: 4px;" onclick="openSelesaiModal('<?php echo $my['id']; ?>', '<?php echo $my['km_awal']; ?>')">
+                                                                <i class="fa fa-flag-checkered"></i> Selesai Pakai
+                                                            </button>
                                                         <?php else: ?>
                                                             <span class="label label-success" style="font-size: 11px; padding: 5px 10px; display: inline-block;"><i class="fa fa-check"></i> Sudah Lapor</span>
                                                         <?php endif; ?>
@@ -1903,8 +1867,8 @@ $pagedesc = "Peminjaman Mobil";
                         <i class="fa fa-info-circle"></i> Isi kondisi mobil saat dikembalikan supaya tercatat jarak tempuh & bensin yang terpakai.
                     </div>
                     <div class="ios-form-group">
-                        <label class="ios-form-label">Kilometer Awal <small class="text-muted">(Bisa disesuaikan jika ada selisih)</small></label>
-                        <input type="number" class="ios-input" name="km_awal" id="selesai_km_awal_input" min="0" placeholder="Masukkan kilometer awal..." oninput="updateSelesaiMinKm()">
+                        <label class="ios-form-label">Kilometer Awal <span class="text-danger">*</span></label>
+                        <input type="number" class="ios-input" name="km_awal" id="selesai_km_awal_input" min="0" placeholder="Masukkan kilometer awal pada dashboard..." oninput="updateSelesaiMinKm()" required>
                     </div>
                     <div class="ios-form-group">
                         <label class="ios-form-label">Kilometer Akhir <span class="text-danger">*</span></label>
@@ -1928,59 +1892,6 @@ $pagedesc = "Peminjaman Mobil";
                 <div class="modal-footer" style="border-top: 1px solid #f2f2f7; padding: 15px 20px; background: #f8f8fa; display: flex; gap: 10px; justify-content: flex-end;">
                     <button type="button" class="ios-btn-secondary" data-dismiss="modal">Tutup</button>
                     <button type="submit" class="ios-btn-primary" style="background: #34c759; box-shadow: 0 4px 12px rgba(52, 199, 89, 0.2);"><i class="fa fa-check"></i> Simpan Laporan</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Modal: Update KM Awal & Bensin Awal (Setelah Disetujui) -->
-<div class="modal fade" id="updateKmModal" tabindex="-1" role="dialog" aria-labelledby="updateKmModalLabel" aria-hidden="true" style="font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
-    <div class="modal-dialog" role="document" style="max-width: 450px;">
-        <div class="modal-content" style="border-radius: 20px; border: none; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
-            <div class="modal-header ios-modal-header" style="background: white; border-bottom: 1px solid #f2f2f7; padding: 20px;">
-                <h4 class="modal-title ios-modal-title" id="updateKmModalLabel" style="color: #007aff;"><i class="fa fa-tachometer"></i> &nbsp;Edit Kilometer Awal</h4>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="font-size: 24px; font-weight: 300; opacity: 0.5;">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <form method="post">
-                <div class="modal-body" style="padding: 20px;">
-                    <input type="hidden" name="booking_id" id="update_km_booking_id">
-                    <input type="hidden" name="action_update_km_awal" value="update_km_awal">
-                    
-                    <div style="background: #f0f7ff; border: 1px solid #007aff; border-radius: 10px; padding: 12px; margin-bottom: 15px; font-size: 12px; color: #0056b3;">
-                        <i class="fa fa-info-circle"></i> Perbarui data KM & bensin saat mobil mulai digunakan sebelum melapor selesai pakai.
-                    </div>
-                    
-                    <div class="ios-form-group">
-                        <label class="ios-form-label">Mobil</label>
-                        <input type="text" class="ios-input" id="update_km_mobil_display" readonly style="background:#f2f2f7;">
-                    </div>
-
-                    <div class="ios-form-group">
-                        <label class="ios-form-label">Kilometer Awal <span class="text-danger">*</span></label>
-                        <input type="number" class="ios-input" name="km_awal" id="update_km_awal_input" placeholder="Masukkan kilometer awal mobil..." min="0" required>
-                    </div>
-
-                    <div class="ios-form-group">
-                        <label class="ios-form-label">Bar Bensin Awal</label>
-                        <div style="display: flex; gap: 4px; align-items: center; background: #f2f2f7; padding: 12px; border-radius: 12px; border: 1px solid #e5e5ea;">
-                            <input type="hidden" name="bensin_awal" id="update_bensin_awal">
-                            <span style="font-size: 13px; font-weight: bold; color: #ff3b30; width: 20px; text-align: center;">E</span>
-                            <div style="display: flex; flex: 1; gap: 4px;" id="updateBensinBarContainer">
-                                <?php for ($b = 1; $b <= 8; $b++): ?>
-                                    <div class="update-bensin-bar-segment" data-val="<?php echo $b; ?>" style="height: 24px; flex: 1; background: #c7c7cc; border-radius: 4px; cursor: pointer; transition: all 0.2s;"></div>
-                                <?php endfor; ?>
-                            </div>
-                            <span style="font-size: 13px; font-weight: bold; color: #34c759; width: 20px; text-align: center;">F</span>
-                        </div>
-                        <div style="font-size: 12px; color: #8e8e93; margin-top: 5px; text-align: center;" id="updateBensinLabel">Silakan klik bar di atas (1 s/d 8 Bar)</div>
-                    </div>
-                </div>
-                <div class="modal-footer" style="border-top: 1px solid #f2f2f7; padding: 15px 20px; background: #f8f8fa; display: flex; gap: 10px; justify-content: flex-end;">
-                    <button type="button" class="ios-btn-secondary" data-dismiss="modal">Batal</button>
-                    <button type="submit" class="ios-btn-primary" style="background: #007aff;"><i class="fa fa-save"></i> Simpan KM Awal</button>
                 </div>
             </form>
         </div>
@@ -2360,37 +2271,6 @@ function updateSelesaiMinKm() {
     document.getElementById("selesai_km_akhir").min = val || 0;
 }
 
-function openUpdateKmModal(bookingId, kmAwal, bensinAwal, mobilName) {
-    document.getElementById("update_km_booking_id").value = bookingId;
-    document.getElementById("update_km_mobil_display").value = mobilName || '-';
-    var kmVal = (kmAwal && kmAwal !== 'null' && kmAwal !== '0') ? kmAwal : '';
-    document.getElementById("update_km_awal_input").value = kmVal;
-    setUpdateFuelBar(bensinAwal);
-    $('#updateKmModal').modal('show');
-}
-
-function setUpdateFuelBar(val) {
-    val = parseInt(val) || 0;
-    $('#update_bensin_awal').val(val > 0 ? val : '');
-    let colorClass = 'active-high';
-    if (val <= 2) {
-        colorClass = 'active-low';
-    } else if (val <= 5) {
-        colorClass = 'active-mid';
-    }
-    $('.update-bensin-bar-segment').each(function() {
-        const segVal = parseInt($(this).data('val'));
-        $(this).removeClass('active-low active-mid active-high');
-        if (segVal <= val) {
-            $(this).addClass(colorClass);
-        }
-    });
-    if (val > 0) {
-        $('#updateBensinLabel').html(`<strong>Bensin terpilih: ${val} Bar</strong>`);
-    } else {
-        $('#updateBensinLabel').text('Silakan klik bar di atas (1 s/d 8 Bar)');
-    }
-}
 
 function setSelesaiFuelBar(val) {
     val = parseInt(val) || 0;
@@ -2925,11 +2805,6 @@ $(document).ready(function() {
     $('.selesai-bensin-bar-segment').on('click', function() {
         const val = parseInt($(this).data('val'));
         setSelesaiFuelBar(val);
-    });
-
-    $('.update-bensin-bar-segment').on('click', function() {
-        const val = parseInt($(this).data('val'));
-        setUpdateFuelBar(val);
     });
 });
 </script>
